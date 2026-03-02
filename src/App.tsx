@@ -13,6 +13,11 @@ import ResetPassword from "./pages/ResetPassword";
 import AccessDenied from "./pages/AccessDenied";
 import Dashboard from "./pages/Dashboard";
 import Account from "./pages/Account";
+import Instances from "./pages/Instances";
+import InstanceDetail from "./pages/InstanceDetail";
+import Greetings from "./pages/Greetings";
+import Absence from "./pages/Absence";
+import StatusPage from "./pages/Status";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound";
 
@@ -42,10 +47,11 @@ const App = () => (
 
               {/* Operational */}
               <Route path="/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
-              <Route path="/instances" element={<ProtectedPage module="instances"><Placeholder /></ProtectedPage>} />
-              <Route path="/greetings" element={<ProtectedPage module="greetings"><Placeholder /></ProtectedPage>} />
-              <Route path="/absence" element={<ProtectedPage module="absence"><Placeholder /></ProtectedPage>} />
-              <Route path="/status" element={<ProtectedPage module="status"><Placeholder /></ProtectedPage>} />
+              <Route path="/instances" element={<ProtectedPage module="instances"><Instances /></ProtectedPage>} />
+              <Route path="/instances/:id" element={<ProtectedPage module="instances"><InstanceDetail /></ProtectedPage>} />
+              <Route path="/greetings" element={<ProtectedPage module="greetings"><Greetings /></ProtectedPage>} />
+              <Route path="/absence" element={<ProtectedPage module="absence"><Absence /></ProtectedPage>} />
+              <Route path="/status" element={<ProtectedPage module="status"><StatusPage /></ProtectedPage>} />
               <Route path="/chatbot-keys" element={<ProtectedPage module="chatbot_keys"><Placeholder /></ProtectedPage>} />
               <Route path="/workflow" element={<ProtectedPage module="workflow"><Placeholder /></ProtectedPage>} />
               <Route path="/ai-agents" element={<ProtectedPage module="ai_agents"><Placeholder /></ProtectedPage>} />
