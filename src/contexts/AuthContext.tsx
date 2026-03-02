@@ -57,7 +57,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', userId)
           .single();
         setForcePasswordChange(profileData?.force_password_change ?? false);
-        setUserRole(roleData as UserRoleData);
 
         // Fetch company if not super_admin
         if (roleData.company_id) {
@@ -116,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermission = (module: string, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
     if (isSuperAdmin) return true;
-    if (isAdmin) return true; // Admin has all permissions for their company
+    if (isAdmin) return true;
     if (isReadOnly && action !== 'view') return false;
 
     const perm = permissions.find(p => p.module === module);
@@ -140,36 +139,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCompany(null);
     setPermissions([]);
     setIsReadOnly(false);
+    setForcePasswordChange(false);
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!isMounted) return;
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          setTimeout(() => fetchUserData(session.user.id), 0);
+          // IMPORTANT: await fetchUserData before setting loading to false
+          await fetchUserData(session.user.id);
         } else {
           setRole(null);
           setUserRole(null);
           setCompany(null);
           setPermissions([]);
+          setForcePasswordChange(false);
         }
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserData(session.user.id);
+        await fetchUserData(session.user.id);
       }
-      setLoading(false);
+      if (isMounted) setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
