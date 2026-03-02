@@ -114,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasPermission = (module: string, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
+    // Super Admin e Admin têm bypass total — nunca devem cair em "Acesso Negado"
     if (isSuperAdmin) return true;
     if (isAdmin) return true;
     if (isReadOnly && action !== 'view') return false;
