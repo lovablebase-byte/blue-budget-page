@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { MessageSquare, Loader2 } from 'lucide-react';
+import { MessageSquare, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function Auth() {
   const { user, loading } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -34,7 +34,14 @@ export default function Auth() {
     setSubmitting(true);
 
     try {
-      if (isLogin) {
+      if (mode === 'forgot') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        toast.success('E-mail de redefinição enviado! Verifique sua caixa de entrada.');
+        setMode('login');
+      } else if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success('Login realizado com sucesso!');
@@ -66,60 +73,57 @@ export default function Auth() {
           </div>
           <CardTitle className="text-2xl">WhatsApp Manager</CardTitle>
           <CardDescription>
-            {isLogin ? 'Entre na sua conta' : 'Crie uma nova conta'}
+            {mode === 'login' && 'Entre na sua conta'}
+            {mode === 'signup' && 'Crie uma nova conta'}
+            {mode === 'forgot' && 'Recupere sua senha'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+            {mode === 'signup' && (
               <div className="space-y-2">
                 <Label htmlFor="name">Nome completo</Label>
-                <Input
-                  id="name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Seu nome"
-                  required={!isLogin}
-                />
+                <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Seu nome" required />
               </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                required
-              />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
-            </div>
+            {mode !== 'forgot' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Senha</Label>
+                  {mode === 'login' && (
+                    <button type="button" onClick={() => setMode('forgot')} className="text-xs text-primary hover:underline">
+                      Esqueceu a senha?
+                    </button>
+                  )}
+                </div>
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? 'Entrar' : 'Criar conta'}
+              {mode === 'login' && 'Entrar no painel'}
+              {mode === 'signup' && 'Criar conta'}
+              {mode === 'forgot' && 'Enviar e-mail de recuperação'}
             </Button>
           </form>
+
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            {isLogin ? 'Não tem conta?' : 'Já tem conta?'}{' '}
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline font-medium"
-            >
-              {isLogin ? 'Criar conta' : 'Fazer login'}
-            </button>
+            {mode === 'forgot' ? (
+              <button type="button" onClick={() => setMode('login')} className="text-primary hover:underline font-medium inline-flex items-center gap-1">
+                <ArrowLeft className="h-3 w-3" /> Voltar ao login
+              </button>
+            ) : (
+              <>
+                {mode === 'login' ? 'Não tem conta?' : 'Já tem conta?'}{' '}
+                <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="text-primary hover:underline font-medium">
+                  {mode === 'login' ? 'Criar conta' : 'Fazer login'}
+                </button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

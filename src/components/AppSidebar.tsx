@@ -1,7 +1,7 @@
 import { 
   LayoutDashboard, Smartphone, MessageCircle, Clock, 
   Radio, Key, GitBranch, Bot, Megaphone, Settings,
-  Building2, CreditCard, Receipt, Users, Shield,
+  Building2, CreditCard, Receipt, Users, Shield, User,
   Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -157,27 +157,33 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* User-only settings */}
-        {role === 'user' && (
-          <>
-            <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>Pessoal</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive('/profile')}>
-                      <NavLink to="/profile" end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
-                        <Settings className="h-4 w-4" />
-                        {!collapsed && <span>Meu Perfil</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
+        {/* Personal section - always visible */}
+        <SidebarSeparator />
+        <SidebarGroup>
+          <SidebarGroupLabel>Pessoal</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {role === 'user' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/profile')}>
+                    <NavLink to="/profile" end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                      <Settings className="h-4 w-4" />
+                      {!collapsed && <span>Meu Perfil</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/account')}>
+                  <NavLink to="/account" end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                    <User className="h-4 w-4" />
+                    {!collapsed && <span>Minha Conta</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>
