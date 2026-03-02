@@ -25,6 +25,15 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     return <Navigate to="/auth" replace />;
   }
 
+  // 1b. User exists but role not yet loaded → keep showing spinner
+  if (role === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   // 2. Force password change takes absolute priority
   if (forcePasswordChange && location.pathname !== '/force-password-change') {
     return <Navigate to="/force-password-change" replace />;
