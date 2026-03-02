@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole, UserRoleData, CompanyData, ModulePermission } from '@/types/roles';
@@ -32,11 +32,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
+
+  const isMountedRef = useRef(true);
 
   const isSuperAdmin = role === 'super_admin';
   const isAdmin = role === 'admin';
 
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = useCallback(async (userId: string) => {
     try {
       // Fetch user role
       const { data: roleData } = await supabase
@@ -45,6 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('user_id', userId)
         .limit(1)
         .single();
+
+      if (!isMountedRef.current) return;
 
       if (roleData) {
         setRole(roleData.role as AppRole);
@@ -56,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .select('force_password_change')
           .eq('user_id', userId)
           .single();
+        if (!isMountedRef.current) return;
         setForcePasswordChange(profileData?.force_password_change ?? false);
 
         // Fetch company if not super_admin
@@ -66,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', roleData.company_id)
             .single();
           
+          if (!isMountedRef.current) return;
           if (companyData) {
             setCompany(companyData as CompanyData);
           }
@@ -77,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('company_id', roleData.company_id)
             .single();
           
+          if (!isMountedRef.current) return;
           if (subData && (subData.status === 'past_due' || subData.status === 'canceled')) {
             setIsReadOnly(true);
           }
@@ -89,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select('*, modules(name)')
             .eq('user_role_id', roleData.id);
 
+          if (!isMountedRef.current) return;
           if (permsData) {
             const mapped: ModulePermission[] = permsData.map((p: any) => ({
               module: p.modules?.name,
@@ -104,17 +113,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.error('Error fetching user data:', err);
+    } finally {
+      if (isMountedRef.current) {
+        setUserDataLoaded(true);
+      }
     }
-  };
+  }, []);
 
   const refreshAuth = async () => {
     if (user) {
+      setUserDataLoaded(false);
       await fetchUserData(user.id);
     }
   };
 
   const hasPermission = (module: string, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
-    // Super Admin e Admin têm bypass total — nunca devem cair em "Acesso Negado"
     if (isSuperAdmin) return true;
     if (isAdmin) return true;
     if (isReadOnly && action !== 'view') return false;
@@ -141,46 +154,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissions([]);
     setIsReadOnly(false);
     setForcePasswordChange(false);
+    setUserDataLoaded(false);
   };
 
+  // Effect 1: Listen to auth state changes (NO async Supabase calls here)
   useEffect(() => {
-    let isMounted = true;
+    isMountedRef.current = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!isMounted) return;
+      (_event, session) => {
+        if (!isMountedRef.current) return;
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user) {
-          // IMPORTANT: await fetchUserData before setting loading to false
-          await fetchUserData(session.user.id);
-        } else {
+        if (!session?.user) {
           setRole(null);
           setUserRole(null);
           setCompany(null);
           setPermissions([]);
           setForcePasswordChange(false);
+          setUserDataLoaded(false);
+          setLoading(false);
         }
-        if (isMounted) setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return;
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMountedRef.current) return;
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserData(session.user.id);
+      if (!session?.user) {
+        setLoading(false);
       }
-      if (isMounted) setLoading(false);
     });
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
       subscription.unsubscribe();
     };
   }, []);
+
+  // Effect 2: Fetch user data AFTER user is set (separate from auth listener)
+  useEffect(() => {
+    if (user) {
+      setUserDataLoaded(false);
+      fetchUserData(user.id);
+    }
+  }, [user?.id, fetchUserData]);
+
+  // Effect 3: Only set loading=false when user data is loaded
+  useEffect(() => {
+    if (user && userDataLoaded) {
+      setLoading(false);
+    }
+  }, [user, userDataLoaded]);
 
   return (
     <AuthContext.Provider

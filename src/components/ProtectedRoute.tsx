@@ -25,17 +25,26 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     return <Navigate to="/auth" replace />;
   }
 
-  // 2. Force password change takes absolute priority over RBAC
-  if (forcePasswordChange) {
+  // 2. Force password change takes absolute priority
+  if (forcePasswordChange && location.pathname !== '/force-password-change') {
     return <Navigate to="/force-password-change" replace />;
   }
 
-  // 3. Role check
+  // 3. Super Admin and Admin bypass ALL module permission checks
+  if (role === 'super_admin' || role === 'admin') {
+    // Only enforce requiredRole (e.g. super_admin-only pages)
+    if (requiredRole && !requiredRole.includes(role)) {
+      return <Navigate to="/access-denied" replace state={{ requiredRole, userRole: role, module: requiredModule }} />;
+    }
+    return <>{children}</>;
+  }
+
+  // 4. Role check for regular users
   if (requiredRole && role && !requiredRole.includes(role)) {
     return <Navigate to="/access-denied" replace state={{ requiredRole, userRole: role, module: requiredModule }} />;
   }
 
-  // 4. Module permission check
+  // 5. Module permission check for regular users
   if (requiredModule && !hasPermission(requiredModule, requiredAction)) {
     return <Navigate to="/access-denied" replace state={{ module: requiredModule, action: requiredAction, userRole: role }} />;
   }
