@@ -33,7 +33,8 @@ import AdminGateways from "./pages/admin/Gateways";
 import AdminReports from "./pages/admin/Reports";
 import AdminHealth from "./pages/admin/Health";
 import AdminWebhooks from "./pages/admin/Webhooks";
-import Placeholder from "./pages/Placeholder";
+import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,10 +77,10 @@ const App = () => (
               <Route path="/subscription" element={<ProtectedPage role={['admin', 'super_admin']}><Subscription /></ProtectedPage>} />
               <Route path="/invoices" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyInvoices /></ProtectedPage>} />
               <Route path="/users" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyUsers /></ProtectedPage>} />
-              <Route path="/settings" element={<ProtectedPage module="settings"><Placeholder /></ProtectedPage>} />
+              <Route path="/settings" element={<ProtectedPage module="settings"><Settings /></ProtectedPage>} />
 
               {/* Personal */}
-              <Route path="/profile" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
+              <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
               <Route path="/account" element={<ProtectedPage><Account /></ProtectedPage>} />
 
               {/* Super Admin */}
