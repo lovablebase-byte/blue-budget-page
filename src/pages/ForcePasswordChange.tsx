@@ -10,8 +10,10 @@ import { toast } from 'sonner';
 import { ShieldAlert, Loader2 } from 'lucide-react';
 
 export default function ForcePasswordChange() {
-  const { user, refreshAuth } = useAuth();
+  const auth = useAuth();
   const navigate = useNavigate();
+  const user = auth?.user;
+  const refreshAuth = auth?.refreshAuth;
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
