@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
   const { user, loading, role, hasPermission, forcePasswordChange } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -19,20 +20,24 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     );
   }
 
+  // 1. Not authenticated → login
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
+  // 2. Force password change takes absolute priority over RBAC
   if (forcePasswordChange) {
     return <Navigate to="/force-password-change" replace />;
   }
 
+  // 3. Role check
   if (requiredRole && role && !requiredRole.includes(role)) {
-    return <Navigate to="/access-denied" replace />;
+    return <Navigate to="/access-denied" replace state={{ requiredRole, userRole: role, module: requiredModule }} />;
   }
 
+  // 4. Module permission check
   if (requiredModule && !hasPermission(requiredModule, requiredAction)) {
-    return <Navigate to="/access-denied" replace />;
+    return <Navigate to="/access-denied" replace state={{ module: requiredModule, action: requiredAction, userRole: role }} />;
   }
 
   return <>{children}</>;
