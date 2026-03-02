@@ -14,6 +14,7 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   isAdmin: boolean;
   isReadOnly: boolean;
+  forcePasswordChange: boolean;
   hasPermission: (module: string, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
   const isSuperAdmin = role === 'super_admin';
   const isAdmin = role === 'admin';
@@ -46,6 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (roleData) {
         setRole(roleData.role as AppRole);
+        setUserRole(roleData as UserRoleData);
+
+        // Check force password change
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('force_password_change')
+          .eq('user_id', userId)
+          .single();
+        setForcePasswordChange(profileData?.force_password_change ?? false);
         setUserRole(roleData as UserRoleData);
 
         // Fetch company if not super_admin
@@ -165,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user, session, loading, role, userRole, company,
-        permissions, isSuperAdmin, isAdmin, isReadOnly,
+        permissions, isSuperAdmin, isAdmin, isReadOnly, forcePasswordChange,
         hasPermission, signOut, refreshAuth,
       }}
     >
