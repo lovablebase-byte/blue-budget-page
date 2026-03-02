@@ -658,6 +658,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          force_password_change: boolean
           full_name: string | null
           id: string
           referral_code: string | null
@@ -668,6 +669,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          force_password_change?: boolean
           full_name?: string | null
           id?: string
           referral_code?: string | null
@@ -678,6 +680,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          force_password_change?: boolean
           full_name?: string | null
           id?: string
           referral_code?: string | null
