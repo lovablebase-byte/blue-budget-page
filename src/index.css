@@ -98,3 +98,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+#lovable-badge {
+  display: none !important;
+}
