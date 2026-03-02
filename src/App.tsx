@@ -18,6 +18,21 @@ import InstanceDetail from "./pages/InstanceDetail";
 import Greetings from "./pages/Greetings";
 import Absence from "./pages/Absence";
 import StatusPage from "./pages/Status";
+import ChatbotKeys from "./pages/ChatbotKeys";
+import Workflows from "./pages/Workflows";
+import AIAgents from "./pages/AIAgents";
+import Campaigns from "./pages/Campaigns";
+import Subscription from "./pages/Subscription";
+import CompanyInvoices from "./pages/CompanyInvoices";
+import CompanyUsers from "./pages/CompanyUsers";
+import AdminCompanies from "./pages/admin/Companies";
+import AdminPlans from "./pages/admin/Plans";
+import AdminUsers from "./pages/admin/Users";
+import AdminInvoices from "./pages/admin/Invoices";
+import AdminGateways from "./pages/admin/Gateways";
+import AdminReports from "./pages/admin/Reports";
+import AdminHealth from "./pages/admin/Health";
+import AdminWebhooks from "./pages/admin/Webhooks";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound";
 
@@ -52,15 +67,15 @@ const App = () => (
               <Route path="/greetings" element={<ProtectedPage module="greetings"><Greetings /></ProtectedPage>} />
               <Route path="/absence" element={<ProtectedPage module="absence"><Absence /></ProtectedPage>} />
               <Route path="/status" element={<ProtectedPage module="status"><StatusPage /></ProtectedPage>} />
-              <Route path="/chatbot-keys" element={<ProtectedPage module="chatbot_keys"><Placeholder /></ProtectedPage>} />
-              <Route path="/workflow" element={<ProtectedPage module="workflow"><Placeholder /></ProtectedPage>} />
-              <Route path="/ai-agents" element={<ProtectedPage module="ai_agents"><Placeholder /></ProtectedPage>} />
-              <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Placeholder /></ProtectedPage>} />
+              <Route path="/chatbot-keys" element={<ProtectedPage module="chatbot_keys"><ChatbotKeys /></ProtectedPage>} />
+              <Route path="/workflow" element={<ProtectedPage module="workflow"><Workflows /></ProtectedPage>} />
+              <Route path="/ai-agents" element={<ProtectedPage module="ai_agents"><AIAgents /></ProtectedPage>} />
+              <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Campaigns /></ProtectedPage>} />
 
               {/* Admin company */}
-              <Route path="/subscription" element={<ProtectedPage role={['admin', 'super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/invoices" element={<ProtectedPage role={['admin', 'super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/users" element={<ProtectedPage role={['admin', 'super_admin']}><Placeholder /></ProtectedPage>} />
+              <Route path="/subscription" element={<ProtectedPage role={['admin', 'super_admin']}><Subscription /></ProtectedPage>} />
+              <Route path="/invoices" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyInvoices /></ProtectedPage>} />
+              <Route path="/users" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyUsers /></ProtectedPage>} />
               <Route path="/settings" element={<ProtectedPage module="settings"><Placeholder /></ProtectedPage>} />
 
               {/* Personal */}
@@ -68,14 +83,14 @@ const App = () => (
               <Route path="/account" element={<ProtectedPage><Account /></ProtectedPage>} />
 
               {/* Super Admin */}
-              <Route path="/admin/companies" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/admin/plans" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/admin/users" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/admin/invoices" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/admin/gateways" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/admin/reports" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/admin/health" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
-              <Route path="/admin/webhooks" element={<ProtectedPage role={['super_admin']}><Placeholder /></ProtectedPage>} />
+              <Route path="/admin/companies" element={<ProtectedPage role={['super_admin']}><AdminCompanies /></ProtectedPage>} />
+              <Route path="/admin/plans" element={<ProtectedPage role={['super_admin']}><AdminPlans /></ProtectedPage>} />
+              <Route path="/admin/users" element={<ProtectedPage role={['super_admin']}><AdminUsers /></ProtectedPage>} />
+              <Route path="/admin/invoices" element={<ProtectedPage role={['super_admin']}><AdminInvoices /></ProtectedPage>} />
+              <Route path="/admin/gateways" element={<ProtectedPage role={['super_admin']}><AdminGateways /></ProtectedPage>} />
+              <Route path="/admin/reports" element={<ProtectedPage role={['super_admin']}><AdminReports /></ProtectedPage>} />
+              <Route path="/admin/health" element={<ProtectedPage role={['super_admin']}><AdminHealth /></ProtectedPage>} />
+              <Route path="/admin/webhooks" element={<ProtectedPage role={['super_admin']}><AdminWebhooks /></ProtectedPage>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
