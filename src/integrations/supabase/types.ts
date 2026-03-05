@@ -530,6 +530,62 @@ export type Database = {
           },
         ]
       }
+      instance_limits: {
+        Row: {
+          cooldown_until: string | null
+          created_at: string
+          id: string
+          instance_id: string
+          last_reset_day: string
+          last_reset_hour: string
+          last_reset_minute: string
+          max_per_day: number
+          max_per_hour: number
+          max_per_minute: number
+          messages_sent_day: number
+          messages_sent_hour: number
+          messages_sent_minute: number
+        }
+        Insert: {
+          cooldown_until?: string | null
+          created_at?: string
+          id?: string
+          instance_id: string
+          last_reset_day?: string
+          last_reset_hour?: string
+          last_reset_minute?: string
+          max_per_day?: number
+          max_per_hour?: number
+          max_per_minute?: number
+          messages_sent_day?: number
+          messages_sent_hour?: number
+          messages_sent_minute?: number
+        }
+        Update: {
+          cooldown_until?: string | null
+          created_at?: string
+          id?: string
+          instance_id?: string
+          last_reset_day?: string
+          last_reset_hour?: string
+          last_reset_minute?: string
+          max_per_day?: number
+          max_per_hour?: number
+          max_per_minute?: number
+          messages_sent_day?: number
+          messages_sent_hour?: number
+          messages_sent_minute?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instance_limits_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: true
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instances: {
         Row: {
           company_id: string
@@ -642,6 +698,76 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_queue: {
+        Row: {
+          attempts: number
+          campaign_id: string
+          company_id: string
+          created_at: string
+          error: string | null
+          id: string
+          instance_id: string | null
+          media_url: string | null
+          message: string
+          phone: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          campaign_id: string
+          company_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          instance_id?: string | null
+          media_url?: string | null
+          message: string
+          phone: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          campaign_id?: string
+          company_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          instance_id?: string | null
+          media_url?: string | null
+          message?: string
+          phone?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_queue_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_queue_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
             referencedColumns: ["id"]
           },
         ]

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,14 +10,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText } from 'lucide-react';
+import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText, Loader2 } from 'lucide-react';
 
 // ---- Spintax engine ----
 function resolveSpintax(text: string): string {
@@ -69,6 +69,44 @@ export default function Campaigns() {
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; percent: number } | null>(null);
   const [previewMsg, setPreviewMsg] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [monitorCampaignId, setMonitorCampaignId] = useState<string | null>(null);
+
+  // Queue actions
+  const startCampaign = async (id: string) => {
+    try {
+      const camp = campaigns.find(c => c.id === id);
+      if (!camp) return;
+      const { error } = await supabase.functions.invoke('queue-worker', {
+        body: { action: 'enqueue', campaign_id: id, company_id: company?.id },
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast({ title: 'Campanha iniciada — fila criada' });
+      setMonitorCampaignId(id);
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const pauseCampaign = async (id: string) => {
+    try {
+      await supabase.functions.invoke('queue-worker', { body: { action: 'pause', campaign_id: id } });
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast({ title: 'Campanha pausada' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const resumeCampaign = async (id: string) => {
+    try {
+      await supabase.from('campaigns').update({ status: 'sending' }).eq('id', id);
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast({ title: 'Campanha retomada' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    }
+  };
 
   // Queries
   const { data: campaigns = [], isLoading } = useQuery({
@@ -482,9 +520,98 @@ export default function Campaigns() {
         loading={isLoading}
         emptyMessage="Nenhuma campanha criada"
         actions={(row) => (
-          <ConfirmDialog title="Excluir campanha?" description="Esta ação é irreversível." onConfirm={() => deleteMutation.mutate(row.id)} trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
+          <div className="flex gap-1">
+            {row.status === 'draft' && (
+              <Button variant="ghost" size="sm" onClick={() => startCampaign(row.id)}>
+                <Play className="h-4 w-4 mr-1" /> Iniciar
+              </Button>
+            )}
+            {row.status === 'sending' && (
+              <Button variant="ghost" size="sm" onClick={() => pauseCampaign(row.id)}>
+                <Pause className="h-4 w-4 mr-1" /> Pausar
+              </Button>
+            )}
+            {row.status === 'paused' && (
+              <Button variant="ghost" size="sm" onClick={() => resumeCampaign(row.id)}>
+                <Play className="h-4 w-4 mr-1" /> Retomar
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setMonitorCampaignId(row.id)}>
+              <BarChart3 className="h-4 w-4 mr-1" /> Monitor
+            </Button>
+            <ConfirmDialog title="Excluir campanha?" description="Esta ação é irreversível." onConfirm={() => deleteMutation.mutate(row.id)} trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
+          </div>
         )}
       />
+
+      {/* Queue Monitor Dialog */}
+      <QueueMonitor campaignId={monitorCampaignId} onClose={() => setMonitorCampaignId(null)} />
     </div>
+  );
+}
+
+// Queue Monitor Component
+function QueueMonitor({ campaignId, onClose }: { campaignId: string | null; onClose: () => void }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!campaignId) { setStats(null); return; }
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('queue-worker', {
+          body: { action: 'stats', campaign_id: campaignId },
+        });
+        if (!error) setStats(data);
+      } catch (e) { console.error(e); }
+      setLoading(false);
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 5000);
+    return () => clearInterval(interval);
+  }, [campaignId]);
+
+  if (!campaignId) return null;
+
+  const riskColor = stats?.risk === 'alto' ? 'text-destructive' : stats?.risk === 'moderado' ? 'text-yellow-500' : 'text-green-500';
+
+  return (
+    <Dialog open={!!campaignId} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Monitor da Fila</DialogTitle></DialogHeader>
+        {loading && !stats ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : stats ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <Card><CardContent className="p-3 text-center"><p className="text-2xl font-bold">{stats.pending}</p><p className="text-xs text-muted-foreground">Pendentes</p></CardContent></Card>
+              <Card><CardContent className="p-3 text-center"><p className="text-2xl font-bold text-primary">{stats.sent}</p><p className="text-xs text-muted-foreground">Enviados</p></CardContent></Card>
+              <Card><CardContent className="p-3 text-center"><p className="text-2xl font-bold text-destructive">{stats.failed}</p><p className="text-xs text-muted-foreground">Falhas</p></CardContent></Card>
+              <Card><CardContent className="p-3 text-center"><p className="text-2xl font-bold">{stats.processing}</p><p className="text-xs text-muted-foreground">Processando</p></CardContent></Card>
+              <Card><CardContent className="p-3 text-center"><p className="text-2xl font-bold">{stats.blocked}</p><p className="text-xs text-muted-foreground">Bloqueados</p></CardContent></Card>
+              <Card><CardContent className="p-3 text-center"><p className={`text-2xl font-bold capitalize ${riskColor}`}>{stats.risk}</p><p className="text-xs text-muted-foreground">Risco</p></CardContent></Card>
+            </div>
+            {stats.total > 0 && (
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Progresso</span>
+                  <span>{Math.round(((stats.sent + stats.failed) / stats.total) * 100)}%</span>
+                </div>
+                <Progress value={((stats.sent + stats.failed) / stats.total) * 100} className="h-2" />
+              </div>
+            )}
+            {stats.fail_rate > 10 && (
+              <div className="flex items-center gap-2 p-2 rounded border border-destructive/50 bg-destructive/10 text-sm">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                <span>Taxa de falha em {stats.fail_rate.toFixed(1)}% — considere pausar a campanha</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground py-4">Sem dados disponíveis</p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
