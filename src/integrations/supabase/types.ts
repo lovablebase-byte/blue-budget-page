@@ -530,6 +530,62 @@ export type Database = {
           },
         ]
       }
+      human_behavior_config: {
+        Row: {
+          burst_limit: number
+          company_id: string
+          cooldown_after_burst_max: number
+          cooldown_after_burst_min: number
+          created_at: string
+          human_pause_max: number
+          human_pause_min: number
+          id: string
+          instance_variation: Json
+          typing_simulation_enabled: boolean
+          typing_speed_max: number
+          typing_speed_min: number
+          updated_at: string
+        }
+        Insert: {
+          burst_limit?: number
+          company_id: string
+          cooldown_after_burst_max?: number
+          cooldown_after_burst_min?: number
+          created_at?: string
+          human_pause_max?: number
+          human_pause_min?: number
+          id?: string
+          instance_variation?: Json
+          typing_simulation_enabled?: boolean
+          typing_speed_max?: number
+          typing_speed_min?: number
+          updated_at?: string
+        }
+        Update: {
+          burst_limit?: number
+          company_id?: string
+          cooldown_after_burst_max?: number
+          cooldown_after_burst_min?: number
+          created_at?: string
+          human_pause_max?: number
+          human_pause_min?: number
+          id?: string
+          instance_variation?: Json
+          typing_simulation_enabled?: boolean
+          typing_speed_max?: number
+          typing_speed_min?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "human_behavior_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instance_limits: {
         Row: {
           cooldown_until: string | null

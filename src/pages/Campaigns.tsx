@@ -16,8 +16,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText, Loader2, Bot, Timer, Activity } from 'lucide-react';
 
 // ---- Spintax engine ----
 function resolveSpintax(text: string): string {
@@ -62,6 +63,7 @@ export default function Campaigns() {
     delay_max: 8,
     simulate_typing: true,
     use_spintax: true,
+    human_mode: true,
   });
   const [selectedInstances, setSelectedInstances] = useState<string[]>([]);
   const [contacts, setContacts] = useState<string[]>([]);
@@ -70,6 +72,21 @@ export default function Campaigns() {
   const [previewMsg, setPreviewMsg] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [monitorCampaignId, setMonitorCampaignId] = useState<string | null>(null);
+
+  // Human behavior config
+  const { data: humanConfig } = useQuery({
+    queryKey: ['human-behavior-config', company?.id],
+    queryFn: async () => {
+      if (!company?.id) return null;
+      const { data } = await supabase
+        .from('human_behavior_config' as any)
+        .select('*')
+        .eq('company_id', company.id)
+        .single();
+      return data as any;
+    },
+    enabled: !!company?.id,
+  });
 
   // Queue actions
   const startCampaign = async (id: string) => {
@@ -150,7 +167,6 @@ export default function Campaigns() {
       const lines = text.split(/[\r\n,;]+/).map(l => l.replace(/\D/g, '').trim()).filter(l => l.length >= 10 && l.length <= 15);
       const unique = [...new Set(lines)];
 
-      // Batch processing with progress
       const BATCH = 500;
       let imported = 0;
       const allContacts: string[] = [];
@@ -203,6 +219,7 @@ export default function Campaigns() {
           delay_max: form.delay_max,
           simulate_typing: form.simulate_typing,
           use_spintax: form.use_spintax,
+          human_mode: form.human_mode,
         } as any,
       });
       if (error) throw error;
@@ -225,7 +242,7 @@ export default function Campaigns() {
   });
 
   const resetForm = () => {
-    setForm({ name: '', message_template: '', segment_type: 'manual', rate_limit_per_minute: 15, delay_min: 3, delay_max: 8, simulate_typing: true, use_spintax: true });
+    setForm({ name: '', message_template: '', segment_type: 'manual', rate_limit_per_minute: 15, delay_min: 3, delay_max: 8, simulate_typing: true, use_spintax: true, human_mode: true });
     setSelectedInstances([]);
     setContacts([]);
     setContactsInput('');
@@ -266,6 +283,14 @@ export default function Campaigns() {
       }
     },
     { key: 'status', label: 'Status', render: (row) => <Badge variant={statusColor(row.status)}>{statusLabel(row.status)}</Badge> },
+    {
+      key: 'human_mode', label: 'Modo Humano',
+      render: (row) => {
+        const sd = row.segment_data as any;
+        const enabled = sd?.human_mode !== false;
+        return <Badge variant={enabled ? 'default' : 'secondary'}><Bot className="h-3 w-3 mr-1" />{enabled ? 'Ativo' : 'Inativo'}</Badge>;
+      }
+    },
     { key: 'rate_limit_per_minute', label: 'Limite/min' },
     {
       key: 'stats', label: 'Enviados/Entregues',
@@ -278,17 +303,18 @@ export default function Campaigns() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Campanhas</h1>
-          <p className="text-muted-foreground">Disparos em massa com proteções anti-ban</p>
+          <p className="text-muted-foreground">Disparos em massa com proteções anti-ban e modo humano</p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Nova Campanha</Button></DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nova Campanha</DialogTitle></DialogHeader>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-4 w-full">
+              <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="config">Configuração</TabsTrigger>
                 <TabsTrigger value="contacts">Contatos ({contacts.length})</TabsTrigger>
                 <TabsTrigger value="message">Mensagem</TabsTrigger>
+                <TabsTrigger value="human">Modo Humano</TabsTrigger>
                 <TabsTrigger value="risk">Risco</TabsTrigger>
               </TabsList>
 
@@ -438,7 +464,102 @@ export default function Campaigns() {
                 )}
               </TabsContent>
 
-              {/* Tab 4: Risk monitor */}
+              {/* Tab 4: Human Mode */}
+              <TabsContent value="human" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-base">Modo Comportamento Humano</CardTitle>
+                      </div>
+                      <Switch
+                        checked={form.human_mode}
+                        onCheckedChange={(v) => setForm(f => ({ ...f, human_mode: v }))}
+                      />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      Simula comportamento humano no envio: digitação, pausas aleatórias e descanso entre rajadas para reduzir risco de bloqueio.
+                    </p>
+
+                    {form.human_mode && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="border rounded-lg p-3 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Timer className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-xs font-medium">Velocidade de Digitação</p>
+                            </div>
+                            <p className="text-lg font-bold">{humanConfig?.typing_speed_min || 3}-{humanConfig?.typing_speed_max || 7}</p>
+                            <p className="text-xs text-muted-foreground">caracteres/segundo</p>
+                          </div>
+                          <div className="border rounded-lg p-3 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-xs font-medium">Pausa Entre Mensagens</p>
+                            </div>
+                            <p className="text-lg font-bold">{humanConfig?.human_pause_min || 8}-{humanConfig?.human_pause_max || 25}</p>
+                            <p className="text-xs text-muted-foreground">segundos</p>
+                          </div>
+                          <div className="border rounded-lg p-3 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Activity className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-xs font-medium">Limite de Rajada</p>
+                            </div>
+                            <p className="text-lg font-bold">{humanConfig?.burst_limit || 20}</p>
+                            <p className="text-xs text-muted-foreground">msgs antes do descanso</p>
+                          </div>
+                          <div className="border rounded-lg p-3 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Pause className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-xs font-medium">Cooldown de Rajada</p>
+                            </div>
+                            <p className="text-lg font-bold">{humanConfig?.cooldown_after_burst_min || 120}-{humanConfig?.cooldown_after_burst_max || 300}</p>
+                            <p className="text-xs text-muted-foreground">segundos de descanso</p>
+                          </div>
+                        </div>
+
+                        <div className="border rounded-lg p-3 bg-accent/30">
+                          <p className="text-xs font-medium mb-2">📋 Fluxo de envio com modo humano:</p>
+                          <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                            <li>Recebe mensagem da fila</li>
+                            <li>Ativa status "digitando" na API</li>
+                            <li>Aguarda tempo de digitação baseado no tamanho</li>
+                            <li>Envia a mensagem</li>
+                            <li>Aplica pausa humana aleatória</li>
+                            <li>Verifica limite de rajada → descanso se necessário</li>
+                            <li>Processa próxima mensagem</li>
+                          </ol>
+                        </div>
+
+                        {selectedInstances.length > 1 && (
+                          <div className="border rounded-lg p-3">
+                            <p className="text-xs font-medium mb-2">🎭 Variação por instância:</p>
+                            <p className="text-xs text-muted-foreground mb-2">Cada instância terá um ritmo único para evitar padrões detectáveis.</p>
+                            <div className="space-y-1">
+                              {selectedInstances.map((id, idx) => {
+                                const inst = instances.find(i => i.id === id);
+                                const baseMin = 8 + (idx * 2);
+                                const baseMax = 18 + (idx * 3);
+                                return (
+                                  <div key={id} className="flex items-center justify-between text-xs">
+                                    <span>{inst?.name || 'Instância'}</span>
+                                    <Badge variant="outline">{baseMin}-{Math.min(baseMax, 35)}s entre envios</Badge>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Tab 5: Risk monitor */}
               <TabsContent value="risk" className="space-y-4 mt-4">
                 <Card>
                   <CardContent className="p-4 space-y-4">
@@ -450,6 +571,13 @@ export default function Campaigns() {
                       </div>
                     </div>
                     <Progress value={risk.percent} className="h-3" />
+
+                    {form.human_mode && (
+                      <div className="flex items-center gap-2 p-2 rounded border border-green-500/30 bg-green-500/10 text-sm">
+                        <Bot className="h-4 w-4 text-green-500 shrink-0" />
+                        <span className="text-xs">Modo humano ativado — risco reduzido</span>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-3 text-center text-sm">
                       <div className="border rounded p-2">
@@ -550,7 +678,7 @@ export default function Campaigns() {
   );
 }
 
-// Queue Monitor Component
+// Queue Monitor Component with Human Behavior Metrics
 function QueueMonitor({ campaignId, onClose }: { campaignId: string | null; onClose: () => void }) {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -575,6 +703,7 @@ function QueueMonitor({ campaignId, onClose }: { campaignId: string | null; onCl
   if (!campaignId) return null;
 
   const riskColor = stats?.risk === 'alto' ? 'text-destructive' : stats?.risk === 'moderado' ? 'text-yellow-500' : 'text-green-500';
+  const hb = stats?.human_behavior;
 
   return (
     <Dialog open={!!campaignId} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -592,6 +721,7 @@ function QueueMonitor({ campaignId, onClose }: { campaignId: string | null; onCl
               <Card><CardContent className="p-3 text-center"><p className="text-2xl font-bold">{stats.blocked}</p><p className="text-xs text-muted-foreground">Bloqueados</p></CardContent></Card>
               <Card><CardContent className="p-3 text-center"><p className={`text-2xl font-bold capitalize ${riskColor}`}>{stats.risk}</p><p className="text-xs text-muted-foreground">Risco</p></CardContent></Card>
             </div>
+
             {stats.total > 0 && (
               <div>
                 <div className="flex justify-between text-xs text-muted-foreground mb-1">
@@ -601,6 +731,35 @@ function QueueMonitor({ campaignId, onClose }: { campaignId: string | null; onCl
                 <Progress value={((stats.sent + stats.failed) / stats.total) * 100} className="h-2" />
               </div>
             )}
+
+            {/* Human Behavior Metrics */}
+            {stats.human_mode && (
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-green-500" />
+                    <span className="text-sm font-medium">Modo Humano Ativado</span>
+                  </div>
+                  {hb && (
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="border rounded p-2">
+                        <p className="text-sm font-bold">{hb.avg_typing_delay ? `${(hb.avg_typing_delay / 1000).toFixed(1)}s` : '—'}</p>
+                        <p className="text-xs text-muted-foreground">Tempo médio digitação</p>
+                      </div>
+                      <div className="border rounded p-2">
+                        <p className="text-sm font-bold">{hb.avg_pause_delay ? `${(hb.avg_pause_delay / 1000).toFixed(1)}s` : '—'}</p>
+                        <p className="text-xs text-muted-foreground">Tempo médio pausa</p>
+                      </div>
+                      <div className="border rounded p-2">
+                        <p className="text-sm font-bold">{hb.pauses_applied || 0}</p>
+                        <p className="text-xs text-muted-foreground">Pausas aplicadas</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {stats.fail_rate > 10 && (
               <div className="flex items-center gap-2 p-2 rounded border border-destructive/50 bg-destructive/10 text-sm">
                 <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
