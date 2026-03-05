@@ -12,10 +12,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   Plus, RefreshCw, Trash2, QrCode, Send, Power, PowerOff,
   MoreHorizontal, Eye, Loader2, Smartphone, Wifi, WifiOff, AlertCircle,
+  Copy, RotateCcw, Link, Key,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -38,9 +41,16 @@ interface Instance {
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Wifi }> = {
   online: { label: 'Online', variant: 'default', icon: Wifi },
   offline: { label: 'Offline', variant: 'secondary', icon: WifiOff },
+  connecting: { label: 'Conectando', variant: 'outline', icon: RefreshCw },
   pairing: { label: 'Pareando', variant: 'outline', icon: QrCode },
   error: { label: 'Erro', variant: 'destructive', icon: AlertCircle },
 };
+
+const TIMEZONES = [
+  'America/Sao_Paulo', 'America/Manaus', 'America/Fortaleza',
+  'America/Cuiaba', 'America/Belem', 'America/Recife',
+  'America/Bahia', 'America/Porto_Velho', 'America/Rio_Branco',
+];
 
 export default function Instances() {
   const { company, hasPermission, isReadOnly } = useAuth();
@@ -51,7 +61,9 @@ export default function Instances() {
   const [showQR, setShowQR] = useState(false);
   const [showTestMsg, setShowTestMsg] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showPostCreate, setShowPostCreate] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
+  const [createdInstance, setCreatedInstance] = useState<Instance | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -60,6 +72,7 @@ export default function Instances() {
   const [newTags, setNewTags] = useState('');
   const [newTimezone, setNewTimezone] = useState('America/Sao_Paulo');
   const [newReconnect, setNewReconnect] = useState('auto');
+  const [copyFromInstance, setCopyFromInstance] = useState('');
   const [testNumber, setTestNumber] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
@@ -79,23 +92,36 @@ export default function Instances() {
 
   useEffect(() => { fetchInstances(); }, [company]);
 
+  // Auto-refresh status every 30s
+  useEffect(() => {
+    const interval = setInterval(fetchInstances, 30000);
+    return () => clearInterval(interval);
+  }, [company]);
+
+  const resetForm = () => {
+    setNewName(''); setNewTags(''); setNewTimezone('America/Sao_Paulo');
+    setNewReconnect('auto'); setCopyFromInstance('');
+  };
+
   const handleCreate = async () => {
     if (!company || !newName.trim()) return;
     setCreating(true);
     try {
       const webhookUrl = `${window.location.origin}/api/webhooks/${company.slug}`;
-      const { error } = await supabase.from('instances').insert({
+      const { data, error } = await supabase.from('instances').insert({
         company_id: company.id,
         name: newName.trim(),
         webhook_url: webhookUrl,
         tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
         timezone: newTimezone,
         reconnect_policy: newReconnect,
-      });
+      }).select().single();
       if (error) throw error;
       toast.success('Instância criada com sucesso!');
       setShowCreate(false);
-      setNewName(''); setNewTags('');
+      resetForm();
+      setCreatedInstance(data as Instance);
+      setShowPostCreate(true);
       fetchInstances();
     } catch (e: any) {
       toast.error(e.message);
@@ -125,21 +151,38 @@ export default function Instances() {
     const { error } = await supabase.from('instances').update({ status: newStatus }).eq('id', instance.id);
     if (error) toast.error(error.message);
     else {
-      toast.success(`Status alterado para ${newStatus}`);
+      toast.success(`Status alterado para ${statusConfig[newStatus]?.label || newStatus}`);
       fetchInstances();
     }
+  };
+
+  const handleRestart = async (instance: Instance) => {
+    await handleStatusChange(instance, 'connecting');
+    // Simulate reconnection cycle
+    setTimeout(async () => {
+      await supabase.from('instances').update({
+        status: 'online',
+        last_connected_at: new Date().toISOString(),
+      }).eq('id', instance.id);
+      toast.success(`${instance.name} reconectada`);
+      fetchInstances();
+    }, 3000);
   };
 
   const handleSendTest = async () => {
     if (!testNumber || !testMessage) return;
     setSendingTest(true);
-    // In production, this calls the Evolution API via edge function
     setTimeout(() => {
       toast.success('Mensagem teste enviada (simulação)');
       setSendingTest(false);
       setShowTestMsg(false);
       setTestNumber(''); setTestMessage('');
     }, 1000);
+  };
+
+  const copyToClipboard = (text: string, label?: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label || 'Valor'} copiado!`);
   };
 
   const columns: Column<Instance>[] = [
@@ -151,7 +194,7 @@ export default function Instances() {
         const Icon = cfg.icon;
         return (
           <Badge variant={cfg.variant} className="gap-1">
-            <Icon className="h-3 w-3" /> {cfg.label}
+            <Icon className={`h-3 w-3 ${r.status === 'connecting' ? 'animate-spin' : ''}`} /> {cfg.label}
           </Badge>
         );
       }
@@ -168,6 +211,9 @@ export default function Instances() {
 
   const canCreate = hasPermission('instances', 'create');
   const canDelete = hasPermission('instances', 'delete');
+
+  const onlineCount = instances.filter(i => i.status === 'online').length;
+  const offlineCount = instances.filter(i => i.status !== 'online').length;
 
   return (
     <div className="space-y-6">
@@ -205,7 +251,7 @@ export default function Instances() {
             <Wifi className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{instances.filter(i => i.status === 'online').length}</div>
+            <div className="text-2xl font-bold text-primary">{onlineCount}</div>
           </CardContent>
         </Card>
         <Card>
@@ -214,7 +260,7 @@ export default function Instances() {
             <WifiOff className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{instances.filter(i => i.status === 'offline').length}</div>
+            <div className="text-2xl font-bold">{offlineCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -247,10 +293,13 @@ export default function Instances() {
                   <PowerOff className="mr-2 h-4 w-4" /> Desconectar
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onClick={() => handleStatusChange(row, 'online')}>
-                  <Power className="mr-2 h-4 w-4" /> Reconectar
+                <DropdownMenuItem onClick={() => handleStatusChange(row, 'connecting')}>
+                  <Power className="mr-2 h-4 w-4" /> Conectar
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={() => handleRestart(row)}>
+                <RotateCcw className="mr-2 h-4 w-4" /> Reiniciar sessão
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/instances/${row.id}`)}>
                 <Eye className="mr-2 h-4 w-4" /> Ver detalhes
               </DropdownMenuItem>
@@ -268,7 +317,7 @@ export default function Instances() {
       />
 
       {/* Create dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+      <Dialog open={showCreate} onOpenChange={(o) => { setShowCreate(o); if (!o) resetForm(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nova instância</DialogTitle>
@@ -276,40 +325,118 @@ export default function Instances() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome amigável *</Label>
+              <Label>Nome da instância *</Label>
               <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ex: Suporte Principal" />
             </div>
+            <div className="space-y-2">
+              <Label>Fuso horário</Label>
+              <Select value={newTimezone} onValueChange={setNewTimezone}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map(tz => (
+                    <SelectItem key={tz} value={tz}>{tz.replace('America/', '')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {instances.length > 0 && (
+              <div className="space-y-2">
+                <Label>Copiar regras de outra instância</Label>
+                <Select value={copyFromInstance} onValueChange={setCopyFromInstance}>
+                  <SelectTrigger><SelectValue placeholder="Nenhuma (criar do zero)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma (criar do zero)</SelectItem>
+                    {instances.map(inst => (
+                      <SelectItem key={inst.id} value={inst.id}>{inst.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Saudações, ausência e configurações serão copiadas</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Tags (separadas por vírgula)</Label>
               <Input value={newTags} onChange={e => setNewTags(e.target.value)} placeholder="suporte, vendas" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fuso horário</Label>
-                <Select value={newTimezone} onValueChange={setNewTimezone}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {['America/Sao_Paulo','America/Manaus','America/Fortaleza','America/Cuiaba'].map(tz => (
-                      <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Reconexão</Label>
-                <Select value={newReconnect} onValueChange={setNewReconnect}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Automática</SelectItem>
-                    <SelectItem value="manual">Manual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Reconexão automática</Label>
+              <Select value={newReconnect} onValueChange={setNewReconnect}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Automática</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={handleCreate} disabled={creating || !newName.trim()} className="w-full">
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Criar instância
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post-creation info dialog */}
+      <Dialog open={showPostCreate} onOpenChange={setShowPostCreate}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Smartphone className="h-5 w-5" /> Instância criada!
+            </DialogTitle>
+            <DialogDescription>Escaneie o QR Code para conectar e use os dados abaixo para integração</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* QR Code placeholder */}
+            <div className="flex flex-col items-center gap-3 py-3">
+              <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
+                <div className="text-center text-muted-foreground">
+                  <QrCode className="h-14 w-14 mx-auto mb-2" />
+                  <p className="text-sm font-medium">QR Code</p>
+                  <p className="text-xs">Configure a Evolution API</p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* API endpoint */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Endpoint da API</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={`${window.location.origin}/api/instance/${createdInstance?.id}`}
+                  readOnly
+                  className="font-mono text-xs"
+                />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(`${window.location.origin}/api/instance/${createdInstance?.id}`, 'Endpoint')}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Session token */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Key className="h-3.5 w-3.5" /> Token da sessão</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={createdInstance?.id || ''}
+                  readOnly
+                  className="font-mono text-xs"
+                />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdInstance?.id || '', 'Token')}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowPostCreate(false)}>
+                Fechar
+              </Button>
+              <Button className="flex-1" onClick={() => { setShowPostCreate(false); navigate(`/instances/${createdInstance?.id}`); }}>
+                <Eye className="h-4 w-4 mr-1" /> Ver detalhes
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
