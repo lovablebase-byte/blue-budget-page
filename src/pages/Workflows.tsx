@@ -6,52 +6,22 @@ import { DataTable, Column } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { FlowCanvas } from '@/components/workflow/FlowCanvas';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Play, GitBranch, Zap, Filter, MessageSquare, ArrowRight } from 'lucide-react';
-
-interface WorkflowBlock {
-  id: string;
-  type: 'trigger' | 'condition' | 'action';
-  config: Record<string, any>;
-}
-
-const TRIGGERS = [
-  { value: 'message_received', label: 'Mensagem recebida' },
-  { value: 'tag_added', label: 'Tag adicionada' },
-  { value: 'status_changed', label: 'Status alterado' },
-];
-
-const CONDITIONS = [
-  { value: 'text_contains', label: 'Texto contém' },
-  { value: 'time_range', label: 'Horário entre' },
-  { value: 'has_tag', label: 'Possui tag' },
-];
-
-const ACTIONS = [
-  { value: 'reply', label: 'Responder' },
-  { value: 'forward', label: 'Encaminhar' },
-  { value: 'call_webhook', label: 'Chamar webhook' },
-  { value: 'add_tag', label: 'Marcar tag' },
-];
+import { Plus, Trash2, GitBranch, ArrowLeft } from 'lucide-react';
+import { type Node, type Edge } from '@xyflow/react';
 
 export default function Workflows() {
   const { company } = useAuth();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [blocks, setBlocks] = useState<WorkflowBlock[]>([
-    { id: '1', type: 'trigger', config: { event: 'message_received' } },
-  ]);
+  const [editingWorkflow, setEditingWorkflow] = useState<any | null>(null);
 
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflows', company?.id],
@@ -68,28 +38,38 @@ export default function Workflows() {
     enabled: !!company?.id,
   });
 
-  const saveMutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const { error } = await supabase.from('workflows').insert({
         company_id: company!.id,
         name,
         description: description || null,
-        definition: { blocks } as any,
-      };
-      if (editId) {
-        const { error } = await supabase.from('workflows').update(payload).eq('id', editId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('workflows').insert(payload);
-        if (error) throw error;
-      }
+        definition: { nodes: [], edges: [] } as any,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
-      resetForm();
-      toast({ title: editId ? 'Workflow atualizado' : 'Workflow criado' });
+      setCreateOpen(false);
+      setName('');
+      setDescription('');
+      toast({ title: 'Workflow criado' });
     },
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ id, nodes, edges }: { id: string; nodes: Node[]; edges: Edge[] }) => {
+      const { error } = await supabase.from('workflows').update({
+        definition: { nodes, edges } as any,
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      toast({ title: 'Fluxo salvo com sucesso' });
+    },
+    onError: (e: any) => toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' }),
   });
 
   const togglePublish = useMutation({
@@ -111,52 +91,29 @@ export default function Workflows() {
     },
   });
 
-  const resetForm = () => {
-    setOpen(false);
-    setEditId(null);
-    setName('');
-    setDescription('');
-    setBlocks([{ id: '1', type: 'trigger', config: { event: 'message_received' } }]);
-  };
-
-  const openEdit = (wf: any) => {
-    setEditId(wf.id);
-    setName(wf.name);
-    setDescription(wf.description || '');
-    const def = wf.definition as any;
-    setBlocks(def?.blocks || []);
-    setOpen(true);
-  };
-
-  const addBlock = (type: WorkflowBlock['type']) => {
-    setBlocks(prev => [...prev, { id: String(Date.now()), type, config: {} }]);
-  };
-
-  const updateBlock = (id: string, config: Record<string, any>) => {
-    setBlocks(prev => prev.map(b => b.id === id ? { ...b, config: { ...b.config, ...config } } : b));
-  };
-
-  const removeBlock = (id: string) => {
-    setBlocks(prev => prev.filter(b => b.id !== id));
-  };
-
-  const getBlockIcon = (type: string) => {
-    switch (type) {
-      case 'trigger': return <Zap className="h-4 w-4 text-warning" />;
-      case 'condition': return <Filter className="h-4 w-4 text-primary" />;
-      case 'action': return <MessageSquare className="h-4 w-4 text-success" />;
-      default: return null;
-    }
-  };
-
-  const getOptions = (type: string) => {
-    switch (type) {
-      case 'trigger': return TRIGGERS;
-      case 'condition': return CONDITIONS;
-      case 'action': return ACTIONS;
-      default: return [];
-    }
-  };
+  // If editing a workflow, show the canvas
+  if (editingWorkflow) {
+    const def = editingWorkflow.definition as any;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setEditingWorkflow(null)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">{editingWorkflow.name}</h1>
+            <p className="text-sm text-muted-foreground">Arraste blocos para o canvas e conecte-os</p>
+          </div>
+        </div>
+        <FlowCanvas
+          initialNodes={def?.nodes || []}
+          initialEdges={def?.edges || []}
+          onSave={(nodes, edges) => saveMutation.mutate({ id: editingWorkflow.id, nodes, edges })}
+          saving={saveMutation.isPending}
+        />
+      </div>
+    );
+  }
 
   const columns: Column<any>[] = [
     { key: 'name', label: 'Nome', sortable: true },
@@ -186,83 +143,19 @@ export default function Workflows() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Workflows</h1>
-          <p className="text-muted-foreground">Automações com gatilhos, condições e ações</p>
+          <p className="text-muted-foreground">Construtor visual de fluxos de chatbot</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); else setOpen(true); }}>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Workflow</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editId ? 'Editar Workflow' : 'Novo Workflow'}</DialogTitle></DialogHeader>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Novo Workflow</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Nome</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Descrição</Label>
-                  <Input value={description} onChange={e => setDescription(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label>Blocos do workflow</Label>
-                {blocks.map((block, i) => (
-                  <div key={block.id}>
-                    {i > 0 && (
-                      <div className="flex justify-center py-1">
-                        <ArrowRight className="h-4 w-4 text-muted-foreground rotate-90" />
-                      </div>
-                    )}
-                    <Card>
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          {getBlockIcon(block.type)}
-                          <Badge variant="outline" className="capitalize">{block.type === 'trigger' ? 'Gatilho' : block.type === 'condition' ? 'Condição' : 'Ação'}</Badge>
-                          {blocks.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => removeBlock(block.id)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                        <Select
-                          value={block.config.event || block.config.type || ''}
-                          onValueChange={(v) => updateBlock(block.id, block.type === 'trigger' ? { event: v } : { type: v })}
-                        >
-                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {getOptions(block.type).map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {(block.type === 'condition' && block.config.type === 'text_contains') && (
-                          <Input className="mt-2" placeholder="Texto a buscar..." value={block.config.value || ''} onChange={e => updateBlock(block.id, { value: e.target.value })} />
-                        )}
-                        {(block.type === 'action' && block.config.type === 'reply') && (
-                          <Textarea className="mt-2" placeholder="Mensagem de resposta..." value={block.config.message || ''} onChange={e => updateBlock(block.id, { message: e.target.value })} />
-                        )}
-                        {(block.type === 'action' && block.config.type === 'call_webhook') && (
-                          <Input className="mt-2" placeholder="URL do webhook..." value={block.config.url || ''} onChange={e => updateBlock(block.id, { url: e.target.value })} />
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => addBlock('condition')}>
-                  <Filter className="h-3 w-3 mr-1" /> Condição
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => addBlock('action')}>
-                  <MessageSquare className="h-3 w-3 mr-1" /> Ação
-                </Button>
-              </div>
-
-              <Button onClick={() => saveMutation.mutate()} disabled={!name || saveMutation.isPending} className="w-full">
-                {editId ? 'Salvar' : 'Criar Workflow'}
+              <div><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+              <div><Label>Descrição</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
+              <Button onClick={() => createMutation.mutate()} disabled={!name || createMutation.isPending} className="w-full">
+                Criar Workflow
               </Button>
             </div>
           </DialogContent>
@@ -278,7 +171,9 @@ export default function Workflows() {
         emptyMessage="Nenhum workflow criado"
         actions={(row) => (
           <div className="flex gap-1">
-            <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>Editar</Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditingWorkflow(row)}>
+              <GitBranch className="h-4 w-4 mr-1" /> Editar Fluxo
+            </Button>
             <ConfirmDialog
               title="Excluir workflow?"
               description="Esta ação é irreversível."
