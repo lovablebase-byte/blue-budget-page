@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Smartphone, MessageCircle, Clock, 
   Radio, Key, GitBranch, Bot, Megaphone, Settings,
   Building2, CreditCard, Receipt, Users, Shield, User,
-  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown
+  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -23,6 +23,7 @@ const operationalItems = [
   { title: 'Status', url: '/status', icon: Radio, module: 'status' },
   { title: 'Chatbots Keys', url: '/chatbot-keys', icon: Key, module: 'chatbot_keys' },
   { title: 'Workflow', url: '/workflow', icon: GitBranch, module: 'workflow' },
+  { title: 'Chatbot Keywords', url: '/chatbot-keywords', icon: MessageSquare, module: 'chatbot_keys' },
   { title: 'Agentes IA', url: '/ai-agents', icon: Bot, module: 'ai_agents' },
   { title: 'Campanhas', url: '/campaigns', icon: Megaphone, module: 'campaigns' },
 ];

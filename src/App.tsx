@@ -21,6 +21,7 @@ import Absence from "./pages/Absence";
 import StatusPage from "./pages/Status";
 import ChatbotKeys from "./pages/ChatbotKeys";
 import Workflows from "./pages/Workflows";
+import ChatbotKeywords from "./pages/ChatbotKeywords";
 import AIAgents from "./pages/AIAgents";
 import Campaigns from "./pages/Campaigns";
 import Subscription from "./pages/Subscription";
@@ -72,6 +73,7 @@ const App = () => (
               <Route path="/status" element={<ProtectedPage module="status"><StatusPage /></ProtectedPage>} />
               <Route path="/chatbot-keys" element={<ProtectedPage module="chatbot_keys"><ChatbotKeys /></ProtectedPage>} />
               <Route path="/workflow" element={<ProtectedPage module="workflow"><Workflows /></ProtectedPage>} />
+              <Route path="/chatbot-keywords" element={<ProtectedPage module="chatbot_keys"><ChatbotKeywords /></ProtectedPage>} />
               <Route path="/ai-agents" element={<ProtectedPage module="ai_agents"><AIAgents /></ProtectedPage>} />
               <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Campaigns /></ProtectedPage>} />
 
