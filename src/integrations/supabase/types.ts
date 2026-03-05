@@ -60,42 +60,69 @@ export type Database = {
       }
       ai_agents: {
         Row: {
+          api_key: string | null
           base_prompt: string | null
           company_id: string
           created_at: string
+          delay_seconds: number
           enabled_instances: string[] | null
+          function_calling: boolean
           id: string
           is_active: boolean
+          max_tokens: number
           name: string
           objective: string | null
+          provider: string
+          response_style: string
           safety_rules: string | null
+          schedule: Json
           tools: string[] | null
+          understand_audio: boolean
+          understand_image: boolean
           updated_at: string
         }
         Insert: {
+          api_key?: string | null
           base_prompt?: string | null
           company_id: string
           created_at?: string
+          delay_seconds?: number
           enabled_instances?: string[] | null
+          function_calling?: boolean
           id?: string
           is_active?: boolean
+          max_tokens?: number
           name: string
           objective?: string | null
+          provider?: string
+          response_style?: string
           safety_rules?: string | null
+          schedule?: Json
           tools?: string[] | null
+          understand_audio?: boolean
+          understand_image?: boolean
           updated_at?: string
         }
         Update: {
+          api_key?: string | null
           base_prompt?: string | null
           company_id?: string
           created_at?: string
+          delay_seconds?: number
           enabled_instances?: string[] | null
+          function_calling?: boolean
           id?: string
           is_active?: boolean
+          max_tokens?: number
           name?: string
           objective?: string | null
+          provider?: string
+          response_style?: string
           safety_rules?: string | null
+          schedule?: Json
           tools?: string[] | null
+          understand_audio?: boolean
+          understand_image?: boolean
           updated_at?: string
         }
         Relationships: [
