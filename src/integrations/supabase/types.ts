@@ -778,47 +778,74 @@ export type Database = {
       plans: {
         Row: {
           ai_agents_enabled: boolean
+          api_access: boolean
           campaigns_enabled: boolean
           created_at: string
           description: string | null
           id: string
           is_active: boolean
+          max_ai_agents: number
+          max_campaigns: number
+          max_chatbots: number
+          max_contacts: number
           max_instances: number
+          max_messages_day: number
           max_messages_month: number
           max_users: number
+          max_workflows: number
           name: string
           price_cents: number
+          support_priority: string
           updated_at: string
+          whitelabel_enabled: boolean
           workflows_enabled: boolean
         }
         Insert: {
           ai_agents_enabled?: boolean
+          api_access?: boolean
           campaigns_enabled?: boolean
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          max_ai_agents?: number
+          max_campaigns?: number
+          max_chatbots?: number
+          max_contacts?: number
           max_instances?: number
+          max_messages_day?: number
           max_messages_month?: number
           max_users?: number
+          max_workflows?: number
           name: string
           price_cents?: number
+          support_priority?: string
           updated_at?: string
+          whitelabel_enabled?: boolean
           workflows_enabled?: boolean
         }
         Update: {
           ai_agents_enabled?: boolean
+          api_access?: boolean
           campaigns_enabled?: boolean
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          max_ai_agents?: number
+          max_campaigns?: number
+          max_chatbots?: number
+          max_contacts?: number
           max_instances?: number
+          max_messages_day?: number
           max_messages_month?: number
           max_users?: number
+          max_workflows?: number
           name?: string
           price_cents?: number
+          support_priority?: string
           updated_at?: string
+          whitelabel_enabled?: boolean
           workflows_enabled?: boolean
         }
         Relationships: []
@@ -907,6 +934,7 @@ export type Database = {
           expires_at: string | null
           id: string
           plan_id: string
+          renewal_date: string | null
           started_at: string
           status: string
           updated_at: string
@@ -917,6 +945,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           plan_id: string
+          renewal_date?: string | null
           started_at?: string
           status?: string
           updated_at?: string
@@ -927,6 +956,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           plan_id?: string
+          renewal_date?: string | null
           started_at?: string
           status?: string
           updated_at?: string
