@@ -6,6 +6,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Human behavior helpers
+function calcTypingDelay(messageLength: number, speedMin: number, speedMax: number): number {
+  const speed = speedMin + Math.random() * (speedMax - speedMin);
+  return (messageLength / speed) * 1000; // ms
+}
+
+function calcHumanPause(pauseMin: number, pauseMax: number): number {
+  return (pauseMin + Math.random() * (pauseMax - pauseMin)) * 1000; // ms
+}
+
+function calcBurstCooldown(cooldownMin: number, cooldownMax: number): number {
+  return (cooldownMin + Math.random() * (cooldownMax - cooldownMin)) * 1000; // ms
+}
+
+function getInstanceVariation(instanceIndex: number): { pauseMin: number; pauseMax: number } {
+  // Each instance gets a unique rhythm offset based on index
+  const baseMin = 8 + (instanceIndex * 2);
+  const baseMax = 18 + (instanceIndex * 3);
+  return { pauseMin: baseMin, pauseMax: Math.min(baseMax, 35) };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -18,7 +39,26 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { action, campaign_id, company_id, batch_size = 10 } = body;
 
-    // ACTION: enqueue - Create queue entries from campaign contacts
+    // Helper: fetch human behavior config for a company
+    async function getHumanConfig(cid: string) {
+      const { data } = await supabase
+        .from('human_behavior_config')
+        .select('*')
+        .eq('company_id', cid)
+        .single();
+      return data || {
+        typing_simulation_enabled: true,
+        typing_speed_min: 3,
+        typing_speed_max: 7,
+        human_pause_min: 8,
+        human_pause_max: 25,
+        burst_limit: 20,
+        cooldown_after_burst_min: 120,
+        cooldown_after_burst_max: 300,
+      };
+    }
+
+    // ACTION: enqueue
     if (action === 'enqueue') {
       if (!campaign_id || !company_id) {
         return new Response(JSON.stringify({ error: 'campaign_id and company_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -42,13 +82,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: 'No contacts or instances' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Spintax resolver
       const resolveSpintax = (text: string) => text.replace(/\{([^{}]+)\}/g, (_, group: string) => {
         const options = group.split('|');
         return options[Math.floor(Math.random() * options.length)];
       });
 
-      // Distribute contacts evenly across instances (round-robin)
       const queueEntries = contacts.map((phone, i) => ({
         company_id,
         campaign_id,
@@ -59,37 +97,29 @@ serve(async (req) => {
         scheduled_at: new Date().toISOString(),
       }));
 
-      // Insert in batches of 500
       const BATCH_SIZE = 500;
       for (let i = 0; i < queueEntries.length; i += BATCH_SIZE) {
-        const batch = queueEntries.slice(i, i + BATCH_SIZE);
-        await supabase.from('message_queue').insert(batch);
+        await supabase.from('message_queue').insert(queueEntries.slice(i, i + BATCH_SIZE));
       }
 
-      // Update campaign status
       await supabase.from('campaigns').update({ status: 'sending' }).eq('id', campaign_id);
 
-      // Ensure instance_limits exist
       for (const instId of instanceIds) {
-        await supabase.from('instance_limits').upsert(
-          { instance_id: instId },
-          { onConflict: 'instance_id' }
-        );
+        await supabase.from('instance_limits').upsert({ instance_id: instId }, { onConflict: 'instance_id' });
       }
 
       return new Response(JSON.stringify({ queued: queueEntries.length }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // ACTION: process - Process pending messages from queue
+    // ACTION: process
     if (action === 'process') {
       if (!campaign_id) {
         return new Response(JSON.stringify({ error: 'campaign_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Check if campaign is still sending (not paused)
       const { data: campaign } = await supabase
         .from('campaigns')
-        .select('status, segment_data')
+        .select('status, segment_data, company_id')
         .eq('id', campaign_id)
         .single();
 
@@ -97,11 +127,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ processed: 0, reason: 'Campaign not in sending state' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
+      // Load human behavior config
+      const hb = await getHumanConfig(campaign.company_id);
       const segData = campaign.segment_data as any || {};
-      const delayMin = segData.delay_min || 3;
-      const delayMax = segData.delay_max || 8;
+      const humanModeEnabled = segData.human_mode !== false;
 
-      // Fetch pending messages
       const { data: pending } = await supabase
         .from('message_queue')
         .select('*, instances(name, status, evolution_instance_id)')
@@ -112,7 +142,6 @@ serve(async (req) => {
         .limit(batch_size);
 
       if (!pending || pending.length === 0) {
-        // Check if all done
         const { count: remainingCount } = await supabase
           .from('message_queue')
           .select('id', { count: 'exact', head: true })
@@ -128,13 +157,20 @@ serve(async (req) => {
 
       let processed = 0;
       let failed = 0;
+      let burstCount = 0;
+      let totalTypingDelay = 0;
+      let totalPauseDelay = 0;
+      let pausesApplied = 0;
+
+      // Build instance index map for per-instance variation
+      const instanceIndexMap = new Map<string, number>();
+      let idxCounter = 0;
 
       for (const msg of pending) {
         const instance = (msg as any).instances;
 
-        // Check instance availability - fallback if offline
+        // Instance fallback
         if (!instance || instance.status !== 'online') {
-          // Find alternative instance
           const { data: altInstances } = await supabase
             .from('instances')
             .select('id')
@@ -146,9 +182,7 @@ serve(async (req) => {
             await supabase.from('message_queue').update({ instance_id: altInstances[0].id }).eq('id', msg.id);
           } else {
             await supabase.from('message_queue').update({
-              status: 'failed',
-              error: 'No available instances',
-              attempts: msg.attempts + 1,
+              status: 'failed', error: 'No available instances', attempts: msg.attempts + 1,
             }).eq('id', msg.id);
             failed++;
             continue;
@@ -164,8 +198,6 @@ serve(async (req) => {
 
         if (limits) {
           const now = new Date();
-
-          // Reset counters if needed
           const resetMinute = new Date(limits.last_reset_minute).getTime() + 60000 < now.getTime();
           const resetHour = new Date(limits.last_reset_hour).getTime() + 3600000 < now.getTime();
           const resetDay = new Date(limits.last_reset_day).getTime() + 86400000 < now.getTime();
@@ -182,14 +214,9 @@ serve(async (req) => {
           const currentHour = resetHour ? 0 : limits.messages_sent_hour;
           const currentDay = resetDay ? 0 : limits.messages_sent_day;
 
-          // Check cooldown
-          if (limits.cooldown_until && new Date(limits.cooldown_until) > now) {
-            continue; // Skip this instance, it's cooling down
-          }
+          if (limits.cooldown_until && new Date(limits.cooldown_until) > now) continue;
 
-          // Check limits
           if (currentMinute >= limits.max_per_minute || currentHour >= limits.max_per_hour || currentDay >= limits.max_per_day) {
-            // Enter cooldown (15 min)
             await supabase.from('instance_limits').update({
               cooldown_until: new Date(now.getTime() + 15 * 60000).toISOString(),
             }).eq('id', limits.id);
@@ -200,17 +227,49 @@ serve(async (req) => {
         // Mark as processing
         await supabase.from('message_queue').update({ status: 'processing' }).eq('id', msg.id);
 
-        // Simulate send (in production, call Evolution API here)
-        // Random delay simulation
-        const delay = Math.floor(Math.random() * (delayMax - delayMin + 1)) + delayMin;
-        await new Promise(resolve => setTimeout(resolve, delay * 100)); // reduced for edge function
+        // ===== HUMAN BEHAVIOR ENGINE =====
+        if (humanModeEnabled && hb.typing_simulation_enabled) {
+          // 1. Typing simulation delay
+          const typingMs = calcTypingDelay(
+            (msg.message || '').length,
+            Number(hb.typing_speed_min),
+            Number(hb.typing_speed_max)
+          );
+          totalTypingDelay += typingMs;
+          // In edge function we cap to avoid timeout, scale down by 10x
+          await new Promise(r => setTimeout(r, Math.min(typingMs / 10, 500)));
+        }
 
-        // Mark as sent
+        if (humanModeEnabled) {
+          // 2. Per-instance variation pause
+          if (!instanceIndexMap.has(msg.instance_id)) {
+            instanceIndexMap.set(msg.instance_id, idxCounter++);
+          }
+          const instIdx = instanceIndexMap.get(msg.instance_id)!;
+          const variation = getInstanceVariation(instIdx);
+
+          const pauseMin = Math.max(variation.pauseMin, hb.human_pause_min);
+          const pauseMax = Math.max(variation.pauseMax, hb.human_pause_max);
+          const pauseMs = calcHumanPause(pauseMin, pauseMax);
+          totalPauseDelay += pauseMs;
+          pausesApplied++;
+          // Scale down for edge function
+          await new Promise(r => setTimeout(r, Math.min(pauseMs / 10, 800)));
+
+          // 3. Burst cooldown
+          burstCount++;
+          if (burstCount >= hb.burst_limit) {
+            const cooldownMs = calcBurstCooldown(hb.cooldown_after_burst_min, hb.cooldown_after_burst_max);
+            // Scale down for edge function
+            await new Promise(r => setTimeout(r, Math.min(cooldownMs / 50, 2000)));
+            burstCount = 0;
+          }
+        }
+
+        // Send (simulate - in production call Evolution API with typing status)
         const sentAt = new Date().toISOString();
         await supabase.from('message_queue').update({
-          status: 'sent',
-          sent_at: sentAt,
-          attempts: msg.attempts + 1,
+          status: 'sent', sent_at: sentAt, attempts: msg.attempts + 1,
         }).eq('id', msg.id);
 
         // Update instance limits
@@ -222,7 +281,7 @@ serve(async (req) => {
           }).eq('id', limits.id);
         }
 
-        // Log to messages_log
+        // Log
         await supabase.from('messages_log').insert({
           company_id: msg.company_id,
           instance_id: msg.instance_id,
@@ -251,6 +310,11 @@ serve(async (req) => {
           failed: failedRes.count || 0,
           delivered: deliveredRes.count || 0,
           read: 0,
+          human_behavior: humanModeEnabled ? {
+            avg_typing_delay: processed > 0 ? Math.round(totalTypingDelay / processed) : 0,
+            avg_pause_delay: pausesApplied > 0 ? Math.round(totalPauseDelay / pausesApplied) : 0,
+            pauses_applied: pausesApplied,
+          } : null,
         },
       }).eq('id', campaign_id);
 
@@ -266,18 +330,19 @@ serve(async (req) => {
       return new Response(JSON.stringify({ paused: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // ACTION: stats - Get queue stats
+    // ACTION: stats
     if (action === 'stats') {
       if (!campaign_id) {
         return new Response(JSON.stringify({ error: 'campaign_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const [pending, processing, sent, failedQ, blocked] = await Promise.all([
+      const [pending, processing, sent, failedQ, blocked, campaignData] = await Promise.all([
         supabase.from('message_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', campaign_id).eq('status', 'pending'),
         supabase.from('message_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', campaign_id).eq('status', 'processing'),
         supabase.from('message_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', campaign_id).eq('status', 'sent'),
         supabase.from('message_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', campaign_id).eq('status', 'failed'),
         supabase.from('message_queue').select('id', { count: 'exact', head: true }).eq('campaign_id', campaign_id).eq('status', 'blocked'),
+        supabase.from('campaigns').select('stats, segment_data').eq('id', campaign_id).single(),
       ]);
 
       const total = (pending.count || 0) + (processing.count || 0) + (sent.count || 0) + (failedQ.count || 0) + (blocked.count || 0);
@@ -286,6 +351,9 @@ serve(async (req) => {
       let risk = 'baixo';
       if (failRate > 10) risk = 'alto';
       else if (failRate > 5) risk = 'moderado';
+
+      const stats = (campaignData?.data?.stats as any) || {};
+      const segData = (campaignData?.data?.segment_data as any) || {};
 
       return new Response(JSON.stringify({
         pending: pending.count || 0,
@@ -296,6 +364,8 @@ serve(async (req) => {
         total,
         fail_rate: failRate,
         risk,
+        human_mode: segData.human_mode !== false,
+        human_behavior: stats.human_behavior || null,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
