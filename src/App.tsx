@@ -35,6 +35,7 @@ import AdminGateways from "./pages/admin/Gateways";
 import AdminReports from "./pages/admin/Reports";
 import AdminHealth from "./pages/admin/Health";
 import AdminWebhooks from "./pages/admin/Webhooks";
+import AdminLogs from "./pages/admin/Logs";
 import Settings from "./pages/Settings";
 import Branding from "./pages/Branding";
 import Profile from "./pages/Profile";
@@ -100,6 +101,7 @@ const App = () => (
               <Route path="/admin/reports" element={<ProtectedPage role={['super_admin']}><AdminReports /></ProtectedPage>} />
               <Route path="/admin/health" element={<ProtectedPage role={['super_admin']}><AdminHealth /></ProtectedPage>} />
               <Route path="/admin/webhooks" element={<ProtectedPage role={['super_admin']}><AdminWebhooks /></ProtectedPage>} />
+              <Route path="/admin/logs" element={<ProtectedPage role={['super_admin', 'admin']}><AdminLogs /></ProtectedPage>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>

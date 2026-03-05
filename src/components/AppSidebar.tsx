@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Smartphone, MessageCircle, Clock, 
   Radio, Key, GitBranch, Bot, Megaphone, Settings,
   Building2, CreditCard, Receipt, Users, Shield, User,
-  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette
+  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette, FileText
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -45,6 +45,7 @@ const superAdminItems = [
   { title: 'Relatórios', url: '/admin/reports', icon: BarChart3 },
   { title: 'Saúde do Sistema', url: '/admin/health', icon: Heart },
   { title: 'Webhooks', url: '/admin/webhooks', icon: Webhook },
+  { title: 'Logs de Mensagens', url: '/admin/logs', icon: FileText },
 ];
 
 export function AppSidebar() {

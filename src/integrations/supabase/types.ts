@@ -646,6 +646,76 @@ export type Database = {
           },
         ]
       }
+      messages_log: {
+        Row: {
+          campaign_id: string | null
+          company_id: string
+          contact_number: string
+          created_at: string
+          delivered_at: string | null
+          direction: string
+          id: string
+          instance_id: string | null
+          media_url: string | null
+          message: string | null
+          read_at: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          company_id: string
+          contact_number: string
+          created_at?: string
+          delivered_at?: string | null
+          direction?: string
+          id?: string
+          instance_id?: string | null
+          media_url?: string | null
+          message?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          company_id?: string
+          contact_number?: string
+          created_at?: string
+          delivered_at?: string | null
+          direction?: string
+          id?: string
+          instance_id?: string | null
+          media_url?: string | null
+          message?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_log_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modules: {
         Row: {
           created_at: string
