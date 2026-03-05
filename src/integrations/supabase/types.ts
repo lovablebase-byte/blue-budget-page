@@ -320,9 +320,14 @@ export type Database = {
       greetings: {
         Row: {
           company_id: string
+          cooldown_minutes: number
           created_at: string
+          delay_max: number
+          delay_min: number
           id: string
+          instance_id: string | null
           is_active: boolean
+          media_url: string | null
           message_template: string
           name: string
           schedule: Json | null
@@ -331,9 +336,14 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          cooldown_minutes?: number
           created_at?: string
+          delay_max?: number
+          delay_min?: number
           id?: string
+          instance_id?: string | null
           is_active?: boolean
+          media_url?: string | null
           message_template: string
           name: string
           schedule?: Json | null
@@ -342,9 +352,14 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          cooldown_minutes?: number
           created_at?: string
+          delay_max?: number
+          delay_min?: number
           id?: string
+          instance_id?: string | null
           is_active?: boolean
+          media_url?: string | null
           message_template?: string
           name?: string
           schedule?: Json | null
@@ -357,6 +372,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "greetings_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
             referencedColumns: ["id"]
           },
         ]
