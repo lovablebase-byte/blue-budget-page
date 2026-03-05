@@ -290,6 +290,79 @@ export type Database = {
           },
         ]
       }
+      chatbot_keywords: {
+        Row: {
+          audience: string
+          chain_to_id: string | null
+          company_id: string
+          created_at: string
+          delay_seconds: number
+          id: string
+          instance_id: string | null
+          is_active: boolean
+          keywords: string[]
+          match_type: string
+          media_url: string | null
+          response: string
+          save_history: boolean
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          chain_to_id?: string | null
+          company_id: string
+          created_at?: string
+          delay_seconds?: number
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean
+          keywords?: string[]
+          match_type?: string
+          media_url?: string | null
+          response: string
+          save_history?: boolean
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          chain_to_id?: string | null
+          company_id?: string
+          created_at?: string
+          delay_seconds?: number
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean
+          keywords?: string[]
+          match_type?: string
+          media_url?: string | null
+          response?: string
+          save_history?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_keywords_chain_to_id_fkey"
+            columns: ["chain_to_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_keywords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_keywords_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_keywords_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
