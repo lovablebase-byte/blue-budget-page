@@ -36,8 +36,10 @@ import AdminReports from "./pages/admin/Reports";
 import AdminHealth from "./pages/admin/Health";
 import AdminWebhooks from "./pages/admin/Webhooks";
 import Settings from "./pages/Settings";
+import Branding from "./pages/Branding";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import { BrandingProvider } from "@/contexts/BrandingContext";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +59,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <BrandingProvider>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -82,6 +85,7 @@ const App = () => (
               <Route path="/invoices" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyInvoices /></ProtectedPage>} />
               <Route path="/users" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyUsers /></ProtectedPage>} />
               <Route path="/settings" element={<ProtectedPage module="settings"><Settings /></ProtectedPage>} />
+              <Route path="/branding" element={<ProtectedPage role={['admin', 'super_admin']}><Branding /></ProtectedPage>} />
 
               {/* Personal */}
               <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
@@ -99,6 +103,7 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </BrandingProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
