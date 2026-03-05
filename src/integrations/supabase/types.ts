@@ -417,6 +417,53 @@ export type Database = {
         }
         Relationships: []
       }
+      company_branding: {
+        Row: {
+          company_id: string
+          created_at: string
+          custom_domain: string | null
+          favicon_url: string | null
+          id: string
+          logo_dark_url: string | null
+          logo_light_url: string | null
+          primary_color: string | null
+          site_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          custom_domain?: string | null
+          favicon_url?: string | null
+          id?: string
+          logo_dark_url?: string | null
+          logo_light_url?: string | null
+          primary_color?: string | null
+          site_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          custom_domain?: string | null
+          favicon_url?: string | null
+          id?: string
+          logo_dark_url?: string | null
+          logo_light_url?: string | null
+          primary_color?: string | null
+          site_title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_branding_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       greetings: {
         Row: {
           company_id: string

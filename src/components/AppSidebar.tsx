@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Smartphone, MessageCircle, Clock, 
   Radio, Key, GitBranch, Bot, Megaphone, Settings,
   Building2, CreditCard, Receipt, Users, Shield, User,
-  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare
+  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -33,6 +33,7 @@ const adminItems = [
   { title: 'Faturas', url: '/invoices', icon: Receipt },
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Ajustes', url: '/settings', icon: Settings, module: 'settings' },
+  { title: 'Marca', url: '/branding', icon: Palette },
 ];
 
 const superAdminItems = [
