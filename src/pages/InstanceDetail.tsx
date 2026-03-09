@@ -207,69 +207,67 @@ export default function InstanceDetail() {
             </Card>
           </div>
 
-          {/* API Endpoint & Session Token */}
-          {evoConfig && evoConfig.is_active && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Key className="h-4 w-4" /> Endpoint da API e Token da Sessão
-                </CardTitle>
-                <CardDescription>Credenciais para integração com a Evolution API</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5">
-                    <Globe className="h-3.5 w-3.5" /> Endpoint da API
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={evoConfig.base_url}
-                      readOnly
-                      className="font-mono text-xs"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(evoConfig.base_url)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
+          {/* API Endpoint & Session Token — same values as creation modal */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Key className="h-4 w-4" /> Endpoint da API e Token da Sessão
+              </CardTitle>
+              <CardDescription>Use esses dados para integração com seu sistema de delivery</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5" /> Endpoint da API
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={`${window.location.origin}/api/instance/${instance.id}`}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(`${window.location.origin}/api/instance/${instance.id}`)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5">
-                    <Key className="h-3.5 w-3.5" /> Token da Sessão (API Key)
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type={showToken ? 'text' : 'password'}
-                      value={evoConfig.api_key}
-                      readOnly
-                      className="font-mono text-xs"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowToken(!showToken)}
-                    >
-                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(evoConfig.api_key)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Key className="h-3.5 w-3.5" /> Token da Sessão
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    type={showToken ? 'text' : 'password'}
+                    value={instance.id}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowToken(!showToken)}
+                  >
+                    {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(instance.id)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="flex justify-between items-center pt-1">
-                  <span className="text-xs text-muted-foreground">Instância na API</span>
-                  <Badge variant="outline" className="font-mono text-xs">{instance.name}</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-xs text-muted-foreground">Instância na API</span>
+                <Badge variant="outline" className="font-mono text-xs">{instance.name}</Badge>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="webhooks" className="space-y-4 mt-4">
