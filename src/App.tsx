@@ -37,6 +37,7 @@ import AdminWebhooks from "./pages/admin/Webhooks";
 import AdminLogs from "./pages/admin/Logs";
 import Settings from "./pages/Settings";
 import Branding from "./pages/Branding";
+import DeliveryWhatsApp from "./pages/DeliveryWhatsApp";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { BrandingProvider } from "@/contexts/BrandingContext";
