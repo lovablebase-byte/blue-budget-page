@@ -11,7 +11,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import AccessDenied from "./pages/AccessDenied";
-import ForcePasswordChange from "./pages/ForcePasswordChange";
+
 import Dashboard from "./pages/Dashboard";
 import Account from "./pages/Account";
 import Instances from "./pages/Instances";
