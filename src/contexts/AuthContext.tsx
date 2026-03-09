@@ -14,8 +14,7 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   isAdmin: boolean;
   isReadOnly: boolean;
-  
-  hasPermission: (module: string, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
+  ring, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -31,8 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const [forcePasswordChange, setForcePasswordChange] = useState(false);
-  const [userDataLoaded, setUserDataLoaded] = useState(false);
+  const [forcePasswordChange, sUserDataLoaded] = useState(false);
 
   const isMountedRef = useRef(true);
 
