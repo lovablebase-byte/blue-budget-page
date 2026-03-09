@@ -507,19 +507,30 @@ export default function Instances() {
       </Dialog>
 
       {/* QR Code dialog */}
-      <Dialog open={showQR} onOpenChange={setShowQR}>
+      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { setQrCodeBase64(null); setQrError(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
             <DialogDescription>Escaneie o QR Code com o WhatsApp no celular</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
-            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
-              <div className="text-center text-muted-foreground">
-                <QrCode className="h-16 w-16 mx-auto mb-2" />
-                <p className="text-sm">QR Code aparecerá aqui</p>
-                <p className="text-xs">Conecte a Evolution API para gerar</p>
-              </div>
+            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+              {qrLoading ? (
+                <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+              ) : qrCodeBase64 ? (
+                <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+              ) : (
+                <div className="text-center text-muted-foreground p-4">
+                  <QrCode className="h-16 w-16 mx-auto mb-2" />
+                  <p className="text-sm">{qrError || 'Clique abaixo para gerar'}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance.name)} disabled={qrLoading}>
+                {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground text-center">
               Instância: <strong>{selectedInstance?.name}</strong>
