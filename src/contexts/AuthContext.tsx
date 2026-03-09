@@ -53,14 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole(roleData.role as AppRole);
         setUserRole(roleData as UserRoleData);
 
-        // Check force password change
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('force_password_change')
-          .eq('user_id', userId)
-          .single();
-        if (!isMountedRef.current) return;
-        setForcePasswordChange(profileData?.force_password_change ?? false);
 
         // Fetch company if not super_admin
         if (roleData.company_id) {
