@@ -81,9 +81,9 @@ serve(async (req) => {
 
     // 4. Seed users
     const users = [
-      { email: "superadmin@superadmin.com", password: "12345678", fullName: "Super Admin", role: "super_admin", companyId: null as string | null, perms: [] as typeof ADMIN_DEFAULT_PERMISSIONS },
-      { email: "admin@admin.com", password: "12345678", fullName: "Admin Demo", role: "admin", companyId, perms: ADMIN_DEFAULT_PERMISSIONS },
-      { email: "usuario@usuario.com", password: "12345678", fullName: "Operador Demo", role: "user", companyId, perms: OPERATOR_DEFAULT_PERMISSIONS },
+      { email: "superadmin@superadmin.com", password: "123456", fullName: "Super Admin", role: "super_admin", companyId: null as string | null, perms: [] as typeof ADMIN_DEFAULT_PERMISSIONS },
+      { email: "admin@admin.com", password: "123456", fullName: "Admin Demo", role: "admin", companyId, perms: ADMIN_DEFAULT_PERMISSIONS },
+      { email: "usuario@usuario.com", password: "123456", fullName: "Operador Demo", role: "user", companyId, perms: OPERATOR_DEFAULT_PERMISSIONS },
     ];
 
     for (const u of users) {
