@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const [forcePasswordChange, sUserDataLoaded] = useState(false);
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
 
   const isMountedRef = useRef(true);
 
