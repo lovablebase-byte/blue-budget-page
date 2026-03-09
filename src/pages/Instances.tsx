@@ -36,6 +36,7 @@ interface Instance {
   reconnect_policy: string;
   last_connected_at: string | null;
   created_at: string;
+  evolution_instance_id: string | null;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Wifi }> = {
