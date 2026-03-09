@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, QrCode, Wifi, WifiOff, RefreshCw, Copy,
   Send, Loader2, AlertCircle, Clock, Webhook, ScrollText,
+  Key, Globe, Eye, EyeOff,
 } from 'lucide-react';
 
 interface InstanceDetail {
