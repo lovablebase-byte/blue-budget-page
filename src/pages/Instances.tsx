@@ -190,6 +190,50 @@ export default function Instances() {
     toast.success(`${label || 'Valor'} copiado!`);
   };
 
+  const fetchQRCode = async (instanceName: string) => {
+    if (!company) return;
+    setQrCodeBase64(null);
+    setQrError(null);
+    setQrLoading(true);
+    try {
+      const { data: evoConfig } = await supabase
+        .from('evolution_api_config')
+        .select('base_url, api_key, is_active')
+        .eq('company_id', company.id)
+        .single();
+
+      if (!evoConfig || !evoConfig.is_active || !evoConfig.base_url || !evoConfig.api_key) {
+        setQrError('Evolution API não configurada. Vá em Configurações para ativar a integração.');
+        return;
+      }
+
+      const baseUrl = evoConfig.base_url.replace(/\/+$/, '');
+      const res = await fetch(`${baseUrl}/instance/connect/${instanceName}`, {
+        method: 'GET',
+        headers: { apikey: evoConfig.api_key },
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || `Erro HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.base64) {
+        setQrCodeBase64(data.base64);
+      } else if (data.code) {
+        // Some versions return just the code, not base64
+        setQrError('QR Code gerado, mas sem imagem base64. Verifique a versão da Evolution API.');
+      } else {
+        setQrError('Resposta inesperada da API. A instância pode já estar conectada.');
+      }
+    } catch (err: any) {
+      setQrError(err.message || 'Falha ao gerar QR Code');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
   const columns: Column<Instance>[] = [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'phone_number', label: 'Número', render: (r) => r.phone_number || '—' },
