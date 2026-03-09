@@ -435,15 +435,31 @@ export default function Instances() {
             <DialogDescription>Escaneie o QR Code para conectar e use os dados abaixo para integração</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* QR Code placeholder */}
+            {/* QR Code */}
             <div className="flex flex-col items-center gap-3 py-3">
-              <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
-                <div className="text-center text-muted-foreground">
-                  <QrCode className="h-14 w-14 mx-auto mb-2" />
-                  <p className="text-sm font-medium">QR Code</p>
-                  <p className="text-xs">Configure a Evolution API</p>
-                </div>
+              <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+                {qrLoading ? (
+                  <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+                ) : qrCodeBase64 ? (
+                  <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="text-center text-muted-foreground p-4">
+                    <QrCode className="h-14 w-14 mx-auto mb-2" />
+                    <p className="text-sm font-medium">QR Code</p>
+                    <p className="text-xs">{qrError || 'Clique para gerar'}</p>
+                  </div>
+                )}
               </div>
+              {!qrLoading && !qrCodeBase64 && (
+                <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                  <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
+                </Button>
+              )}
+              {qrCodeBase64 && (
+                <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
+                </Button>
+              )}
             </div>
 
             <Separator />
