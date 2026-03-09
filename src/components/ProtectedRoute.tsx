@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigatet-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
@@ -10,9 +10,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
   const { user, loading, role, hasPermission } = useAuth();
-  const location = useLocation();
-
-  if (loading) {
+  const locationg) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
