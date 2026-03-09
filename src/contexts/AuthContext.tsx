@@ -14,7 +14,7 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   isAdmin: boolean;
   isReadOnly: boolean;
-  ring, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
+  hasPermission: (module: string, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
