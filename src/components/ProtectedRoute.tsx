@@ -34,10 +34,6 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     );
   }
 
-  // 2. Force password change takes absolute priority
-  if (forcePasswordChange && location.pathname !== '/force-password-change') {
-    return <Navigate to="/force-password-change" replace />;
-  }
 
   // 3. Super Admin and Admin bypass ALL module permission checks
   if (role === 'super_admin' || role === 'admin') {

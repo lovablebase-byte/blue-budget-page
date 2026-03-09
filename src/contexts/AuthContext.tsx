@@ -216,7 +216,7 @@ const defaultAuthContext: AuthContextType = {
   user: null, session: null, loading: true, role: null,
   userRole: null, company: null, permissions: [],
   isSuperAdmin: false, isAdmin: false, isReadOnly: false,
-  forcePasswordChange: false,
+  
   hasPermission: () => false,
   signOut: async () => {},
   refreshAuth: async () => {},
