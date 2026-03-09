@@ -94,7 +94,9 @@ serve(async (req) => {
       let userId: string;
       if (existing) {
         userId = existing.id;
-        results.push(`${u.email} já existe`);
+        // Update password to ensure it matches
+        await supabase.auth.admin.updateUserById(userId, { password: u.password });
+        results.push(`${u.email} já existe (senha atualizada)`);
       } else {
         const { data: newUser, error: authErr } = await supabase.auth.admin.createUser({
           email: u.email, password: u.password, email_confirm: true,
