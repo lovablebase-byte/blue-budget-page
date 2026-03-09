@@ -108,56 +108,50 @@ export default function Instances() {
     setNewReconnect('auto'); setCopyFromInstance('');
   };
 
+  const callEvolutionProxy = async (action: string, instanceName?: string, payload?: any) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Não autenticado');
+
+    const res = await supabase.functions.invoke('evolution-proxy', {
+      body: { action, instanceName, payload },
+    });
+
+    if (res.error) throw new Error(res.error.message || 'Erro ao chamar proxy');
+    if (res.data?.error) throw new Error(res.data.error);
+    return res.data;
+  };
+
   const handleCreate = async () => {
     if (!company || !newName.trim()) return;
     setCreating(true);
     try {
-      // 1. Get Evolution API config
-      const { data: evoConfig } = await supabase
-        .from('evolution_api_config')
-        .select('base_url, api_key, is_active')
-        .eq('company_id', company.id)
-        .single();
-
       const instanceName = newName.trim();
       const webhookUrl = `${window.location.origin}/api/webhooks/${company.slug}`;
       let evolutionInstanceId: string | null = null;
+      let evoActive = false;
 
-      // 2. Create instance in Evolution API if configured
-      if (evoConfig?.is_active && evoConfig.base_url && evoConfig.api_key) {
-        const baseUrl = evoConfig.base_url.replace(/\/+$/, '');
-        const evoRes = await fetch(`${baseUrl}/instance/create`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: evoConfig.api_key,
-          },
-          body: JSON.stringify({
-            instanceName,
-            qrcode: true,
-            integration: 'WHATSAPP-BAILEYS',
-            webhook: webhookUrl,
-            webhookByEvents: true,
-            events: [
-              'messages.upsert', 'send.message', 'connection.update',
-              'qrcode.updated', 'messages.update',
-            ],
-          }),
+      // 1. Try to create in Evolution API via proxy
+      try {
+        const evoData = await callEvolutionProxy('create', instanceName, {
+          webhook: webhookUrl,
+          webhookByEvents: true,
+          events: [
+            'messages.upsert', 'send.message', 'connection.update',
+            'qrcode.updated', 'messages.update',
+          ],
         });
-
-        if (!evoRes.ok) {
-          const errBody = await evoRes.json().catch(() => ({}));
-          throw new Error(errBody.message || `Erro ao criar na Evolution API: HTTP ${evoRes.status}`);
-        }
-
-        const evoData = await evoRes.json();
         evolutionInstanceId = evoData?.instance?.instanceName || instanceName;
+        evoActive = true;
         toast.success('Instância criada na Evolution API!');
-      } else {
-        toast.info('Evolution API não configurada. Instância criada apenas no painel.');
+      } catch (evoErr: any) {
+        if (evoErr.message?.includes('não configurada') || evoErr.message?.includes('desativada')) {
+          toast.info('Evolution API não configurada. Instância criada apenas no painel.');
+        } else {
+          throw evoErr;
+        }
       }
 
-      // 3. Save to database
+      // 2. Save to database
       const { data, error } = await supabase.from('instances').insert({
         company_id: company.id,
         name: instanceName,
@@ -166,7 +160,7 @@ export default function Instances() {
         tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
         timezone: newTimezone,
         reconnect_policy: newReconnect,
-        status: evoConfig?.is_active ? 'pairing' : 'offline',
+        status: evoActive ? 'pairing' : 'offline',
       }).select().single();
       if (error) throw error;
 
@@ -176,8 +170,8 @@ export default function Instances() {
       setShowPostCreate(true);
       fetchInstances();
 
-      // 4. Auto-fetch QR code if Evolution API is active
-      if (evoConfig?.is_active) {
+      // 3. Auto-fetch QR code
+      if (evoActive) {
         setTimeout(() => fetchQRCode(instanceName), 500);
       }
     } catch (e: any) {
