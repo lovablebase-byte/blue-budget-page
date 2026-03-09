@@ -82,6 +82,31 @@ export default function Instances() {
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
+  const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
+    if (!instance.evolution_instance_id && !instance.name) return instance;
+    try {
+      const evoData = await callEvolutionProxy('status', instance.evolution_instance_id || instance.name);
+      const evoState = evoData?.instance?.state || evoData?.state || '';
+      let newStatus = instance.status;
+      if (evoState === 'open' || evoState === 'connected') {
+        newStatus = 'online';
+      } else if (evoState === 'close' || evoState === 'disconnected') {
+        newStatus = 'offline';
+      } else if (evoState === 'connecting') {
+        newStatus = 'connecting';
+      }
+      if (newStatus !== instance.status) {
+        const updateData: Record<string, any> = { status: newStatus };
+        if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
+        await supabase.from('instances').update(updateData).eq('id', instance.id);
+        return { ...instance, status: newStatus };
+      }
+      return instance;
+    } catch {
+      return instance;
+    }
+  };
+
   const fetchInstances = async () => {
     if (!company) return;
     setLoading(true);
@@ -90,9 +115,16 @@ export default function Instances() {
       .select('*')
       .eq('company_id', company.id)
       .order('created_at', { ascending: false });
-    if (error) toast.error(error.message);
-    else setInstances((data as Instance[]) || []);
+    if (error) { toast.error(error.message); setLoading(false); return; }
+
+    const dbInstances = (data as Instance[]) || [];
+    setInstances(dbInstances);
     setLoading(false);
+
+    // Sync status from Evolution API in background
+    const synced = await Promise.all(dbInstances.map(syncInstanceStatus));
+    const changed = synced.some((s, i) => s.status !== dbInstances[i].status);
+    if (changed) setInstances(synced);
   };
 
   useEffect(() => { fetchInstances(); }, [company]);
