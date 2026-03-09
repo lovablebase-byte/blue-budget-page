@@ -67,6 +67,11 @@ export default function Instances() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // QR Code states
+  const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+
   // Form states
   const [newName, setNewName] = useState('');
   const [newTags, setNewTags] = useState('');
