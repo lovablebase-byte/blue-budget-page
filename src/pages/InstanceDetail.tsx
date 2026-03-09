@@ -41,6 +41,12 @@ interface WebhookEvent {
   payload: any;
 }
 
+interface EvoConfig {
+  base_url: string;
+  api_key: string;
+  is_active: boolean;
+}
+
 export default function InstanceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -49,6 +55,8 @@ export default function InstanceDetail() {
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [evoConfig, setEvoConfig] = useState<EvoConfig | null>(null);
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     if (!id) return;
