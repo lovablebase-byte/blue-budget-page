@@ -143,7 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCompany(null);
     setPermissions([]);
     setIsReadOnly(false);
-    setForcePasswordChange(false);
     setUserDataLoaded(false);
   };
 
