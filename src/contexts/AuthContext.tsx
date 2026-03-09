@@ -203,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user, session, loading, role, userRole, company,
-        permissions, isSuperAdmin, isAdmin, isReadOnly, forcePasswordChange,
+        permissions, isSuperAdmin, isAdmin, isReadOnly,
         hasPermission, signOut, refreshAuth,
       }}
     >
