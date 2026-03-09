@@ -69,6 +69,15 @@ export default function InstanceDetail() {
         .single();
       if (error) { toast.error(error.message); navigate('/instances'); return; }
       setInstance(data as InstanceDetail);
+      // Fetch Evolution API config for endpoint/token display
+      if (data?.company_id) {
+        const { data: evo } = await supabase
+          .from('evolution_api_config')
+          .select('base_url, api_key, is_active')
+          .eq('company_id', data.company_id)
+          .single();
+        if (evo) setEvoConfig(evo as EvoConfig);
+      }
       setLoading(false);
     };
     fetchData();
