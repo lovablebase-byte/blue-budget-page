@@ -67,6 +67,11 @@ export default function Instances() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // QR Code states
+  const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+
   // Form states
   const [newName, setNewName] = useState('');
   const [newTags, setNewTags] = useState('');
@@ -183,6 +188,50 @@ export default function Instances() {
   const copyToClipboard = (text: string, label?: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label || 'Valor'} copiado!`);
+  };
+
+  const fetchQRCode = async (instanceName: string) => {
+    if (!company) return;
+    setQrCodeBase64(null);
+    setQrError(null);
+    setQrLoading(true);
+    try {
+      const { data: evoConfig } = await supabase
+        .from('evolution_api_config')
+        .select('base_url, api_key, is_active')
+        .eq('company_id', company.id)
+        .single();
+
+      if (!evoConfig || !evoConfig.is_active || !evoConfig.base_url || !evoConfig.api_key) {
+        setQrError('Evolution API não configurada. Vá em Configurações para ativar a integração.');
+        return;
+      }
+
+      const baseUrl = evoConfig.base_url.replace(/\/+$/, '');
+      const res = await fetch(`${baseUrl}/instance/connect/${instanceName}`, {
+        method: 'GET',
+        headers: { apikey: evoConfig.api_key },
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || `Erro HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.base64) {
+        setQrCodeBase64(data.base64);
+      } else if (data.code) {
+        // Some versions return just the code, not base64
+        setQrError('QR Code gerado, mas sem imagem base64. Verifique a versão da Evolution API.');
+      } else {
+        setQrError('Resposta inesperada da API. A instância pode já estar conectada.');
+      }
+    } catch (err: any) {
+      setQrError(err.message || 'Falha ao gerar QR Code');
+    } finally {
+      setQrLoading(false);
+    }
   };
 
   const columns: Column<Instance>[] = [
@@ -386,15 +435,31 @@ export default function Instances() {
             <DialogDescription>Escaneie o QR Code para conectar e use os dados abaixo para integração</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* QR Code placeholder */}
+            {/* QR Code */}
             <div className="flex flex-col items-center gap-3 py-3">
-              <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
-                <div className="text-center text-muted-foreground">
-                  <QrCode className="h-14 w-14 mx-auto mb-2" />
-                  <p className="text-sm font-medium">QR Code</p>
-                  <p className="text-xs">Configure a Evolution API</p>
-                </div>
+              <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+                {qrLoading ? (
+                  <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+                ) : qrCodeBase64 ? (
+                  <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="text-center text-muted-foreground p-4">
+                    <QrCode className="h-14 w-14 mx-auto mb-2" />
+                    <p className="text-sm font-medium">QR Code</p>
+                    <p className="text-xs">{qrError || 'Clique para gerar'}</p>
+                  </div>
+                )}
               </div>
+              {!qrLoading && !qrCodeBase64 && (
+                <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                  <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
+                </Button>
+              )}
+              {qrCodeBase64 && (
+                <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
+                </Button>
+              )}
             </div>
 
             <Separator />
@@ -442,19 +507,30 @@ export default function Instances() {
       </Dialog>
 
       {/* QR Code dialog */}
-      <Dialog open={showQR} onOpenChange={setShowQR}>
+      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { setQrCodeBase64(null); setQrError(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
             <DialogDescription>Escaneie o QR Code com o WhatsApp no celular</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
-            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
-              <div className="text-center text-muted-foreground">
-                <QrCode className="h-16 w-16 mx-auto mb-2" />
-                <p className="text-sm">QR Code aparecerá aqui</p>
-                <p className="text-xs">Conecte a Evolution API para gerar</p>
-              </div>
+            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+              {qrLoading ? (
+                <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+              ) : qrCodeBase64 ? (
+                <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+              ) : (
+                <div className="text-center text-muted-foreground p-4">
+                  <QrCode className="h-16 w-16 mx-auto mb-2" />
+                  <p className="text-sm">{qrError || 'Clique abaixo para gerar'}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance.name)} disabled={qrLoading}>
+                {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground text-center">
               Instância: <strong>{selectedInstance?.name}</strong>
