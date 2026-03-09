@@ -80,6 +80,15 @@ serve(async (req) => {
         evoPath = `/instance/delete/${instanceName}`;
         evoMethod = "DELETE";
         break;
+      case "sendPresence":
+        evoPath = `/chat/updatePresence/${instanceName}`;
+        evoMethod = "POST";
+        evoBody = JSON.stringify({
+          number: payload?.number,
+          presence: payload?.presence || "composing",
+          delay: payload?.delay || 3000,
+        });
+        break;
       case "sendText":
         evoPath = `/message/sendText/${instanceName}`;
         evoMethod = "POST";

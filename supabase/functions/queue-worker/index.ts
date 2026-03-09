@@ -266,7 +266,67 @@ serve(async (req) => {
           }
         }
 
-        // Send (simulate - in production call Evolution API with typing status)
+        // === Send via Evolution API with typing indicator ===
+        const instanceRecord = instance || (msg as any).instances;
+        const evoInstanceName = instanceRecord?.evolution_instance_id || instanceRecord?.name;
+
+        if (evoInstanceName) {
+          // Fetch Evolution API config for the company
+          const { data: evoConfig } = await supabase
+            .from('evolution_api_config')
+            .select('base_url, api_key, is_active')
+            .eq('company_id', msg.company_id)
+            .single();
+
+          if (evoConfig?.is_active && evoConfig.base_url && evoConfig.api_key) {
+            const evoBase = evoConfig.base_url.replace(/\/+$/, '');
+            const evoHeaders = { 'Content-Type': 'application/json', apikey: evoConfig.api_key };
+
+            // 1. Send "composing" presence (typing indicator)
+            if (humanModeEnabled && hb.typing_simulation_enabled) {
+              const typingDuration = Math.min(
+                calcTypingDelay((msg.message || '').length, Number(hb.typing_speed_min), Number(hb.typing_speed_max)),
+                15000
+              );
+              try {
+                await fetch(`${evoBase}/chat/updatePresence/${evoInstanceName}`, {
+                  method: 'POST',
+                  headers: evoHeaders,
+                  body: JSON.stringify({
+                    number: msg.phone,
+                    presence: 'composing',
+                    delay: Math.round(typingDuration),
+                  }),
+                });
+                // Wait for part of the typing duration
+                await new Promise(r => setTimeout(r, Math.min(typingDuration / 5, 3000)));
+              } catch (_) { /* typing is best-effort */ }
+            }
+
+            // 2. Send the actual message
+            try {
+              const sendRes = await fetch(`${evoBase}/message/sendText/${evoInstanceName}`, {
+                method: 'POST',
+                headers: evoHeaders,
+                body: JSON.stringify({
+                  number: msg.phone,
+                  text: msg.message,
+                }),
+              });
+              if (!sendRes.ok) {
+                const errData = await sendRes.json().catch(() => ({}));
+                throw new Error(errData.message || `HTTP ${sendRes.status}`);
+              }
+            } catch (sendErr: any) {
+              await supabase.from('message_queue').update({
+                status: 'failed', error: sendErr.message, attempts: msg.attempts + 1,
+              }).eq('id', msg.id);
+              failed++;
+              continue;
+            }
+          }
+        }
+
         const sentAt = new Date().toISOString();
         await supabase.from('message_queue').update({
           status: 'sent', sent_at: sentAt, attempts: msg.attempts + 1,
