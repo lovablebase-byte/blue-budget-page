@@ -112,22 +112,74 @@ export default function Instances() {
     if (!company || !newName.trim()) return;
     setCreating(true);
     try {
+      // 1. Get Evolution API config
+      const { data: evoConfig } = await supabase
+        .from('evolution_api_config')
+        .select('base_url, api_key, is_active')
+        .eq('company_id', company.id)
+        .single();
+
+      const instanceName = newName.trim();
       const webhookUrl = `${window.location.origin}/api/webhooks/${company.slug}`;
+      let evolutionInstanceId: string | null = null;
+
+      // 2. Create instance in Evolution API if configured
+      if (evoConfig?.is_active && evoConfig.base_url && evoConfig.api_key) {
+        const baseUrl = evoConfig.base_url.replace(/\/+$/, '');
+        const evoRes = await fetch(`${baseUrl}/instance/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: evoConfig.api_key,
+          },
+          body: JSON.stringify({
+            instanceName,
+            qrcode: true,
+            integration: 'WHATSAPP-BAILEYS',
+            webhook: webhookUrl,
+            webhookByEvents: true,
+            events: [
+              'messages.upsert', 'send.message', 'connection.update',
+              'qrcode.updated', 'messages.update',
+            ],
+          }),
+        });
+
+        if (!evoRes.ok) {
+          const errBody = await evoRes.json().catch(() => ({}));
+          throw new Error(errBody.message || `Erro ao criar na Evolution API: HTTP ${evoRes.status}`);
+        }
+
+        const evoData = await evoRes.json();
+        evolutionInstanceId = evoData?.instance?.instanceName || instanceName;
+        toast.success('Instância criada na Evolution API!');
+      } else {
+        toast.info('Evolution API não configurada. Instância criada apenas no painel.');
+      }
+
+      // 3. Save to database
       const { data, error } = await supabase.from('instances').insert({
         company_id: company.id,
-        name: newName.trim(),
+        name: instanceName,
+        evolution_instance_id: evolutionInstanceId,
         webhook_url: webhookUrl,
         tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
         timezone: newTimezone,
         reconnect_policy: newReconnect,
+        status: evoConfig?.is_active ? 'pairing' : 'offline',
       }).select().single();
       if (error) throw error;
-      toast.success('Instância criada com sucesso!');
+
       setShowCreate(false);
       resetForm();
       setCreatedInstance(data as Instance);
       setShowPostCreate(true);
       fetchInstances();
+
+      // 4. Auto-fetch QR code if Evolution API is active
+      if (evoConfig?.is_active) {
+        setTimeout(() => fetchQRCode(instanceName), 500);
+      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
