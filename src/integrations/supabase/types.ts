@@ -464,6 +464,132 @@ export type Database = {
           },
         ]
       }
+      delivery_message_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_key: string
+          id: string
+          is_enabled: boolean
+          label: string
+          message_template: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_key: string
+          id?: string
+          is_enabled?: boolean
+          label: string
+          message_template?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_key?: string
+          id?: string
+          is_enabled?: boolean
+          label?: string
+          message_template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_message_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_send_logs: {
+        Row: {
+          api_response: Json | null
+          company_id: string
+          created_at: string
+          error: string | null
+          event_key: string
+          id: string
+          message: string | null
+          order_code: string | null
+          phone: string
+          status: string
+        }
+        Insert: {
+          api_response?: Json | null
+          company_id: string
+          created_at?: string
+          error?: string | null
+          event_key: string
+          id?: string
+          message?: string | null
+          order_code?: string | null
+          phone: string
+          status?: string
+        }
+        Update: {
+          api_response?: Json | null
+          company_id?: string
+          created_at?: string
+          error?: string | null
+          event_key?: string
+          id?: string
+          message?: string | null
+          order_code?: string | null
+          phone?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_send_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_whatsapp_config: {
+        Row: {
+          company_id: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          is_enabled: boolean
+          store_phone: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_enabled?: boolean
+          store_phone?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_enabled?: boolean
+          store_phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_whatsapp_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evolution_api_config: {
         Row: {
           api_key: string
