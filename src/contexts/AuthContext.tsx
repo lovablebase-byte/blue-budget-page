@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserRole(null);
           setCompany(null);
           setPermissions([]);
-          setForcePasswordChange(false);
+          
           setUserDataLoaded(false);
           setLoading(false);
         }
