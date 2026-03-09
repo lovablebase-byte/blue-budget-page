@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
-  const { user, loading, role, hasPermission, forcePasswordChange } = useAuth();
+  const { user, loading, role, hasPermission } = useAuth();
   const location = useLocation();
 
   if (loading) {
