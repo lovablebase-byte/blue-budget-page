@@ -58,7 +58,14 @@ serve(async (req) => {
           instanceName,
           qrcode: true,
           integration: "WHATSAPP-BAILEYS",
-          ...(payload || {}),
+          ...(payload?.webhook ? {
+            webhook: {
+              url: payload.webhook,
+              byEvents: payload.webhookByEvents ?? true,
+              base64: true,
+              events: payload.events || [],
+            },
+          } : {}),
         });
         break;
       case "connect":
