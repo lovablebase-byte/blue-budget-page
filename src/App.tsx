@@ -65,7 +65,9 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/access-denied" element={<AccessDenied />} />
-              <Route path="/force-password-change" element={<ForcePasswordCh"/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
+
+              {/* Operational */}
+              <Route path="/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
               <Route path="/instances" element={<ProtectedPage module="instances"><Instances /></ProtectedPage>} />
               <Route path="/instances/:id" element={<ProtectedPage module="instances"><InstanceDetail /></ProtectedPage>} />
               <Route path="/greetings" element={<ProtectedPage module="greetings"><Greetings /></ProtectedPage>} />
