@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, QrCode, Wifi, WifiOff, RefreshCw, Copy,
   Send, Loader2, AlertCircle, Clock, Webhook, ScrollText,
+  Key, Globe, Eye, EyeOff,
 } from 'lucide-react';
 
 interface InstanceDetail {
@@ -40,6 +41,12 @@ interface WebhookEvent {
   payload: any;
 }
 
+interface EvoConfig {
+  base_url: string;
+  api_key: string;
+  is_active: boolean;
+}
+
 export default function InstanceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -48,6 +55,8 @@ export default function InstanceDetail() {
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [evoConfig, setEvoConfig] = useState<EvoConfig | null>(null);
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -60,6 +69,15 @@ export default function InstanceDetail() {
         .single();
       if (error) { toast.error(error.message); navigate('/instances'); return; }
       setInstance(data as InstanceDetail);
+      // Fetch Evolution API config for endpoint/token display
+      if (data?.company_id) {
+        const { data: evo } = await supabase
+          .from('evolution_api_config')
+          .select('base_url, api_key, is_active')
+          .eq('company_id', data.company_id)
+          .single();
+        if (evo) setEvoConfig(evo as EvoConfig);
+      }
       setLoading(false);
     };
     fetchData();
@@ -188,6 +206,70 @@ export default function InstanceDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* API Endpoint & Session Token */}
+          {evoConfig && evoConfig.is_active && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Key className="h-4 w-4" /> Endpoint da API e Token da Sessão
+                </CardTitle>
+                <CardDescription>Credenciais para integração com a Evolution API</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5" /> Endpoint da API
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={evoConfig.base_url}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyToClipboard(evoConfig.base_url)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Key className="h-3.5 w-3.5" /> Token da Sessão (API Key)
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type={showToken ? 'text' : 'password'}
+                      value={evoConfig.api_key}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowToken(!showToken)}
+                    >
+                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyToClipboard(evoConfig.api_key)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-xs text-muted-foreground">Instância na API</span>
+                  <Badge variant="outline" className="font-mono text-xs">{instance.name}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="webhooks" className="space-y-4 mt-4">
