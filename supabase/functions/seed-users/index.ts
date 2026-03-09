@@ -112,10 +112,8 @@ serve(async (req) => {
         .from("profiles").select("id").eq("user_id", userId).single();
       if (!existingProfile) {
         await supabase.from("profiles").insert({
-          user_id: userId, full_name: u.fullName, force_password_change: true,
+          user_id: userId, full_name: u.fullName,
         });
-      } else {
-        await supabase.from("profiles").update({ force_password_change: true }).eq("user_id", userId);
       }
 
       // Ensure user_role
