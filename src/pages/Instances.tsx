@@ -84,10 +84,20 @@ export default function Instances() {
   const [sendingTest, setSendingTest] = useState(false);
 
   const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
-    if (!instance.evolution_instance_id && !instance.name) return instance;
+    // Only sync instances that were actually created in Evolution API
+    if (!instance.evolution_instance_id) return instance;
     try {
-      const evoData = await callEvolutionProxy('status', instance.evolution_instance_id || instance.name);
-      const evoState = evoData?.instance?.state || evoData?.state || '';
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return instance;
+
+      const res = await supabase.functions.invoke('evolution-proxy', {
+        body: { action: 'status', instanceName: instance.evolution_instance_id },
+      });
+
+      // Silently skip if Evolution API returns error (instance not found, etc.)
+      if (res.error || res.data?.error) return instance;
+
+      const evoState = res.data?.instance?.state || res.data?.state || '';
       let newStatus = instance.status;
       if (evoState === 'open' || evoState === 'connected') {
         newStatus = 'online';
