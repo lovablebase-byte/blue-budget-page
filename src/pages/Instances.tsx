@@ -94,14 +94,20 @@ export default function Instances() {
         body: { action: 'status', instanceName: instance.evolution_instance_id },
       });
 
-      // If Evolution API returns 404 (instance doesn't exist), mark as error and clear evolution_instance_id
-      if (res.error || res.data?.error) {
-        const isNotFound = res.data?.details?.status === 404 || res.data?.error?.includes('does not exist');
-        if (isNotFound && instance.status !== 'error') {
+      // Handle errors - supabase.functions.invoke puts error info in res.error for non-2xx
+      if (res.error) {
+        // Instance doesn't exist in Evolution API - mark as error and stop polling
+        if (instance.status !== 'error') {
           await supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', instance.id);
-          return { ...instance, status: 'error', evolution_instance_id: null };
         }
-        return instance;
+        return { ...instance, status: 'error', evolution_instance_id: null };
+      }
+
+      if (res.data?.error) {
+        if (instance.status !== 'error') {
+          await supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', instance.id);
+        }
+        return { ...instance, status: 'error', evolution_instance_id: null };
       }
 
       const evoState = res.data?.instance?.state || res.data?.state || '';
