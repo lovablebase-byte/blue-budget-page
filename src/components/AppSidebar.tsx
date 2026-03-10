@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Smartphone, MessageCircle, Clock, 
   Radio, Key, GitBranch, Bot, Megaphone, Settings,
   Building2, CreditCard, Receipt, Users, Shield, User,
-  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette, FileText, Send
+  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette, FileText
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -34,7 +34,7 @@ const adminItems = [
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Ajustes', url: '/settings', icon: Settings, module: 'settings' },
   { title: 'Marca', url: '/branding', icon: Palette },
-  { title: 'Delivery WhatsApp', url: '/delivery-whatsapp', icon: Send },
+  
 ];
 
 const superAdminItems = [
