@@ -34,7 +34,7 @@ const adminItems = [
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Ajustes', url: '/settings', icon: Settings, module: 'settings' },
   { title: 'Marca', url: '/branding', icon: Palette },
-  { title: 'Delivery WhatsApp', url: '/delivery-whatsapp', icon: Send },
+  
 ];
 
 const superAdminItems = [

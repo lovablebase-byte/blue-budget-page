@@ -86,7 +86,7 @@ const App = () => (
               <Route path="/users" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyUsers /></ProtectedPage>} />
               <Route path="/settings" element={<ProtectedPage module="settings"><Settings /></ProtectedPage>} />
               <Route path="/branding" element={<ProtectedPage role={['admin', 'super_admin']}><Branding /></ProtectedPage>} />
-              <Route path="/delivery-whatsapp" element={<ProtectedPage role={['admin', 'super_admin']}><DeliveryWhatsApp /></ProtectedPage>} />
+              
 
               {/* Personal */}
               <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
