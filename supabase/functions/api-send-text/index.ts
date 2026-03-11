@@ -338,8 +338,15 @@ serve(async (req) => {
     console.log(`[api-send-text] Method=${req.method} content_type=${contentType || "unknown"}`);
     console.log(`[api-send-text] Headers=${JSON.stringify(sanitizeHeaders(req.headers))}`);
     console.log(`[api-send-text] Raw body=${truncate(rawBody)}`);
-    console.log(`[api-send-text] Parsed body (${parserUsed})=${JSON.stringify(body)}`);
-    console.log(`[api-send-text] Received auth params uuid=${uuid}, access_token=${accessToken ? "***" : "missing"}`);
+    const uuid = url.searchParams.get("uuid") || body.uuid || body.instance_id || body.instanceId || "";
+    const accessToken =
+      url.searchParams.get("access_token") ||
+      body.access_token ||
+      body.token ||
+      body.session_token ||
+      "";
+
+    console.log(`[api-send-text] Received auth params uuid=${uuid || "missing"}, access_token=${accessToken ? "***" : "missing"}`);
 
     // ============================================================
     // Auth: validate uuid + access_token
