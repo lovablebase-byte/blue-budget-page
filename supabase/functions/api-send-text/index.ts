@@ -322,7 +322,8 @@ serve(async (req) => {
           parserUsed = "json_fallback_form";
         }
       } else if (contentType.includes("multipart/form-data")) {
-        const boundaryMatch = contentType.match(/boundary=[-]*([\w]+)/i);
+        // Extract the full boundary value (including dashes) from content-type header
+        const boundaryMatch = req.headers.get("content-type")?.match(/boundary=([^\s;]+)/i);
         if (boundaryMatch) {
           parsedBody = parseMultipartFormData(rawBody, boundaryMatch[1]);
           parserUsed = "multipart";
