@@ -136,6 +136,32 @@ serve(async (req) => {
     };
 
     if (!evoRes.ok) {
+      // Handle 404 gracefully for status checks and delete actions
+      if (evoRes.status === 404) {
+        if (action === "status") {
+          console.warn("[evolution-proxy] instance not found for status check, returning not_found", {
+            company_id: userRole.company_id,
+            user_id: user.id,
+            ...meta,
+          });
+          return new Response(
+            JSON.stringify({ instance: { state: "not_found", instanceName }, _meta: meta }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        if (action === "delete") {
+          console.warn("[evolution-proxy] instance already deleted (404), treating as success", {
+            company_id: userRole.company_id,
+            user_id: user.id,
+            ...meta,
+          });
+          return new Response(
+            JSON.stringify({ status: "deleted_already", instanceName, _meta: meta }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+
       console.error("[evolution-proxy] request failed", {
         company_id: userRole.company_id,
         user_id: user.id,
