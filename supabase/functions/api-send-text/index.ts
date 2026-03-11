@@ -533,7 +533,7 @@ serve(async (req) => {
       }
 
       const normalizedPhone = normalizePhone(String(phone));
-      const normalizedText = String(text).trim();
+      const normalizedText = sanitizeMessage(text);
       const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
       const sendPayload = { number: normalizedPhone, text: normalizedText };
 
