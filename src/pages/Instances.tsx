@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import {
   Plus, RefreshCw, Trash2, QrCode, Send, Power, PowerOff,
   MoreHorizontal, Eye, Loader2, Smartphone, Wifi, WifiOff, AlertCircle,
-  Copy, RotateCcw, Link, Key,
+  Copy, RotateCcw, Link, Key, CheckCircle2,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
