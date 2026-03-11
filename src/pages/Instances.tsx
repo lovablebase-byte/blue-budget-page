@@ -642,7 +642,7 @@ export default function Instances() {
       </Dialog>
 
       {/* Post-creation info dialog */}
-      <Dialog open={showPostCreate} onOpenChange={setShowPostCreate}>
+      <Dialog open={showPostCreate} onOpenChange={(o) => { setShowPostCreate(o); if (!o) { setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-primary">
