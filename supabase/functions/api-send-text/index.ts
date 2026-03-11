@@ -236,6 +236,7 @@ function detectAction(payload: Record<string, any>): string | undefined {
 
   const hasPhone = Boolean(
     payload.phone ||
+    payload.phone_number ||
     payload.number ||
     payload.customer_phone ||
     payload.client_phone ||
