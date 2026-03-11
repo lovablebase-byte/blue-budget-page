@@ -72,6 +72,8 @@ export default function Instances() {
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [connectionSuccess, setConnectionSuccess] = useState(false);
+  const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
 
   // Form states
   const [newName, setNewName] = useState('');
