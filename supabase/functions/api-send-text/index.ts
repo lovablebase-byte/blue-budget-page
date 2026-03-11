@@ -118,6 +118,61 @@ function jsonResponse(body: Record<string, any>, status = 200) {
   });
 }
 
+/**
+ * Sanitize message text for WhatsApp:
+ * 1. Convert literal \n (escaped newlines from delivery) to real newlines
+ * 2. Fix broken WhatsApp bold markers (asterisks spanning across lines)
+ * 3. Clean up excessive blank lines
+ */
+function sanitizeMessage(text: string): string {
+  let msg = String(text);
+
+  // Convert literal escaped newlines to real newlines
+  msg = msg.replace(/\\\\n/g, "\n");
+  msg = msg.replace(/\\n/g, "\n");
+
+  // Fix bold markers that span across line breaks.
+  // WhatsApp bold requires *text* on the SAME line.
+  // Strategy: go line by line, if a line has an odd number of *, fix it.
+  const lines = msg.split("\n");
+  const fixedLines = lines.map(line => {
+    const count = (line.match(/\*/g) || []).length;
+    if (count === 0 || count % 2 === 0) return line; // balanced or none
+
+    // Odd asterisks — fix based on position
+    const trimmed = line.trim();
+
+    // Case: line starts with * but doesn't close → add * at end
+    // e.g. "*💰 Valores:" → "*💰 Valores:*"
+    if (trimmed.startsWith("*") && !trimmed.endsWith("*")) {
+      return line.replace(/^(\s*\*.+?)(\s*)$/, "$1*$2");
+    }
+
+    // Case: line ends with * but doesn't start with * → orphan closer
+    // e.g. "▫️ Nome:* Cliente" → "▫️ *Nome:* Cliente" or strip the orphan
+    if (trimmed.endsWith("*") && !trimmed.startsWith("*")) {
+      // Remove trailing orphan asterisk
+      return line.replace(/\*\s*$/, "");
+    }
+
+    // Case: orphan * in the middle of the line — remove it
+    // Find the orphan and strip it (keep paired ones)
+    // Simple: if only 1 asterisk, remove it
+    if (count === 1) {
+      return line.replace(/\*/, "");
+    }
+
+    return line;
+  });
+  msg = fixedLines.join("\n");
+
+  // Clean up more than 3 consecutive newlines → 2
+  msg = msg.replace(/\n{4,}/g, "\n\n\n");
+  msg = msg.split("\n").map(l => l.trimEnd()).join("\n");
+
+  return msg.trim();
+}
+
 function tryParseJson(raw: string): any | null {
   try {
     return JSON.parse(raw);
@@ -482,7 +537,7 @@ serve(async (req) => {
       }
 
       const normalizedPhone = normalizePhone(String(phone));
-      const normalizedText = String(text).trim();
+      const normalizedText = sanitizeMessage(text);
       const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
       const sendPayload = { number: normalizedPhone, text: normalizedText };
 
@@ -717,6 +772,7 @@ serve(async (req) => {
       console.log(`[api-send-text] Destination phone: ${normalizedPhone}`);
 
       const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
+      renderedMessage = sanitizeMessage(renderedMessage);
       const sendPayload = { number: normalizedPhone, text: renderedMessage };
 
       console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
