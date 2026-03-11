@@ -414,56 +414,160 @@ export default function Instances() {
   const handleDelete = async () => {
     if (!selectedInstance) return;
     setDeleting(true);
+
+    const startedAt = new Date().toISOString();
+
     try {
-      // 1. Try to delete from Evolution API first
-      if (selectedInstance.evolution_instance_id) {
+      const { data: freshInstance, error: freshError } = await supabase
+        .from('instances')
+        .select('*')
+        .eq('id', selectedInstance.id)
+        .single();
+
+      if (freshError) throw freshError;
+      const instance = freshInstance as Instance;
+
+      const deleteAuditLog: Record<string, any> = {
+        timestamp: startedAt,
+        local_instance_id: instance.id,
+        local_instance_name: instance.name,
+        configured_remote_identifier: instance.evolution_instance_id,
+        company_id: instance.company_id,
+        action: 'delete_instance_sync',
+        endpoint_called: null,
+        method_http: 'DELETE',
+        payload_sent: null,
+        status_http: null,
+        response_body: null,
+        error_message: null,
+        final_result: 'pending',
+      };
+
+      let resolvedRemoteName: string | null = instance.evolution_instance_id ?? instance.name;
+      let resolvedRemoteId: string | null = null;
+      let remoteDeletionConfirmed = !instance.evolution_instance_id;
+
+      // 1) Resolve remote identifier from current Evolution snapshot
+      const remoteSnapshot = await callEvolutionProxy('fetchInstances');
+      const remoteInstances = normalizeEvolutionInstances(remoteSnapshot);
+
+      const remoteMatch = remoteInstances.find((remote) => {
+        const matchesStoredIdentifier =
+          !!instance.evolution_instance_id &&
+          (remote.instanceName === instance.evolution_instance_id || remote.instanceId === instance.evolution_instance_id);
+        const matchesLocalName = remote.instanceName === instance.name;
+        return matchesStoredIdentifier || matchesLocalName;
+      });
+
+      if (remoteMatch) {
+        resolvedRemoteName = remoteMatch.instanceName ?? resolvedRemoteName;
+        resolvedRemoteId = remoteMatch.instanceId;
+      }
+
+      // 2) Delete in Evolution first
+      if (resolvedRemoteName) {
         try {
-          await callEvolutionProxy('delete', selectedInstance.evolution_instance_id);
-          console.log('[DELETE] Evolution API: instância removida', {
-            localId: selectedInstance.id,
-            evolutionId: selectedInstance.evolution_instance_id,
-            name: selectedInstance.name,
-          });
+          const deleteResponse = await callEvolutionProxy('delete', resolvedRemoteName);
+          remoteDeletionConfirmed = true;
+          deleteAuditLog.endpoint_called = deleteResponse?._meta?.endpoint ?? null;
+          deleteAuditLog.method_http = deleteResponse?._meta?.method ?? 'DELETE';
+          deleteAuditLog.payload_sent = deleteResponse?._meta?.requestBody ?? null;
+          deleteAuditLog.status_http = deleteResponse?._meta?.status ?? 200;
+          deleteAuditLog.response_body = deleteResponse;
         } catch (evoErr: any) {
-          // If instance doesn't exist in Evolution (404), treat as orphan and proceed
-          const isNotFound = evoErr.message?.includes('404') || evoErr.message?.includes('not exist') || evoErr.message?.includes('does not exist');
+          deleteAuditLog.endpoint_called = evoErr?.details?._meta?.endpoint ?? null;
+          deleteAuditLog.method_http = evoErr?.details?._meta?.method ?? 'DELETE';
+          deleteAuditLog.payload_sent = evoErr?.details?._meta?.requestBody ?? null;
+          deleteAuditLog.status_http = evoErr?.status ?? evoErr?.details?._meta?.status ?? null;
+          deleteAuditLog.response_body = evoErr?.details ?? null;
+          deleteAuditLog.error_message = evoErr?.message ?? 'Erro desconhecido na exclusão remota';
+
+          const isNotFound =
+            evoErr?.status === 404 ||
+            /404|not\s*found|does not exist|não existe/i.test(String(evoErr?.message ?? ''));
+
           if (isNotFound) {
-            console.warn('[DELETE] Instância já não existia na Evolution (órfã). Prosseguindo com exclusão local.', {
-              localId: selectedInstance.id,
-              evolutionId: selectedInstance.evolution_instance_id,
-            });
+            // 3) Confirm orphan to avoid false-positive deletion
+            const recheckSnapshot = await callEvolutionProxy('fetchInstances');
+            const recheckInstances = normalizeEvolutionInstances(recheckSnapshot);
+            const stillExistsRemotely = recheckInstances.some((remote) =>
+              (resolvedRemoteName && remote.instanceName === resolvedRemoteName) ||
+              (resolvedRemoteId && remote.instanceId === resolvedRemoteId) ||
+              (!!instance.evolution_instance_id &&
+                (remote.instanceName === instance.evolution_instance_id || remote.instanceId === instance.evolution_instance_id))
+            );
+
+            if (stillExistsRemotely) {
+              deleteAuditLog.final_result = 'failed_remote_identifier_mismatch';
+              await writeDeleteAuditLog(instance.id, {
+                ...deleteAuditLog,
+                resolved_remote_name: resolvedRemoteName,
+                resolved_remote_id: resolvedRemoteId,
+                completed_at: new Date().toISOString(),
+              });
+              toast.error('Falha ao excluir na Evolution: identificador remoto inválido. A instância não foi removida no SaaS.');
+              return;
+            }
+
+            remoteDeletionConfirmed = true;
+            deleteAuditLog.final_result = 'orphan_remote_not_found';
           } else {
-            // Real error - don't fake success
-            console.error('[DELETE] Falha ao excluir na Evolution API:', {
-              localId: selectedInstance.id,
-              evolutionId: selectedInstance.evolution_instance_id,
-              error: evoErr.message,
+            deleteAuditLog.final_result = 'failed_remote_delete';
+            await writeDeleteAuditLog(instance.id, {
+              ...deleteAuditLog,
+              resolved_remote_name: resolvedRemoteName,
+              resolved_remote_id: resolvedRemoteId,
+              completed_at: new Date().toISOString(),
             });
-            toast.error(`Falha ao excluir na Evolution: ${evoErr.message}. A instância NÃO foi removida.`);
-            setDeleting(false);
+            toast.error(`Falha ao excluir na Evolution: ${evoErr?.message}. A instância NÃO foi removida no SaaS.`);
             return;
           }
         }
-      } else {
-        console.log('[DELETE] Instância sem vínculo Evolution, removendo apenas do banco local.', {
-          localId: selectedInstance.id,
-          name: selectedInstance.name,
-        });
       }
 
-      // 2. Delete from database only after Evolution succeeded (or was orphan)
-      const { error } = await supabase.from('instances').delete().eq('id', selectedInstance.id);
-      if (error) throw error;
+      if (!remoteDeletionConfirmed) {
+        toast.error('Não foi possível confirmar exclusão remota na Evolution. Operação cancelada.');
+        return;
+      }
 
-      console.log('[DELETE] Instância removida do banco local com sucesso.', {
-        localId: selectedInstance.id,
-        name: selectedInstance.name,
+      // 4) Remove local only after remote confirmed or confirmed orphan
+      const { error: localDeleteError } = await supabase
+        .from('instances')
+        .delete()
+        .eq('id', instance.id);
+
+      if (localDeleteError) throw localDeleteError;
+
+      deleteAuditLog.final_result =
+        deleteAuditLog.final_result === 'orphan_remote_not_found'
+          ? 'deleted_local_orphan_remote'
+          : 'deleted_local_and_remote';
+
+      await writeDeleteAuditLog(instance.id, {
+        ...deleteAuditLog,
+        resolved_remote_name: resolvedRemoteName,
+        resolved_remote_id: resolvedRemoteId,
+        completed_at: new Date().toISOString(),
       });
+
       toast.success('Instância excluída com sucesso (SaaS + Evolution)');
       setShowDelete(false);
       setSelectedInstance(null);
       fetchInstances();
     } catch (e: any) {
+      if (selectedInstance?.id) {
+        await writeDeleteAuditLog(selectedInstance.id, {
+          timestamp: startedAt,
+          local_instance_id: selectedInstance.id,
+          local_instance_name: selectedInstance.name,
+          configured_remote_identifier: selectedInstance.evolution_instance_id,
+          company_id: selectedInstance.company_id,
+          action: 'delete_instance_sync',
+          error_message: e?.message ?? 'Erro inesperado',
+          final_result: 'failed_unexpected',
+          completed_at: new Date().toISOString(),
+        });
+      }
       toast.error(e.message);
     } finally {
       setDeleting(false);
