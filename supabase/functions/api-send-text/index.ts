@@ -147,6 +147,28 @@ function parseFormEncoded(raw: string): Record<string, any> {
   return out;
 }
 
+function parseMultipartFormData(rawBody: string, boundary: string): Record<string, any> {
+  const out: Record<string, any> = {};
+  const parts = rawBody.split(`--${boundary}`);
+  for (const part of parts) {
+    if (part.trim() === "" || part.trim() === "--") continue;
+    const headerBodySplit = part.indexOf("\r\n\r\n");
+    if (headerBodySplit === -1) continue;
+    const headers = part.slice(0, headerBodySplit);
+    const value = part.slice(headerBodySplit + 4).replace(/\r\n$/, "");
+    const nameMatch = headers.match(/name="([^"]+)"/);
+    if (nameMatch) {
+      const key = nameMatch[1];
+      const trimmedValue = value.trim();
+      const parsedValue = trimmedValue.startsWith("{") || trimmedValue.startsWith("[")
+        ? tryParseJson(trimmedValue) ?? trimmedValue
+        : trimmedValue;
+      out[key] = parsedValue;
+    }
+  }
+  return out;
+}
+
 function extractObject(input: unknown): Record<string, any> {
   if (input == null) return {};
 
@@ -214,6 +236,7 @@ function detectAction(payload: Record<string, any>): string | undefined {
 
   const hasPhone = Boolean(
     payload.phone ||
+    payload.phone_number ||
     payload.number ||
     payload.customer_phone ||
     payload.client_phone ||
@@ -298,6 +321,14 @@ serve(async (req) => {
           parsedBody = parseFormEncoded(rawBody);
           parserUsed = "json_fallback_form";
         }
+      } else if (contentType.includes("multipart/form-data")) {
+        const boundaryMatch = contentType.match(/boundary=[-]*([\w]+)/i);
+        if (boundaryMatch) {
+          parsedBody = parseMultipartFormData(rawBody, boundaryMatch[1]);
+          parserUsed = "multipart";
+        } else {
+          parserUsed = "multipart_no_boundary";
+        }
       } else if (contentType.includes("application/x-www-form-urlencoded")) {
         parsedBody = parseFormEncoded(rawBody);
         parserUsed = "form_urlencoded";
@@ -338,6 +369,7 @@ serve(async (req) => {
     console.log(`[api-send-text] Method=${req.method} content_type=${contentType || "unknown"}`);
     console.log(`[api-send-text] Headers=${JSON.stringify(sanitizeHeaders(req.headers))}`);
     console.log(`[api-send-text] Raw body=${truncate(rawBody)}`);
+    console.log(`[api-send-text] Parser used: ${parserUsed}, parsed keys: ${JSON.stringify(Object.keys(body))}`);
     const uuid = url.searchParams.get("uuid") || body.uuid || body.instance_id || body.instanceId || "";
     const accessToken =
       url.searchParams.get("access_token") ||
@@ -404,6 +436,7 @@ serve(async (req) => {
     if (action === "send_text" || action === "test") {
       const phone =
         body.phone ||
+        body.phone_number ||
         body.number ||
         body.customer_phone ||
         body.client_phone ||
@@ -523,6 +556,7 @@ serve(async (req) => {
         body.customer_phone ||
         body.client_phone ||
         body.phone ||
+        body.phone_number ||
         body.number ||
         body.customer?.phone ||
         body.order_data?.customer_phone_number ||
