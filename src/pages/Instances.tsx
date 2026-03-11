@@ -369,7 +369,8 @@ export default function Instances() {
             'qrcode.updated', 'messages.update',
           ],
         });
-        evolutionInstanceId = evoData?.instance?.instanceName || instanceName;
+        const remoteCreated = extractEvolutionRemoteInstance(evoData?.instance ?? evoData);
+        evolutionInstanceId = remoteCreated.instanceName || instanceName;
         evoActive = true;
         toast.success('Instância criada na Evolution API!');
       } catch (evoErr: any) {
