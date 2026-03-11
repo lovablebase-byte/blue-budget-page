@@ -39,6 +39,7 @@ interface Instance {
   last_connected_at: string | null;
   created_at: string;
   evolution_instance_id: string | null;
+  access_token: string;
 }
 
 interface EvolutionRemoteInstance {
