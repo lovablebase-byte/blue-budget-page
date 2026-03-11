@@ -768,6 +768,7 @@ serve(async (req) => {
       console.log(`[api-send-text] Destination phone: ${normalizedPhone}`);
 
       const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
+      renderedMessage = sanitizeMessage(renderedMessage);
       const sendPayload = { number: normalizedPhone, text: renderedMessage };
 
       console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
