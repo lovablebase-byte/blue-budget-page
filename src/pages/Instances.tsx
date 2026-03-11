@@ -183,10 +183,9 @@ export default function Instances() {
 
     try {
       const remoteData = await callEvolutionProxy('fetchInstances');
-      const remoteNames = new Set(
-        (Array.isArray(remoteData) ? remoteData : [])
-          .map((r: any) => r.instance?.instanceName || r.instanceName)
-          .filter(Boolean)
+      const remoteInstances = normalizeEvolutionInstances(remoteData);
+      const remoteKeys = new Set(
+        remoteInstances.flatMap((item) => [item.instanceName, item.instanceId].filter(Boolean) as string[])
       );
 
       // Mark instances that no longer exist in Evolution
