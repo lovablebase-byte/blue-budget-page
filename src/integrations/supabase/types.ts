@@ -808,6 +808,7 @@ export type Database = {
       }
       instances: {
         Row: {
+          access_token: string
           company_id: string
           created_at: string
           evolution_instance_id: string | null
@@ -824,6 +825,7 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          access_token?: string
           company_id: string
           created_at?: string
           evolution_instance_id?: string | null
@@ -840,6 +842,7 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          access_token?: string
           company_id?: string
           created_at?: string
           evolution_instance_id?: string | null
