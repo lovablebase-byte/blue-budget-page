@@ -241,9 +241,51 @@ export default function Instances() {
     if (!selectedInstance) return;
     setDeleting(true);
     try {
+      // 1. Try to delete from Evolution API first
+      if (selectedInstance.evolution_instance_id) {
+        try {
+          await callEvolutionProxy('delete', selectedInstance.evolution_instance_id);
+          console.log('[DELETE] Evolution API: instância removida', {
+            localId: selectedInstance.id,
+            evolutionId: selectedInstance.evolution_instance_id,
+            name: selectedInstance.name,
+          });
+        } catch (evoErr: any) {
+          // If instance doesn't exist in Evolution (404), treat as orphan and proceed
+          const isNotFound = evoErr.message?.includes('404') || evoErr.message?.includes('not exist') || evoErr.message?.includes('does not exist');
+          if (isNotFound) {
+            console.warn('[DELETE] Instância já não existia na Evolution (órfã). Prosseguindo com exclusão local.', {
+              localId: selectedInstance.id,
+              evolutionId: selectedInstance.evolution_instance_id,
+            });
+          } else {
+            // Real error - don't fake success
+            console.error('[DELETE] Falha ao excluir na Evolution API:', {
+              localId: selectedInstance.id,
+              evolutionId: selectedInstance.evolution_instance_id,
+              error: evoErr.message,
+            });
+            toast.error(`Falha ao excluir na Evolution: ${evoErr.message}. A instância NÃO foi removida.`);
+            setDeleting(false);
+            return;
+          }
+        }
+      } else {
+        console.log('[DELETE] Instância sem vínculo Evolution, removendo apenas do banco local.', {
+          localId: selectedInstance.id,
+          name: selectedInstance.name,
+        });
+      }
+
+      // 2. Delete from database only after Evolution succeeded (or was orphan)
       const { error } = await supabase.from('instances').delete().eq('id', selectedInstance.id);
       if (error) throw error;
-      toast.success('Instância excluída');
+
+      console.log('[DELETE] Instância removida do banco local com sucesso.', {
+        localId: selectedInstance.id,
+        name: selectedInstance.name,
+      });
+      toast.success('Instância excluída com sucesso (SaaS + Evolution)');
       setShowDelete(false);
       setSelectedInstance(null);
       fetchInstances();
