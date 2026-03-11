@@ -118,6 +118,57 @@ function jsonResponse(body: Record<string, any>, status = 200) {
   });
 }
 
+/**
+ * Sanitize message text for WhatsApp:
+ * 1. Convert literal \n (escaped newlines from delivery) to real newlines
+ * 2. Fix broken WhatsApp bold markers (asterisks spanning across lines)
+ * 3. Clean up excessive blank lines
+ */
+function sanitizeMessage(text: string): string {
+  let msg = String(text);
+
+  // Convert literal escaped newlines to real newlines
+  // Handle \\n (double escaped) first, then \n (single escaped)
+  msg = msg.replace(/\\\\n/g, "\n");
+  msg = msg.replace(/\\n/g, "\n");
+
+  // Fix bold markers that span across lines - close bold before newline and reopen after
+  // e.g. "*👤 Cliente:\n▫️ Nome:*" → "*👤 Cliente:*\n*▫️ Nome:*" is wrong
+  // Instead, just fix unclosed bold: ensure each line's bold markers are balanced
+  
+  // Fix lines where bold opens but doesn't close on the same line
+  const lines = msg.split("\n");
+  const fixedLines = lines.map(line => {
+    const asteriskCount = (line.match(/\*/g) || []).length;
+    if (asteriskCount % 2 !== 0) {
+      // Odd number of asterisks — try to fix
+      // If line starts with * but doesn't close, add * at end
+      if (line.trimStart().startsWith("*") && !line.trimEnd().endsWith("*")) {
+        // Check if it looks like a label (e.g. "*💰 Valores:")
+        // Close the bold before the colon content
+        const colonIdx = line.lastIndexOf(":");
+        if (colonIdx > 0 && colonIdx === line.trimEnd().length - 1) {
+          // Label-only line like "*💰 Valores:" → "*💰 Valores:*"
+          return line.trimEnd() + "*";
+        }
+      }
+      // If line ends with * but doesn't start with one, remove trailing *
+      if (line.trimEnd().endsWith("*") && !line.includes("*")) {
+        return line.replace(/\*\s*$/, "");
+      }
+    }
+    return line;
+  });
+  msg = fixedLines.join("\n");
+
+  // Clean up more than 3 consecutive newlines → 2
+  msg = msg.replace(/\n{4,}/g, "\n\n\n");
+  // Clean up trailing/leading whitespace on lines but preserve newlines
+  msg = msg.split("\n").map(l => l.trimEnd()).join("\n");
+  
+  return msg.trim();
+}
+
 function tryParseJson(raw: string): any | null {
   try {
     return JSON.parse(raw);
