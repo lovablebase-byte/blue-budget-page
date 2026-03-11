@@ -369,6 +369,7 @@ serve(async (req) => {
     console.log(`[api-send-text] Method=${req.method} content_type=${contentType || "unknown"}`);
     console.log(`[api-send-text] Headers=${JSON.stringify(sanitizeHeaders(req.headers))}`);
     console.log(`[api-send-text] Raw body=${truncate(rawBody)}`);
+    console.log(`[api-send-text] Parser used: ${parserUsed}, parsed keys: ${JSON.stringify(Object.keys(body))}`);
     const uuid = url.searchParams.get("uuid") || body.uuid || body.instance_id || body.instanceId || "";
     const accessToken =
       url.searchParams.get("access_token") ||
