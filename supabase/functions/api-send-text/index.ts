@@ -555,6 +555,7 @@ serve(async (req) => {
         body.customer_phone ||
         body.client_phone ||
         body.phone ||
+        body.phone_number ||
         body.number ||
         body.customer?.phone ||
         body.order_data?.customer_phone_number ||
