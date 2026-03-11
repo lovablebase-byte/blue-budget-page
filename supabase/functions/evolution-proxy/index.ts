@@ -18,9 +18,10 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Não autorizado");
 
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
+    const {
+      data: { user },
+      error: authErr,
+    } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authErr || !user) throw new Error("Não autorizado");
 
     // Get user's company
@@ -58,14 +59,16 @@ serve(async (req) => {
           instanceName,
           qrcode: true,
           integration: "WHATSAPP-BAILEYS",
-          ...(payload?.webhook ? {
-            webhook: {
-              url: payload.webhook,
-              byEvents: payload.webhookByEvents ?? true,
-              base64: true,
-              events: payload.events || [],
-            },
-          } : {}),
+          ...(payload?.webhook
+            ? {
+                webhook: {
+                  url: payload.webhook,
+                  byEvents: payload.webhookByEvents ?? true,
+                  base64: true,
+                  events: payload.events || [],
+                },
+              }
+            : {}),
         });
         break;
       case "connect":
@@ -106,7 +109,10 @@ serve(async (req) => {
         throw new Error(`Ação desconhecida: ${action}`);
     }
 
-    const evoRes = await fetch(`${baseUrl}${evoPath}`, {
+    const endpoint = `${baseUrl}${evoPath}`;
+    const parsedRequestBody = evoBody ? JSON.parse(evoBody) : null;
+
+    const evoRes = await fetch(endpoint, {
       method: evoMethod,
       headers: {
         "Content-Type": "application/json",
@@ -115,22 +121,60 @@ serve(async (req) => {
       ...(evoBody ? { body: evoBody } : {}),
     });
 
-    const responseData = await evoRes.json().catch(() => ({}));
+    const responseData = await evoRes
+      .json()
+      .catch(async () => ({ raw: await evoRes.text().catch(() => "") }));
+
+    const meta = {
+      action,
+      instanceName,
+      endpoint,
+      method: evoMethod,
+      status: evoRes.status,
+      requestBody: parsedRequestBody,
+      responseAt: new Date().toISOString(),
+    };
 
     if (!evoRes.ok) {
+      console.error("[evolution-proxy] request failed", {
+        company_id: userRole.company_id,
+        user_id: user.id,
+        ...meta,
+        responseBody: responseData,
+      });
+
       return new Response(
-        JSON.stringify({ error: responseData.message || `Evolution API: HTTP ${evoRes.status}`, details: responseData }),
-        { status: evoRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: responseData?.message || `Evolution API: HTTP ${evoRes.status}`,
+          details: responseData,
+          _meta: meta,
+        }),
+        { status: evoRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    return new Response(JSON.stringify(responseData), {
+    let successPayload: Record<string, any>;
+    if (Array.isArray(responseData)) {
+      successPayload = { data: responseData, _meta: meta };
+    } else if (responseData && typeof responseData === "object") {
+      successPayload = { ...responseData, _meta: meta };
+    } else {
+      successPayload = { data: responseData, _meta: meta };
+    }
+
+    console.log("[evolution-proxy] request success", {
+      company_id: userRole.company_id,
+      user_id: user.id,
+      ...meta,
+    });
+
+    return new Response(JSON.stringify(successPayload), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
