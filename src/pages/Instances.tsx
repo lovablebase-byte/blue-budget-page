@@ -92,6 +92,42 @@ export default function Instances() {
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
+  const extractEvolutionRemoteInstance = (item: any): EvolutionRemoteInstance => {
+    const source = item?.instance ?? item ?? {};
+    return {
+      instanceName: source.instanceName ?? source.name ?? item?.instanceName ?? item?.name ?? null,
+      instanceId: source.instanceId ?? source.id ?? item?.instanceId ?? item?.id ?? null,
+      raw: item ?? {},
+    };
+  };
+
+  const normalizeEvolutionInstances = (raw: any): EvolutionRemoteInstance[] => {
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.instances)
+        ? raw.instances
+        : Array.isArray(raw?.data)
+          ? raw.data
+          : [];
+
+    return list
+      .map(extractEvolutionRemoteInstance)
+      .filter((item) => item.instanceName || item.instanceId);
+  };
+
+  const writeDeleteAuditLog = async (instanceId: string, payload: Record<string, any>) => {
+    try {
+      await supabase.rpc('log_audit', {
+        _action: 'instance_delete_sync',
+        _entity_type: 'instance',
+        _entity_id: instanceId,
+        _payload: payload,
+      });
+    } catch {
+      // Do not block main flow on audit failures
+    }
+  };
+
   const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
     // Only sync instances that were actually created in Evolution API
     if (!instance.evolution_instance_id) return instance;
