@@ -147,6 +147,28 @@ function parseFormEncoded(raw: string): Record<string, any> {
   return out;
 }
 
+function parseMultipartFormData(rawBody: string, boundary: string): Record<string, any> {
+  const out: Record<string, any> = {};
+  const parts = rawBody.split(`--${boundary}`);
+  for (const part of parts) {
+    if (part.trim() === "" || part.trim() === "--") continue;
+    const headerBodySplit = part.indexOf("\r\n\r\n");
+    if (headerBodySplit === -1) continue;
+    const headers = part.slice(0, headerBodySplit);
+    const value = part.slice(headerBodySplit + 4).replace(/\r\n$/, "");
+    const nameMatch = headers.match(/name="([^"]+)"/);
+    if (nameMatch) {
+      const key = nameMatch[1];
+      const trimmedValue = value.trim();
+      const parsedValue = trimmedValue.startsWith("{") || trimmedValue.startsWith("[")
+        ? tryParseJson(trimmedValue) ?? trimmedValue
+        : trimmedValue;
+      out[key] = parsedValue;
+    }
+  }
+  return out;
+}
+
 function extractObject(input: unknown): Record<string, any> {
   if (input == null) return {};
 
