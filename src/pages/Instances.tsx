@@ -24,6 +24,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 
 interface Instance {
   id: string;
