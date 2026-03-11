@@ -202,6 +202,57 @@ export default function Instances() {
     return () => clearInterval(interval);
   }, [company]);
 
+  // Poll connection status when QR modal or post-create modal is open
+  useEffect(() => {
+    const instanceToWatch = showPostCreate ? createdInstance : showQR ? selectedInstance : null;
+    if (!instanceToWatch?.evolution_instance_id || connectionSuccess) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await supabase.functions.invoke('evolution-proxy', {
+          body: { action: 'status', instanceName: instanceToWatch.evolution_instance_id },
+        });
+        const evoState = res.data?.instance?.state || res.data?.state || '';
+        if (evoState === 'open' || evoState === 'connected') {
+          setConnectionSuccess(true);
+          // Update DB
+          await supabase.from('instances').update({
+            status: 'online',
+            last_connected_at: new Date().toISOString(),
+          }).eq('id', instanceToWatch.id);
+        }
+      } catch {}
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [showPostCreate, showQR, createdInstance, selectedInstance, connectionSuccess]);
+
+  // Auto-close countdown after connection success
+  useEffect(() => {
+    if (!connectionSuccess) return;
+    setAutoCloseCountdown(3);
+    const countdownInterval = setInterval(() => {
+      setAutoCloseCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownInterval);
+          // Close whichever modal is open
+          setShowPostCreate(false);
+          setShowQR(false);
+          // Reset states
+          setConnectionSuccess(false);
+          setQrCodeBase64(null);
+          setQrError(null);
+          setAutoCloseCountdown(null);
+          // Refresh list
+          fetchInstances();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(countdownInterval);
+  }, [connectionSuccess]);
+
   const resetForm = () => {
     setNewName(''); setNewTags(''); setNewTimezone('America/Sao_Paulo');
     setNewReconnect('auto'); setCopyFromInstance('');
