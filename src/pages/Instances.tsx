@@ -131,6 +131,46 @@ export default function Instances() {
     }
   };
 
+  const reconcileWithEvolution = async (localInstances: Instance[]) => {
+    // Only reconcile instances that have an evolution_instance_id
+    const linkedInstances = localInstances.filter(i => i.evolution_instance_id);
+    if (linkedInstances.length === 0) return localInstances;
+
+    try {
+      const remoteData = await callEvolutionProxy('fetchInstances');
+      const remoteNames = new Set(
+        (Array.isArray(remoteData) ? remoteData : [])
+          .map((r: any) => r.instance?.instanceName || r.instanceName)
+          .filter(Boolean)
+      );
+
+      // Mark instances that no longer exist in Evolution
+      const updates: Promise<any>[] = [];
+      const reconciled = localInstances.map(inst => {
+        if (inst.evolution_instance_id && !remoteNames.has(inst.evolution_instance_id)) {
+          console.warn('[RECONCILE] Instância órfã detectada (removida da Evolution):', {
+            localId: inst.id, name: inst.name, evolutionId: inst.evolution_instance_id,
+          });
+          updates.push(
+            supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', inst.id)
+          );
+          return { ...inst, status: 'error', evolution_instance_id: null };
+        }
+        return inst;
+      });
+
+      if (updates.length > 0) {
+        await Promise.all(updates);
+        toast.info(`${updates.length} instância(s) removida(s) externamente foram detectadas e atualizadas.`);
+      }
+
+      return reconciled;
+    } catch {
+      // If fetchInstances fails (e.g. Evolution not configured), skip reconciliation
+      return localInstances;
+    }
+  };
+
   const fetchInstances = async () => {
     if (!company) return;
     setLoading(true);
@@ -145,9 +185,10 @@ export default function Instances() {
     setInstances(dbInstances);
     setLoading(false);
 
-    // Sync status from Evolution API in background
-    const synced = await Promise.all(dbInstances.map(syncInstanceStatus));
-    const changed = synced.some((s, i) => s.status !== dbInstances[i].status);
+    // Reconcile with Evolution API (detect orphans) then sync status
+    const reconciled = await reconcileWithEvolution(dbInstances);
+    const synced = await Promise.all(reconciled.map(syncInstanceStatus));
+    const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status || s.evolution_instance_id !== dbInstances[i]?.evolution_instance_id);
     if (changed) setInstances(synced);
   };
 
