@@ -224,14 +224,14 @@ export default function InstanceDetail() {
                 </Label>
                 <div className="flex gap-2">
                   <Input
-                    value={getDeliveryEndpoint(instance.id)}
+                    value={getDeliveryEndpoint(instance.id, instance.access_token)}
                     readOnly
                     className="font-mono text-xs"
                   />
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => copyToClipboard(getDeliveryEndpoint(instance.id))}
+                    onClick={() => copyToClipboard(getDeliveryEndpoint(instance.id, instance.access_token))}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
