@@ -118,10 +118,162 @@ function jsonResponse(body: Record<string, any>, status = 200) {
   });
 }
 
+function tryParseJson(raw: string): any | null {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function parseFormEncoded(raw: string): Record<string, any> {
+  const params = new URLSearchParams(raw);
+  const out: Record<string, any> = {};
+
+  for (const [key, value] of params.entries()) {
+    const parsedValue = value.trim().startsWith("{") || value.trim().startsWith("[")
+      ? tryParseJson(value) ?? value
+      : value;
+
+    if (out[key] === undefined) {
+      out[key] = parsedValue;
+    } else if (Array.isArray(out[key])) {
+      out[key].push(parsedValue);
+    } else {
+      out[key] = [out[key], parsedValue];
+    }
+  }
+
+  return out;
+}
+
+function extractObject(input: unknown): Record<string, any> {
+  if (input == null) return {};
+
+  if (typeof input === "string") {
+    const raw = input.trim();
+    if (!raw) return {};
+
+    const parsedJson = tryParseJson(raw);
+    if (parsedJson && typeof parsedJson === "object" && !Array.isArray(parsedJson)) {
+      return parsedJson as Record<string, any>;
+    }
+
+    if (raw.includes("=")) {
+      const parsedForm = parseFormEncoded(raw);
+      if (Object.keys(parsedForm).length > 0) return parsedForm;
+    }
+
+    return {};
+  }
+
+  if (Array.isArray(input)) {
+    return { items: input };
+  }
+
+  if (typeof input === "object") {
+    return input as Record<string, any>;
+  }
+
+  return {};
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeStatusKey(statusRaw: unknown, statusLabelRaw: unknown, paymentStatusRaw: unknown): string {
+  const status = normalizeText(statusRaw);
+  const label = normalizeText(statusLabelRaw);
+  const paymentStatus = normalizeText(paymentStatusRaw);
+  const combined = [status, label].filter(Boolean).join("_");
+
+  if (/(aceit|accept|aprov)/.test(combined)) return "aceito";
+  if (/(prepar|kitchen|cooking|em_preparo)/.test(combined)) return "preparando";
+  if (/(cancel|recus|declin)/.test(combined)) return "cancelado";
+  if (/(pront|ready|aguardando_retirada)/.test(combined)) return "pronto";
+  if (/(saiu.*entrega|out_for_delivery|em_rota|delivery_running)/.test(combined)) return "saiu_entrega";
+
+  if (/(entreg|deliver)/.test(combined)) {
+    if (/(pend|unpaid|awaiting|open)/.test(paymentStatus) || /(pend)/.test(combined)) return "entregue_pendente";
+    if (/(paid|pago|confirm|approved)/.test(paymentStatus) || /(pago|paid)/.test(combined)) return "entregue_pago";
+  }
+
+  return status || label || "";
+}
+
+function detectAction(payload: Record<string, any>): string | undefined {
+  const explicit = normalizeText(
+    payload.action ?? payload.event ?? payload.event_type ?? payload.type ?? payload.hook_event ?? payload.topic
+  );
+
+  const hasPhone = Boolean(
+    payload.phone ||
+    payload.number ||
+    payload.customer_phone ||
+    payload.client_phone ||
+    payload.customer?.phone ||
+    payload.order_data?.customer_phone_number ||
+    payload.order?.customer?.phone ||
+    payload.to
+  );
+
+  const hasMessage = Boolean(
+    payload.message ||
+    payload.text ||
+    payload.msg ||
+    payload.content ||
+    payload.body ||
+    payload.order_message ||
+    payload.notification_message
+  );
+
+  const hasOrderSignals = Boolean(
+    payload.status ||
+    payload.status_key ||
+    payload.status_label ||
+    payload.order_status ||
+    payload.order_code ||
+    payload.order_id ||
+    payload.order?.id ||
+    payload.order?.code
+  );
+
+  if (explicit === "health" || explicit === "ping") return "health";
+  if (explicit.includes("status")) return "order_status_updated";
+  if (explicit.includes("send") && explicit.includes("text")) return "send_text";
+  if (hasOrderSignals) return "order_status_updated";
+  if (hasPhone && hasMessage) return "send_text";
+
+  return undefined;
+}
+
+function sanitizeHeaders(headers: Headers): Record<string, string> {
+  const sensitive = new Set(["authorization", "apikey", "x-api-key", "cookie", "set-cookie"]);
+  const out: Record<string, string> = {};
+
+  headers.forEach((value, key) => {
+    out[key] = sensitive.has(key.toLowerCase()) ? "***" : value;
+  });
+
+  return out;
+}
+
+function truncate(value: string, limit = 4000): string {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit)}...[truncated ${value.length - limit} chars]`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const startTime = Date.now();
+  const requestId = crypto.randomUUID();
 
   try {
     const supabase = createClient(
@@ -132,17 +284,73 @@ serve(async (req) => {
     const url = new URL(req.url);
     const uuid = url.searchParams.get("uuid");
     const accessToken = url.searchParams.get("access_token");
+    const contentType = (req.headers.get("content-type") || "").toLowerCase();
+    const rawBody = await req.text();
 
-    console.log(`[api-send-text] Received request: uuid=${uuid}, access_token=${accessToken ? "***" : "missing"}, method=${req.method}`);
+    let parsedBody: Record<string, any> = {};
+    let parserUsed = "empty";
+
+    if (rawBody.trim()) {
+      if (contentType.includes("application/json")) {
+        const parsed = tryParseJson(rawBody);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          parsedBody = parsed as Record<string, any>;
+          parserUsed = "json";
+        } else {
+          parsedBody = parseFormEncoded(rawBody);
+          parserUsed = "json_fallback_form";
+        }
+      } else if (contentType.includes("application/x-www-form-urlencoded")) {
+        parsedBody = parseFormEncoded(rawBody);
+        parserUsed = "form_urlencoded";
+      } else {
+        const parsed = tryParseJson(rawBody);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          parsedBody = parsed as Record<string, any>;
+          parserUsed = "json_loose";
+        } else if (rawBody.includes("=")) {
+          parsedBody = parseFormEncoded(rawBody);
+          parserUsed = "form_loose";
+        } else {
+          parserUsed = "raw_text";
+        }
+      }
+    }
+
+    let body: Record<string, any> = { ...parsedBody };
+
+    for (const nestedKey of ["payload", "data", "body", "request_body", "event_data", "order_data", "order"]) {
+      const nested = extractObject(body[nestedKey]);
+      if (Object.keys(nested).length > 0) {
+        body = { ...nested, ...body };
+      }
+    }
+
+    const queryPayload: Record<string, any> = {};
+    url.searchParams.forEach((value, key) => {
+      if (key !== "uuid" && key !== "access_token") {
+        queryPayload[key] = value;
+      }
+    });
+
+    body = { ...queryPayload, ...body };
+
+    console.log(`[api-send-text] Request id=${requestId}`);
+    console.log(`[api-send-text] URL=${url.origin}${url.pathname} query=${url.search}`);
+    console.log(`[api-send-text] Method=${req.method} content_type=${contentType || "unknown"}`);
+    console.log(`[api-send-text] Headers=${JSON.stringify(sanitizeHeaders(req.headers))}`);
+    console.log(`[api-send-text] Raw body=${truncate(rawBody)}`);
+    console.log(`[api-send-text] Parsed body (${parserUsed})=${JSON.stringify(body)}`);
+    console.log(`[api-send-text] Received auth params uuid=${uuid}, access_token=${accessToken ? "***" : "missing"}`);
 
     // ============================================================
     // Auth: validate uuid + access_token
     // ============================================================
     if (!uuid) {
-      return jsonResponse({ error: "uuid is required as query parameter" }, 400);
+      return jsonResponse({ error: "uuid is required as query parameter", request_id: requestId }, 400);
     }
     if (!accessToken) {
-      return jsonResponse({ error: "access_token is required as query parameter" }, 400);
+      return jsonResponse({ error: "access_token is required as query parameter", request_id: requestId }, 400);
     }
 
     const { data: instance, error: instErr } = await supabase
@@ -153,15 +361,15 @@ serve(async (req) => {
 
     if (instErr || !instance) {
       console.error(`[api-send-text] Instance not found: uuid=${uuid}`, instErr?.message);
-      return jsonResponse({ error: "Instance not found", uuid }, 404);
+      return jsonResponse({ error: "Instance not found", uuid, request_id: requestId }, 404);
     }
 
     if (instance.access_token !== accessToken) {
       console.error(`[api-send-text] Invalid access_token for uuid=${uuid}`);
-      return jsonResponse({ error: "Invalid access_token" }, 401);
+      return jsonResponse({ error: "Invalid access_token", request_id: requestId }, 401);
     }
 
-    console.log(`[api-send-text] Instance validated: name=${instance.name}, company=${instance.company_id}`);
+    console.log(`[api-send-text] Instance validated: id=${instance.id}, name=${instance.name}, company=${instance.company_id}`);
 
     // ============================================================
     // Get Evolution API config
@@ -173,28 +381,13 @@ serve(async (req) => {
       .single();
 
     if (!evoConfig?.is_active || !evoConfig.base_url || !evoConfig.api_key) {
-      return jsonResponse({ error: "Evolution API not configured or inactive" }, 400);
+      return jsonResponse({ error: "Evolution API not configured or inactive", request_id: requestId }, 400);
     }
 
     // ============================================================
-    // Parse body
-    // ============================================================
-    const body = await req.json().catch(() => ({}));
-
-    console.log(`[api-send-text] Payload:`, JSON.stringify(body));
-
     // Auto-detect action
-    let action = body.action;
-    if (!action) {
-      if (body.status || body.order_code || body.order_id || body.customer_phone || body.customer?.phone) {
-        action = "order_status_updated";
-      } else if (body.phone && (body.message || body.text)) {
-        action = "send_text";
-      } else if (body.number && (body.message || body.text)) {
-        action = "send_text";
-      }
-    }
-
+    // ============================================================
+    const action = detectAction(body);
     console.log(`[api-send-text] Detected action: ${action}`);
 
     const evoBaseUrl = evoConfig.base_url.replace(/\/+$/, "");
@@ -203,48 +396,93 @@ serve(async (req) => {
     // ============================================================
     // ACTION: simple send text (direct message)
     // ============================================================
-    if (action === "send_text" || action === "test" || (!action && (body.phone || body.number))) {
-      const phone = body.phone || body.number || body.customer_phone || "";
-      const text = body.message || body.text || "";
+    if (action === "send_text" || action === "test") {
+      const phone =
+        body.phone ||
+        body.number ||
+        body.customer_phone ||
+        body.client_phone ||
+        body.customer?.phone ||
+        body.order_data?.customer_phone_number ||
+        body.order?.customer?.phone ||
+        body.to ||
+        "";
 
-      if (!phone) return jsonResponse({ error: "phone/number is required" }, 400);
-      if (!text) return jsonResponse({ error: "message/text is required" }, 400);
+      const text =
+        body.message ||
+        body.text ||
+        body.msg ||
+        body.content ||
+        body.body ||
+        body.order_message ||
+        body.notification_message ||
+        "";
 
-      const normalizedPhone = normalizePhone(phone);
+      if (!phone) {
+        return jsonResponse({
+          error: "phone/number is required",
+          request_id: requestId,
+          received_fields: Object.keys(body),
+        }, 400);
+      }
+
+      if (!text) {
+        return jsonResponse({
+          error: "message/text is required",
+          request_id: requestId,
+          received_fields: Object.keys(body),
+        }, 400);
+      }
+
+      const normalizedPhone = normalizePhone(String(phone));
+      const normalizedText = String(text).trim();
       const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
+      const sendPayload = { number: normalizedPhone, text: normalizedText };
 
-      console.log(`[api-send-text] Sending text to ${normalizedPhone} via ${sendUrl}`);
+      console.log(`[api-send-text] Sending direct text to ${normalizedPhone}`);
+      console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
+      console.log(`[api-send-text] Evolution payload: ${JSON.stringify(sendPayload)}`);
 
       try {
         const res = await fetch(sendUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: evoConfig.api_key },
-          body: JSON.stringify({ number: normalizedPhone, text }),
+          body: JSON.stringify(sendPayload),
         });
         const data = await res.json().catch(() => ({ status: res.status }));
 
-        console.log(`[api-send-text] Evolution response: ${res.status}`, JSON.stringify(data));
+        console.log(`[api-send-text] Evolution response status=${res.status} body=${JSON.stringify(data)}`);
 
-        // Log
         await supabase.from("delivery_send_logs").insert({
           company_id: instance.company_id,
-          event_key: "send_text",
+          event_key: normalizeText(body.event || action || "send_text") || "send_text",
           phone: normalizedPhone,
-          message: text,
+          message: normalizedText,
           status: res.ok ? "sent" : "failed",
           error: res.ok ? null : `HTTP ${res.status}`,
-          api_response: { evo_response: data, endpoint: sendUrl, elapsed_ms: Date.now() - startTime },
+          api_response: {
+            request_id: requestId,
+            parser_used: parserUsed,
+            raw_body: truncate(rawBody),
+            parsed_body: body,
+            evo_response: data,
+            endpoint: sendUrl,
+            payload_sent: sendPayload,
+            elapsed_ms: Date.now() - startTime,
+          },
         });
 
         return jsonResponse({
           success: res.ok,
           status: res.ok ? "sent" : "failed",
           response: data,
+          instance: instance.name,
+          request_id: requestId,
           elapsed_ms: Date.now() - startTime,
         });
       } catch (err: any) {
-        console.error(`[api-send-text] Send error:`, err.message);
-        return jsonResponse({ success: false, error: err.message }, 500);
+        console.error(`[api-send-text] Send error:`, err.message, err.stack);
+        return jsonResponse({ success: false, error: err.message, request_id: requestId }, 500);
       }
     }
 
@@ -252,25 +490,56 @@ serve(async (req) => {
     // ACTION: order_status_updated / send_status_change
     // ============================================================
     if (action === "order_status_updated" || action === "send_status_change") {
-      const status = body.status || body.status_key || "";
-      const statusKey = body.status_key || body.status || "";
-      const statusLabel = body.status_label || body.status || "";
-      const orderId = body.order_id || "";
-      const orderCode = body.order_code || "";
-      const customerName = body.customer_name || body.client_name || body.customer?.name || body.order_data?.customer_name || "";
-      const customerPhone = body.customer_phone || body.client_phone || body.phone
-        || body.customer?.phone || body.order_data?.customer_phone_number || "";
-      const storeName = body.store_name || body.store?.name || body.order_data?.store_name || "";
-      const externalMessage = body.message || "";
+      const rawStatus = body.status_key || body.status || body.order_status || body.state || "";
+      const statusLabel = body.status_label || body.order_status_label || body.status || body.order_status || "";
+      const paymentStatus =
+        body.payment_status ||
+        body.order_data?.payment_status ||
+        body.order?.payment_status ||
+        body.payment?.status ||
+        "";
 
-      console.log(`[api-send-text] Order: code=${orderCode}, status=${status}, phone=${customerPhone}`);
+      const statusKey =
+        normalizeStatusKey(rawStatus, statusLabel, paymentStatus) ||
+        normalizeText(rawStatus) ||
+        "unknown";
+
+      const orderId = body.order_id || body.order?.id || "";
+      const orderCode = body.order_code || body.order?.code || body.code || "";
+      const customerName =
+        body.customer_name ||
+        body.client_name ||
+        body.customer?.name ||
+        body.order_data?.customer_name ||
+        body.order?.customer?.name ||
+        "";
+
+      const customerPhone =
+        body.customer_phone ||
+        body.client_phone ||
+        body.phone ||
+        body.number ||
+        body.customer?.phone ||
+        body.order_data?.customer_phone_number ||
+        body.order?.customer?.phone ||
+        body.to ||
+        "";
+
+      const storeName = body.store_name || body.store?.name || body.order_data?.store_name || body.order?.store_name || "";
+      const externalMessage = body.message || body.text || body.msg || "";
+
+      console.log(`[api-send-text] Order status request order=${orderCode || orderId} status=${statusKey} phone=${customerPhone}`);
 
       if (!customerPhone) {
-        return jsonResponse({ error: "customer_phone is required", received_fields: Object.keys(body) }, 400);
+        return jsonResponse({
+          error: "customer_phone is required",
+          request_id: requestId,
+          received_fields: Object.keys(body),
+        }, 400);
       }
 
-      const normalizedPhone = normalizePhone(customerPhone);
-      const eventKey = `status_${statusKey || "unknown"}`;
+      const normalizedPhone = normalizePhone(String(customerPhone));
+      const eventKey = `status_${statusKey}`;
 
       // Get template
       const { data: tmpl } = await supabase
@@ -286,17 +555,35 @@ serve(async (req) => {
           .from("status_templates")
           .select("*")
           .eq("company_id", instance.company_id)
-          .ilike("name", `%${statusLabel}%`)
+          .ilike("name", `%${statusLabel || rawStatus}%`)
           .limit(1)
           .maybeSingle();
         statusTmpl = st;
       }
 
-      const itemsRaw = body.items || body.order_data?.items || body.order_data?.items_text || "";
-      const orderItemsFormatted = formatOrderItems(itemsRaw);
-      const deliveryType = body.delivery_type || body.order_data?.delivery_type || "";
-      const deliveryAddress = body.delivery_address || body.address || body.order_data?.address || body.order_data?.delivery_details || "";
-      const isPickup = deliveryType.toLowerCase().includes("retirada") || deliveryType === "0" || deliveryType.toLowerCase().includes("pickup");
+      const itemsRaw =
+        body.items ||
+        body.order_items ||
+        body.products ||
+        body.order_data?.items ||
+        body.order_data?.items_text ||
+        body.order?.items ||
+        body.order?.products ||
+        "";
+
+      const orderItemsFormatted = formatOrderItems(itemsRaw) || body.order_data?.items_text || "";
+      const deliveryType = body.delivery_type || body.order_data?.delivery_type || body.order?.delivery_type || "";
+      const deliveryAddress =
+        body.delivery_address ||
+        body.address ||
+        body.customer_address ||
+        body.order_data?.address ||
+        body.order_data?.delivery_details ||
+        body.order?.delivery_address ||
+        "";
+
+      const normalizedDeliveryType = normalizeText(deliveryType);
+      const isPickup = normalizedDeliveryType.includes("retirada") || normalizedDeliveryType.includes("pickup") || deliveryType === "0";
 
       let deliveryOrPickupText = "";
       if (isPickup) {
@@ -305,34 +592,48 @@ serve(async (req) => {
         deliveryOrPickupText = `🛵 Entrega em:\n${deliveryAddress}`;
       }
 
-      let deliveryReadyText = isPickup
+      const deliveryReadyText = isPickup
         ? "🏪 Seu pedido está pronto para retirada no local!"
         : "🛵 Seu pedido está pronto e em breve sairá para entrega!";
 
-      const orderTotal = body.total || body.order_total || body.order_data?.total || body.order_data?.order_price_total || "";
-      const orderSubtotal = body.subtotal || body.order_subtotal || body.order_data?.subtotal || body.order_data?.order_price_order || orderTotal;
-      const paymentMethod = body.payment_method || body.order_data?.payment_method || body.order_data?.order_payment_method || "";
-      const dateCreated = body.date_created_order || body.order_data?.date_created_order || "";
-      const timeCreated = body.time_created_order || body.order_data?.time_created_order || "";
-      const orderLink = body.order_link || body.order_data?.order_link || "";
+      const orderTotal = body.total || body.order_total || body.order_data?.total || body.order_data?.order_price_total || body.order?.total || "";
+      const orderSubtotal = body.subtotal || body.order_subtotal || body.order_data?.subtotal || body.order_data?.order_price_order || body.order?.subtotal || orderTotal;
+      const paymentMethod = body.payment_method || body.order_data?.payment_method || body.order_data?.order_payment_method || body.order?.payment_method || "";
+      const dateCreated = body.date_created_order || body.order_data?.date_created_order || body.order?.date_created_order || body.created_at || "";
+      const timeCreated = body.time_created_order || body.order_data?.time_created_order || body.order?.time_created_order || "";
+      const orderLink = body.order_link || body.link || body.order_data?.order_link || body.order?.order_link || body.order?.link || "";
 
       const templateData: Record<string, any> = {
-        order_id: orderId, order_code: orderCode, order_link: orderLink,
-        status, status_key: statusKey, status_label: statusLabel,
-        customer_name: customerName, client_name: customerName,
-        customer_phone: customerPhone, client_phone: customerPhone,
+        order_id: orderId,
+        order_code: orderCode,
+        order_link: orderLink,
+        status: rawStatus,
+        status_key: statusKey,
+        status_label: statusLabel,
+        customer_name: customerName,
+        client_name: customerName,
+        customer_phone: customerPhone,
+        client_phone: customerPhone,
         store_name: storeName,
-        items: itemsRaw, order_items_formatted: orderItemsFormatted,
+        items: itemsRaw,
+        order_items_formatted: orderItemsFormatted,
         items_text: body.order_data?.items_text || orderItemsFormatted,
-        total: orderTotal, order_total: orderTotal, subtotal: orderSubtotal, order_subtotal: orderSubtotal,
-        order_price_delivery: body.order_data?.order_price_delivery || body.delivery_fee || "",
-        order_price_discount: body.order_data?.order_price_discount || body.discount || "",
-        payment_method: paymentMethod, order_payment_method: paymentMethod,
-        delivery_type: deliveryType, delivery_address: deliveryAddress,
-        delivery_or_pickup_text: deliveryOrPickupText, delivery_ready_text: deliveryReadyText,
-        date_created_order: dateCreated, time_created_order: timeCreated,
+        total: orderTotal,
+        order_total: orderTotal,
+        subtotal: orderSubtotal,
+        order_subtotal: orderSubtotal,
+        order_price_delivery: body.order_data?.order_price_delivery || body.delivery_fee || body.order?.delivery_fee || "",
+        order_price_discount: body.order_data?.order_price_discount || body.discount || body.order?.discount || "",
+        payment_method: paymentMethod,
+        order_payment_method: paymentMethod,
+        delivery_type: deliveryType,
+        delivery_address: deliveryAddress,
+        delivery_or_pickup_text: deliveryOrPickupText,
+        delivery_ready_text: deliveryReadyText,
+        date_created_order: dateCreated,
+        time_created_order: timeCreated,
         datetime_now: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
-        notes: body.notes || body.order_data?.notes || body.order_data?.order_note || "",
+        notes: body.notes || body.order_data?.notes || body.order_data?.order_note || body.order?.note || "",
         ...(body.order_data || {}),
       };
 
@@ -346,7 +647,7 @@ serve(async (req) => {
         renderedMessage = processTemplate(statusTmpl.message, templateData);
         messageSource = `status_template (${statusTmpl.name})`;
       } else if (externalMessage) {
-        renderedMessage = processTemplate(externalMessage, templateData);
+        renderedMessage = processTemplate(String(externalMessage), templateData);
         messageSource = "external message";
       } else {
         const defaultTmpl = getDefaultStatusTemplate(statusKey);
@@ -354,15 +655,24 @@ serve(async (req) => {
           renderedMessage = processTemplate(defaultTmpl, templateData);
           messageSource = `default_template (${statusKey})`;
         } else {
-          renderedMessage = `Atualização do pedido ${orderCode || orderId || ""}: ${statusLabel || status || "atualizado"}`;
+          renderedMessage = `Atualização do pedido ${orderCode || orderId || ""}: ${statusLabel || rawStatus || "atualizado"}`;
           messageSource = "fallback";
         }
       }
 
+      if (!renderedMessage?.trim()) {
+        renderedMessage = `Atualização do pedido ${orderCode || orderId || ""}: ${statusLabel || rawStatus || "atualizado"}`;
+        messageSource = "safety_fallback";
+      }
+
       console.log(`[api-send-text] Message source: ${messageSource}, length: ${renderedMessage.length}`);
+      console.log(`[api-send-text] Destination phone: ${normalizedPhone}`);
 
       const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
       const sendPayload = { number: normalizedPhone, text: renderedMessage };
+
+      console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
+      console.log(`[api-send-text] Evolution payload: ${JSON.stringify(sendPayload)}`);
 
       let apiResponse: any = null;
       let sendStatus = "sent";
@@ -375,6 +685,8 @@ serve(async (req) => {
           body: JSON.stringify(sendPayload),
         });
         apiResponse = await res.json().catch(() => ({ status: res.status }));
+        console.log(`[api-send-text] Evolution response status=${res.status} body=${JSON.stringify(apiResponse)}`);
+
         if (!res.ok) {
           sendStatus = "failed";
           sendError = `Evolution HTTP ${res.status}: ${JSON.stringify(apiResponse)}`;
@@ -385,7 +697,7 @@ serve(async (req) => {
       } catch (err: any) {
         sendStatus = "failed";
         sendError = `Network error: ${err.message}`;
-        console.error(`[api-send-text] SEND EXCEPTION:`, err.message);
+        console.error(`[api-send-text] SEND EXCEPTION:`, err.message, err.stack);
       }
 
       await supabase.from("delivery_send_logs").insert({
@@ -397,8 +709,13 @@ serve(async (req) => {
         status: sendStatus,
         error: sendError,
         api_response: {
+          request_id: requestId,
+          parser_used: parserUsed,
+          raw_body: truncate(rawBody),
+          parsed_body: body,
           evo_response: apiResponse,
           endpoint_used: sendUrl,
+          payload_sent: sendPayload,
           evo_instance_name: evoInstanceName,
           message_source: messageSource,
           elapsed_ms: Date.now() - startTime,
@@ -413,6 +730,7 @@ serve(async (req) => {
         phone: normalizedPhone,
         event_key: eventKey,
         instance: instance.name,
+        request_id: requestId,
         elapsed_ms: Date.now() - startTime,
       });
     }
@@ -421,53 +739,21 @@ serve(async (req) => {
     // ACTION: health
     // ============================================================
     if (action === "health") {
-      return jsonResponse({ status: "ok", instance: instance.name, timestamp: new Date().toISOString() });
-    }
-
-    // ============================================================
-    // Fallback: if body has phone+message, treat as send_text
-    // ============================================================
-    const fallbackPhone = body.phone || body.number || body.customer_phone || "";
-    const fallbackText = body.message || body.text || "";
-    if (fallbackPhone && fallbackText) {
-      const normalizedPhone = normalizePhone(fallbackPhone);
-      const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
-
-      console.log(`[api-send-text] Fallback send to ${normalizedPhone}`);
-
-      try {
-        const res = await fetch(sendUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: evoConfig.api_key },
-          body: JSON.stringify({ number: normalizedPhone, text: fallbackText }),
-        });
-        const data = await res.json().catch(() => ({ status: res.status }));
-
-        await supabase.from("delivery_send_logs").insert({
-          company_id: instance.company_id,
-          event_key: "fallback_send",
-          phone: normalizedPhone,
-          message: fallbackText,
-          status: res.ok ? "sent" : "failed",
-          error: res.ok ? null : `HTTP ${res.status}`,
-          api_response: { evo_response: data, elapsed_ms: Date.now() - startTime },
-        });
-
-        return jsonResponse({ success: res.ok, status: res.ok ? "sent" : "failed", response: data });
-      } catch (err: any) {
-        return jsonResponse({ success: false, error: err.message }, 500);
-      }
+      return jsonResponse({ status: "ok", instance: instance.name, request_id: requestId, timestamp: new Date().toISOString() });
     }
 
     return jsonResponse({
       error: "Could not determine action from payload",
       hint: "Send phone+message for text, or status+customer_phone for order updates",
+      request_id: requestId,
+      parser_used: parserUsed,
+      raw_body: truncate(rawBody),
       received_fields: Object.keys(body),
     }, 400);
 
   } catch (err: any) {
     console.error(`[api-send-text] Fatal error:`, err.message, err.stack);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

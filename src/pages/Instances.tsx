@@ -900,11 +900,11 @@ export default function Instances() {
                   <Label className="flex items-center gap-1.5"><Key className="h-3.5 w-3.5" /> Token da sessão</Label>
                   <div className="flex gap-2">
                     <Input
-                      value={createdInstance?.id || ''}
+                      value={createdInstance?.access_token || ''}
                       readOnly
                       className="font-mono text-xs"
                     />
-                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdInstance?.id || '', 'Token')}>
+                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdInstance?.access_token || '', 'Token')}>
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>

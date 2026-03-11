@@ -247,7 +247,7 @@ export default function InstanceDetail() {
                 <div className="flex gap-2">
                   <Input
                     type={showToken ? 'text' : 'password'}
-                    value={instance.id}
+                    value={instance.access_token}
                     readOnly
                     className="font-mono text-xs"
                   />
@@ -261,7 +261,7 @@ export default function InstanceDetail() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => copyToClipboard(instance.id)}
+                    onClick={() => copyToClipboard(instance.access_token)}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
