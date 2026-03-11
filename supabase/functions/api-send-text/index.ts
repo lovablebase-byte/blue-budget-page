@@ -149,17 +149,25 @@ function parseFormEncoded(raw: string): Record<string, any> {
 
 function parseMultipartFormData(rawBody: string, boundary: string): Record<string, any> {
   const out: Record<string, any> = {};
-  const parts = rawBody.split(`--${boundary}`);
+  // The boundary delimiter in the body is "--" + boundary
+  const delimiter = `--${boundary}`;
+  const parts = rawBody.split(delimiter);
   for (const part of parts) {
     if (part.trim() === "" || part.trim() === "--") continue;
-    const headerBodySplit = part.indexOf("\r\n\r\n");
+    // Handle both \r\n and \n line endings
+    const headerBodySplit = part.indexOf("\r\n\r\n") !== -1
+      ? part.indexOf("\r\n\r\n")
+      : part.indexOf("\n\n");
     if (headerBodySplit === -1) continue;
     const headers = part.slice(0, headerBodySplit);
-    const value = part.slice(headerBodySplit + 4).replace(/\r\n$/, "");
+    const separatorLength = part.indexOf("\r\n\r\n") !== -1 ? 4 : 2;
+    const value = part.slice(headerBodySplit + separatorLength);
+    // Remove trailing \r\n or \n
+    const cleanValue = value.replace(/\r?\n$/, "");
     const nameMatch = headers.match(/name="([^"]+)"/);
     if (nameMatch) {
       const key = nameMatch[1];
-      const trimmedValue = value.trim();
+      const trimmedValue = cleanValue.trim();
       const parsedValue = trimmedValue.startsWith("{") || trimmedValue.startsWith("[")
         ? tryParseJson(trimmedValue) ?? trimmedValue
         : trimmedValue;
