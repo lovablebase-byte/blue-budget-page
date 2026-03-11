@@ -131,6 +131,46 @@ export default function Instances() {
     }
   };
 
+  const reconcileWithEvolution = async (localInstances: Instance[]) => {
+    // Only reconcile instances that have an evolution_instance_id
+    const linkedInstances = localInstances.filter(i => i.evolution_instance_id);
+    if (linkedInstances.length === 0) return localInstances;
+
+    try {
+      const remoteData = await callEvolutionProxy('fetchInstances');
+      const remoteNames = new Set(
+        (Array.isArray(remoteData) ? remoteData : [])
+          .map((r: any) => r.instance?.instanceName || r.instanceName)
+          .filter(Boolean)
+      );
+
+      // Mark instances that no longer exist in Evolution
+      const updates: Promise<any>[] = [];
+      const reconciled = localInstances.map(inst => {
+        if (inst.evolution_instance_id && !remoteNames.has(inst.evolution_instance_id)) {
+          console.warn('[RECONCILE] Instância órfã detectada (removida da Evolution):', {
+            localId: inst.id, name: inst.name, evolutionId: inst.evolution_instance_id,
+          });
+          updates.push(
+            Promise.resolve(supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', inst.id))
+          );
+          return { ...inst, status: 'error', evolution_instance_id: null };
+        }
+        return inst;
+      });
+
+      if (updates.length > 0) {
+        await Promise.all(updates);
+        toast.info(`${updates.length} instância(s) removida(s) externamente foram detectadas e atualizadas.`);
+      }
+
+      return reconciled;
+    } catch {
+      // If fetchInstances fails (e.g. Evolution not configured), skip reconciliation
+      return localInstances;
+    }
+  };
+
   const fetchInstances = async () => {
     if (!company) return;
     setLoading(true);
@@ -145,9 +185,10 @@ export default function Instances() {
     setInstances(dbInstances);
     setLoading(false);
 
-    // Sync status from Evolution API in background
-    const synced = await Promise.all(dbInstances.map(syncInstanceStatus));
-    const changed = synced.some((s, i) => s.status !== dbInstances[i].status);
+    // Reconcile with Evolution API (detect orphans) then sync status
+    const reconciled = await reconcileWithEvolution(dbInstances);
+    const synced = await Promise.all(reconciled.map(syncInstanceStatus));
+    const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status || s.evolution_instance_id !== dbInstances[i]?.evolution_instance_id);
     if (changed) setInstances(synced);
   };
 
@@ -241,9 +282,51 @@ export default function Instances() {
     if (!selectedInstance) return;
     setDeleting(true);
     try {
+      // 1. Try to delete from Evolution API first
+      if (selectedInstance.evolution_instance_id) {
+        try {
+          await callEvolutionProxy('delete', selectedInstance.evolution_instance_id);
+          console.log('[DELETE] Evolution API: instância removida', {
+            localId: selectedInstance.id,
+            evolutionId: selectedInstance.evolution_instance_id,
+            name: selectedInstance.name,
+          });
+        } catch (evoErr: any) {
+          // If instance doesn't exist in Evolution (404), treat as orphan and proceed
+          const isNotFound = evoErr.message?.includes('404') || evoErr.message?.includes('not exist') || evoErr.message?.includes('does not exist');
+          if (isNotFound) {
+            console.warn('[DELETE] Instância já não existia na Evolution (órfã). Prosseguindo com exclusão local.', {
+              localId: selectedInstance.id,
+              evolutionId: selectedInstance.evolution_instance_id,
+            });
+          } else {
+            // Real error - don't fake success
+            console.error('[DELETE] Falha ao excluir na Evolution API:', {
+              localId: selectedInstance.id,
+              evolutionId: selectedInstance.evolution_instance_id,
+              error: evoErr.message,
+            });
+            toast.error(`Falha ao excluir na Evolution: ${evoErr.message}. A instância NÃO foi removida.`);
+            setDeleting(false);
+            return;
+          }
+        }
+      } else {
+        console.log('[DELETE] Instância sem vínculo Evolution, removendo apenas do banco local.', {
+          localId: selectedInstance.id,
+          name: selectedInstance.name,
+        });
+      }
+
+      // 2. Delete from database only after Evolution succeeded (or was orphan)
       const { error } = await supabase.from('instances').delete().eq('id', selectedInstance.id);
       if (error) throw error;
-      toast.success('Instância excluída');
+
+      console.log('[DELETE] Instância removida do banco local com sucesso.', {
+        localId: selectedInstance.id,
+        name: selectedInstance.name,
+      });
+      toast.success('Instância excluída com sucesso (SaaS + Evolution)');
       setShowDelete(false);
       setSelectedInstance(null);
       fetchInstances();
