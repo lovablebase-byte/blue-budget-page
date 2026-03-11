@@ -282,8 +282,6 @@ serve(async (req) => {
     );
 
     const url = new URL(req.url);
-    const uuid = url.searchParams.get("uuid");
-    const accessToken = url.searchParams.get("access_token");
     const contentType = (req.headers.get("content-type") || "").toLowerCase();
     const rawBody = await req.text();
 
