@@ -152,7 +152,7 @@ export default function Instances() {
             localId: inst.id, name: inst.name, evolutionId: inst.evolution_instance_id,
           });
           updates.push(
-            supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', inst.id).then()
+            Promise.resolve(supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', inst.id))
           );
           return { ...inst, status: 'error', evolution_instance_id: null };
         }
