@@ -128,44 +128,48 @@ function sanitizeMessage(text: string): string {
   let msg = String(text);
 
   // Convert literal escaped newlines to real newlines
-  // Handle \\n (double escaped) first, then \n (single escaped)
   msg = msg.replace(/\\\\n/g, "\n");
   msg = msg.replace(/\\n/g, "\n");
 
-  // Fix bold markers that span across lines - close bold before newline and reopen after
-  // e.g. "*👤 Cliente:\n▫️ Nome:*" → "*👤 Cliente:*\n*▫️ Nome:*" is wrong
-  // Instead, just fix unclosed bold: ensure each line's bold markers are balanced
-  
-  // Fix lines where bold opens but doesn't close on the same line
+  // Fix bold markers that span across line breaks.
+  // WhatsApp bold requires *text* on the SAME line.
+  // Strategy: go line by line, if a line has an odd number of *, fix it.
   const lines = msg.split("\n");
   const fixedLines = lines.map(line => {
-    const asteriskCount = (line.match(/\*/g) || []).length;
-    if (asteriskCount % 2 !== 0) {
-      // Odd number of asterisks — try to fix
-      // If line starts with * but doesn't close, add * at end
-      if (line.trimStart().startsWith("*") && !line.trimEnd().endsWith("*")) {
-        // Check if it looks like a label (e.g. "*💰 Valores:")
-        // Close the bold before the colon content
-        const colonIdx = line.lastIndexOf(":");
-        if (colonIdx > 0 && colonIdx === line.trimEnd().length - 1) {
-          // Label-only line like "*💰 Valores:" → "*💰 Valores:*"
-          return line.trimEnd() + "*";
-        }
-      }
-      // If line ends with * but doesn't start with one, remove trailing *
-      if (line.trimEnd().endsWith("*") && !line.includes("*")) {
-        return line.replace(/\*\s*$/, "");
-      }
+    const count = (line.match(/\*/g) || []).length;
+    if (count === 0 || count % 2 === 0) return line; // balanced or none
+
+    // Odd asterisks — fix based on position
+    const trimmed = line.trim();
+
+    // Case: line starts with * but doesn't close → add * at end
+    // e.g. "*💰 Valores:" → "*💰 Valores:*"
+    if (trimmed.startsWith("*") && !trimmed.endsWith("*")) {
+      return line.replace(/^(\s*\*.+?)(\s*)$/, "$1*$2");
     }
+
+    // Case: line ends with * but doesn't start with * → orphan closer
+    // e.g. "▫️ Nome:* Cliente" → "▫️ *Nome:* Cliente" or strip the orphan
+    if (trimmed.endsWith("*") && !trimmed.startsWith("*")) {
+      // Remove trailing orphan asterisk
+      return line.replace(/\*\s*$/, "");
+    }
+
+    // Case: orphan * in the middle of the line — remove it
+    // Find the orphan and strip it (keep paired ones)
+    // Simple: if only 1 asterisk, remove it
+    if (count === 1) {
+      return line.replace(/\*/, "");
+    }
+
     return line;
   });
   msg = fixedLines.join("\n");
 
   // Clean up more than 3 consecutive newlines → 2
   msg = msg.replace(/\n{4,}/g, "\n\n\n");
-  // Clean up trailing/leading whitespace on lines but preserve newlines
   msg = msg.split("\n").map(l => l.trimEnd()).join("\n");
-  
+
   return msg.trim();
 }
 
