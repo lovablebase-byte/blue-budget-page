@@ -24,6 +24,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 
 interface Instance {
   id: string;
@@ -883,11 +884,11 @@ export default function Instances() {
                   <Label className="flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Endpoint da API</Label>
                   <div className="flex gap-2">
                     <Input
-                      value={`${window.location.origin}/api/instance/${createdInstance?.id}`}
+                      value={createdInstance ? getDeliveryEndpoint(createdInstance.id) : ''}
                       readOnly
                       className="font-mono text-xs"
                     />
-                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(`${window.location.origin}/api/instance/${createdInstance?.id}`, 'Endpoint')}>
+                    <Button variant="outline" size="icon" onClick={() => createdInstance && copyToClipboard(getDeliveryEndpoint(createdInstance.id), 'Endpoint')}>
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>

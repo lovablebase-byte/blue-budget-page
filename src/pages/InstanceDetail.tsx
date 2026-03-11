@@ -16,6 +16,7 @@ import {
   Send, Loader2, AlertCircle, Clock, Webhook, ScrollText,
   Key, Globe, Eye, EyeOff,
 } from 'lucide-react';
+import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 
 interface InstanceDetail {
   id: string;
@@ -220,27 +221,22 @@ export default function InstanceDetail() {
                 <Label className="flex items-center gap-1.5">
                   <Globe className="h-3.5 w-3.5" /> Endpoint da API
                 </Label>
-                {(() => {
-                  const endpointUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rmswpurvnqqayemvuocv'}.supabase.co/functions/v1/delivery-whatsapp`;
-                  return (
-                    <div className="flex gap-2">
-                      <Input
-                        value={endpointUrl}
-                        readOnly
-                        className="font-mono text-xs"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => copyToClipboard(endpointUrl)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                })()}
+                <div className="flex gap-2">
+                  <Input
+                    value={getDeliveryEndpoint(instance.id)}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(getDeliveryEndpoint(instance.id))}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Use este endpoint no seu sistema de delivery. Envie um POST com o payload incluindo <code className="bg-muted px-1 rounded">action: "order_status_updated"</code> e <code className="bg-muted px-1 rounded">instance_id: "{instance.id}"</code>
+                  Use este endpoint no seu sistema de delivery. Envie um POST com o payload incluindo o <code className="bg-muted px-1 rounded">instance_id</code> já embutido na URL.
                 </p>
               </div>
               <div className="space-y-2">
