@@ -27,6 +27,7 @@ import {
 
 interface Instance {
   id: string;
+  company_id: string;
   name: string;
   phone_number: string | null;
   status: string;
@@ -37,6 +38,12 @@ interface Instance {
   last_connected_at: string | null;
   created_at: string;
   evolution_instance_id: string | null;
+}
+
+interface EvolutionRemoteInstance {
+  instanceName: string | null;
+  instanceId: string | null;
+  raw: Record<string, any>;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Wifi }> = {
