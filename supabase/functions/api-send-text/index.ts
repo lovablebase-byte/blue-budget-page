@@ -435,6 +435,7 @@ serve(async (req) => {
     if (action === "send_text" || action === "test") {
       const phone =
         body.phone ||
+        body.phone_number ||
         body.number ||
         body.customer_phone ||
         body.client_phone ||
