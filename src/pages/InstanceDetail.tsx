@@ -16,6 +16,7 @@ import {
   Send, Loader2, AlertCircle, Clock, Webhook, ScrollText,
   Key, Globe, Eye, EyeOff,
 } from 'lucide-react';
+import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 
 interface InstanceDetail {
   id: string;
