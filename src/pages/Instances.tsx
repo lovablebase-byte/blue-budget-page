@@ -739,35 +739,49 @@ export default function Instances() {
       </Dialog>
 
       {/* QR Code dialog */}
-      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { setQrCodeBase64(null); setQrError(null); } }}>
+      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { setQrCodeBase64(null); setQrError(null); setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
             <DialogDescription>Escaneie o QR Code com o WhatsApp no celular</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
-              {qrLoading ? (
-                <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
-              ) : qrCodeBase64 ? (
-                <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
-              ) : (
-                <div className="text-center text-muted-foreground p-4">
-                  <QrCode className="h-16 w-16 mx-auto mb-2" />
-                  <p className="text-sm">{qrError || 'Clique abaixo para gerar'}</p>
-                </div>
-              )}
+          {connectionSuccess ? (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-lg font-semibold text-green-700 dark:text-green-400">WhatsApp conectado com sucesso!</p>
+                <p className="text-sm text-muted-foreground">
+                  Fechando automaticamente em {autoCloseCountdown ?? 0} segundo{autoCloseCountdown !== 1 ? 's' : ''}...
+                </p>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance.name)} disabled={qrLoading}>
-                {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
-                {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
-              </Button>
+          ) : (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+                {qrLoading ? (
+                  <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+                ) : qrCodeBase64 ? (
+                  <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="text-center text-muted-foreground p-4">
+                    <QrCode className="h-16 w-16 mx-auto mb-2" />
+                    <p className="text-sm">{qrError || 'Clique abaixo para gerar'}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance.name)} disabled={qrLoading}>
+                  {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                  {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Instância: <strong>{selectedInstance?.name}</strong>
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Instância: <strong>{selectedInstance?.name}</strong>
-            </p>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 
