@@ -320,6 +320,14 @@ serve(async (req) => {
           parsedBody = parseFormEncoded(rawBody);
           parserUsed = "json_fallback_form";
         }
+      } else if (contentType.includes("multipart/form-data")) {
+        const boundaryMatch = contentType.match(/boundary=[-]*([\w]+)/i);
+        if (boundaryMatch) {
+          parsedBody = parseMultipartFormData(rawBody, boundaryMatch[1]);
+          parserUsed = "multipart";
+        } else {
+          parserUsed = "multipart_no_boundary";
+        }
       } else if (contentType.includes("application/x-www-form-urlencoded")) {
         parsedBody = parseFormEncoded(rawBody);
         parserUsed = "form_urlencoded";
