@@ -304,12 +304,49 @@ export default function Instances() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Não autenticado');
 
+    const requestBody = { action, instanceName, payload };
     const res = await supabase.functions.invoke('evolution-proxy', {
-      body: { action, instanceName, payload },
+      body: requestBody,
     });
 
-    if (res.error) throw new Error(res.error.message || 'Erro ao chamar proxy');
-    if (res.data?.error) throw new Error(res.data.error);
+    if (res.error) {
+      const invokeError: any = res.error;
+      const errorContext = invokeError?.context;
+      let errorStatus: number | undefined;
+      let errorDetails: any = null;
+
+      if (errorContext) {
+        errorStatus = errorContext.status;
+        errorDetails = await errorContext.clone().json().catch(async () => {
+          const rawText = await errorContext.text().catch(() => '');
+          return rawText ? { raw: rawText } : null;
+        });
+      }
+
+      const message = errorDetails?.error || invokeError.message || 'Erro ao chamar proxy';
+      const normalizedError = new Error(message) as Error & {
+        status?: number;
+        details?: any;
+        request?: any;
+      };
+      normalizedError.status = errorStatus;
+      normalizedError.details = errorDetails;
+      normalizedError.request = requestBody;
+      throw normalizedError;
+    }
+
+    if (res.data?.error) {
+      const normalizedError = new Error(res.data.error) as Error & {
+        status?: number;
+        details?: any;
+        request?: any;
+      };
+      normalizedError.status = res.data?._meta?.status;
+      normalizedError.details = res.data;
+      normalizedError.request = requestBody;
+      throw normalizedError;
+    }
+
     return res.data;
   };
 
