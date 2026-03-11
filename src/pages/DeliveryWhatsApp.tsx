@@ -40,11 +40,12 @@ const TEMPLATE_EVENTS = [
 ];
 
 const AVAILABLE_VARIABLES = [
-  { group: 'Pedido', vars: ['${order_code}', '${order_link}', '${order_note}', '${order_price_order}', '${order_price_total}', '${order_price_delivery}', '${order_payment_method}', '${order_price_discount}', '${order_coupons}', '${order_exchanged}', '${order_exchanged_value}', '${order_card_rate}', '${order_waiter_rate}', '${order_coin}'] },
-  { group: 'Data/Hora', vars: ['${date_created_order}', '${time_created_order}', '${date_schedule_order}', '${time_schedule_order}'] },
-  { group: 'Cliente', vars: ['${customer_name}', '${customer_phone_number}'] },
+  { group: 'Pedido', vars: ['{{order_code}}', '{{order_id}}', '{{order_link}}', '{{order_note}}', '{{order_items_formatted}}', '${order_code}', '${order_link}', '${order_note}', '${order_price_order}', '${order_price_total}', '${order_price_delivery}', '${order_payment_method}', '${order_price_discount}', '${order_coupons}', '${order_exchanged}', '${order_exchanged_value}', '${order_card_rate}', '${order_waiter_rate}', '${order_coin}'] },
+  { group: 'Data/Hora', vars: ['{{date_created_order}}', '{{time_created_order}}', '${date_created_order}', '${time_created_order}', '${date_schedule_order}', '${time_schedule_order}'] },
+  { group: 'Cliente', vars: ['{{client_name}}', '{{client_phone}}', '${customer_name}', '${customer_phone_number}'] },
+  { group: 'Valores', vars: ['{{order_total}}', '{{order_subtotal}}', '{{payment_method}}', '${order_price_order}', '${order_price_total}'] },
+  { group: 'Entrega / Retirada', vars: ['{{delivery_type}}', '{{delivery_address}}', '{{delivery_or_pickup_text}}', '{{delivery_ready_text}}', '${delivery_details}'] },
   { group: 'Atendente', vars: ['${employee_name}'] },
-  { group: 'Entrega', vars: ['${delivery_details}'] },
   { group: 'Produtos (dentro de foreach)', vars: ['${item_name}', '${item_description}', '${item_quantity}', '${item_price}', '${item_size_name}', '${item_note}', '${item_flavor_name}', '${item_flavor_amount}'] },
   { group: 'Adicionais (dentro de foreach)', vars: ['${additional_name}', '${additional_amount}', '${additional_price_total}', '${additional_category_name}'] },
 ];
