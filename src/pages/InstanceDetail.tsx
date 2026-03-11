@@ -213,14 +213,14 @@ export default function InstanceDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
-                <Key className="h-4 w-4" /> Endpoint da API e Token da Sessão
+                <Key className="h-4 w-4" /> Endpoint de Produção para Delivery
               </CardTitle>
-              <CardDescription>Use esses dados para integração com seu sistema de delivery</CardDescription>
+              <CardDescription>Cole este endpoint diretamente no seu sistema de delivery para envio automático de mensagens via WhatsApp.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5" /> Endpoint da API
+                  <Globe className="h-3.5 w-3.5" /> Endpoint de Produção (API)
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -237,7 +237,7 @@ export default function InstanceDetail() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Use este endpoint no seu sistema de delivery. Envie um POST com o payload incluindo o <code className="bg-muted px-1 rounded">instance_id</code> já embutido na URL.
+                  Este é o <strong>endpoint público de produção</strong> que processa os envios automáticos de mensagens do WhatsApp. Cole esta URL no campo de integração do seu sistema de delivery. Aceita <code className="bg-muted px-1 rounded">multipart/form-data</code>, <code className="bg-muted px-1 rounded">JSON</code> e <code className="bg-muted px-1 rounded">form-urlencoded</code>. Campos aceitos: <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code>.
                 </p>
               </div>
               <div className="space-y-2">

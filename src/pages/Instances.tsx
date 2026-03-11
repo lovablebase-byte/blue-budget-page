@@ -882,7 +882,7 @@ export default function Instances() {
 
                 {/* API endpoint */}
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Endpoint da API</Label>
+                  <Label className="flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Endpoint de Produção (Delivery)</Label>
                   <div className="flex gap-2">
                     <Input
                       value={createdInstance ? getDeliveryEndpoint(createdInstance.id, createdInstance.access_token) : ''}
@@ -893,6 +893,7 @@ export default function Instances() {
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground">Cole esta URL no seu sistema de delivery. Aceita multipart/form-data, JSON e form-urlencoded.</p>
                 </div>
 
                 {/* Session token */}
