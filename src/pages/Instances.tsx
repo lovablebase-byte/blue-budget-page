@@ -191,7 +191,7 @@ export default function Instances() {
       // Mark instances that no longer exist in Evolution
       const updates: Promise<any>[] = [];
       const reconciled = localInstances.map(inst => {
-        if (inst.evolution_instance_id && !remoteNames.has(inst.evolution_instance_id)) {
+        if (inst.evolution_instance_id && !remoteKeys.has(inst.evolution_instance_id)) {
           console.warn('[RECONCILE] Instância órfã detectada (removida da Evolution):', {
             localId: inst.id, name: inst.name, evolutionId: inst.evolution_instance_id,
           });
