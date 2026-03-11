@@ -651,73 +651,89 @@ export default function Instances() {
             <DialogDescription>Escaneie o QR Code para conectar e use os dados abaixo para integração</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* QR Code */}
-            <div className="flex flex-col items-center gap-3 py-3">
-              <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
-                {qrLoading ? (
-                  <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-                ) : qrCodeBase64 ? (
-                  <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
-                ) : (
-                  <div className="text-center text-muted-foreground p-4">
-                    <QrCode className="h-14 w-14 mx-auto mb-2" />
-                    <p className="text-sm font-medium">QR Code</p>
-                    <p className="text-xs">{qrError || 'Clique para gerar'}</p>
+            {connectionSuccess ? (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="text-center space-y-1">
+                  <p className="text-lg font-semibold text-green-700 dark:text-green-400">WhatsApp conectado com sucesso!</p>
+                  <p className="text-sm text-muted-foreground">
+                    Fechando automaticamente em {autoCloseCountdown ?? 0} segundo{autoCloseCountdown !== 1 ? 's' : ''}...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* QR Code */}
+                <div className="flex flex-col items-center gap-3 py-3">
+                  <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+                    {qrLoading ? (
+                      <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+                    ) : qrCodeBase64 ? (
+                      <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="text-center text-muted-foreground p-4">
+                        <QrCode className="h-14 w-14 mx-auto mb-2" />
+                        <p className="text-sm font-medium">QR Code</p>
+                        <p className="text-xs">{qrError || 'Clique para gerar'}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              {!qrLoading && !qrCodeBase64 && (
-                <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
-                  <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
-                </Button>
-              )}
-              {qrCodeBase64 && (
-                <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
-                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
-                </Button>
-              )}
-            </div>
+                  {!qrLoading && !qrCodeBase64 && (
+                    <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                      <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
+                    </Button>
+                  )}
+                  {qrCodeBase64 && (
+                    <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                      <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
+                    </Button>
+                  )}
+                </div>
 
-            <Separator />
+                <Separator />
 
-            {/* API endpoint */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Endpoint da API</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={`${window.location.origin}/api/instance/${createdInstance?.id}`}
-                  readOnly
-                  className="font-mono text-xs"
-                />
-                <Button variant="outline" size="icon" onClick={() => copyToClipboard(`${window.location.origin}/api/instance/${createdInstance?.id}`, 'Endpoint')}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+                {/* API endpoint */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Endpoint da API</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={`${window.location.origin}/api/instance/${createdInstance?.id}`}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(`${window.location.origin}/api/instance/${createdInstance?.id}`, 'Endpoint')}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
 
-            {/* Session token */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5"><Key className="h-3.5 w-3.5" /> Token da sessão</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={createdInstance?.id || ''}
-                  readOnly
-                  className="font-mono text-xs"
-                />
-                <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdInstance?.id || '', 'Token')}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+                {/* Session token */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5"><Key className="h-3.5 w-3.5" /> Token da sessão</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={createdInstance?.id || ''}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdInstance?.id || '', 'Token')}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setShowPostCreate(false)}>
-                Fechar
-              </Button>
-              <Button className="flex-1" onClick={() => { setShowPostCreate(false); navigate(`/instances/${createdInstance?.id}`); }}>
-                <Eye className="h-4 w-4 mr-1" /> Ver detalhes
-              </Button>
-            </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowPostCreate(false)}>
+                    Fechar
+                  </Button>
+                  <Button className="flex-1" onClick={() => { setShowPostCreate(false); navigate(`/instances/${createdInstance?.id}`); }}>
+                    <Eye className="h-4 w-4 mr-1" /> Ver detalhes
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
