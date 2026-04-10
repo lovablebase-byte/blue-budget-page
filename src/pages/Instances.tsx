@@ -650,6 +650,9 @@ export default function Instances() {
           )}
         </div>
       </div>
+
+      {/* Stats cards */}
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total</CardTitle>
