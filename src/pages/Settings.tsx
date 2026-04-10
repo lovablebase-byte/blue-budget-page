@@ -6,17 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Globe, Bell, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy } from 'lucide-react';
-
-const TIMEZONES = [
-  'America/Sao_Paulo', 'America/Manaus', 'America/Bahia', 'America/Recife',
-  'America/Fortaleza', 'America/Belem', 'America/Cuiaba', 'America/Porto_Velho',
-  'America/Rio_Branco', 'America/Noronha',
-];
+import { Save, Globe, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy } from 'lucide-react';
 
 interface ProviderState {
   baseUrl: string;
