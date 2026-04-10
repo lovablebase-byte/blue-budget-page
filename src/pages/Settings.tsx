@@ -188,39 +188,36 @@ export default function Settings() {
       return;
     }
 
+    // Ensure config is saved first so proxy can read it
     setState(prev => ({ ...prev, testing: true, testStatus: 'idle' }));
     try {
+      // Save provider config first to ensure proxy has credentials
+      await saveProvider(provider, state);
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
+
+      // Now test via proxy (server-side only, no API key exposure)
       const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
         body: { action: 'testConnection', provider },
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || 'Falha na conexão');
+      if (res.error) {
+        const invokeError: any = res.error;
+        const ctx = invokeError?.context;
+        let details: any = null;
+        if (ctx) {
+          details = await ctx.clone().json().catch(async () => {
+            const raw = await ctx.text().catch(() => '');
+            return raw ? { raw } : null;
+          });
+        }
+        throw new Error(details?.error || invokeError.message || 'Falha na conexão');
+      }
+      if (res.data?.error) throw new Error(res.data.error);
 
-      // For test to work, provider must already be saved. If not saved yet, do direct test.
       setState(prev => ({ ...prev, testStatus: 'success' }));
       toast.success('Conexão bem-sucedida!');
-    } catch {
-      // Try direct connection test
-      try {
-        const baseUrl = state.baseUrl.replace(/\/+$/, '');
-        if (provider === 'evolution') {
-          const r = await fetch(`${baseUrl}/instance/fetchInstances`, {
-            method: 'GET',
-            headers: { apikey: state.apiKey },
-          });
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        } else {
-          const r = await fetch(`${baseUrl}/admin/users`, {
-            method: 'GET',
-            headers: { Authorization: state.apiKey },
-          });
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        }
-        setState(prev => ({ ...prev, testStatus: 'success' }));
-        toast.success('Conexão bem-sucedida!');
-      } catch (err: any) {
-        setState(prev => ({ ...prev, testStatus: 'error' }));
-        toast.error(err.message || 'Não foi possível conectar');
-      }
+    } catch (err: any) {
+      setState(prev => ({ ...prev, testStatus: 'error' }));
+      toast.error(err.message || 'Não foi possível conectar');
     } finally {
       setState(prev => ({ ...prev, testing: false }));
     }

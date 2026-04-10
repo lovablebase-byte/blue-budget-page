@@ -60,6 +60,131 @@ export default function InstanceDetail() {
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [showQrDialog, setShowQrDialog] = useState(false);
+
+  const getProviderInstanceName = (inst: InstanceDetail): string => {
+    return inst.provider_instance_id || inst.evolution_instance_id || inst.name;
+  };
+
+  const callProviderProxy = async (action: string, provider?: string, instanceName?: string, payload?: any) => {
+    const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
+      body: { action, provider, instanceName, payload },
+    });
+    if (res.error) {
+      const invokeError: any = res.error;
+      const ctx = invokeError?.context;
+      let details: any = null;
+      if (ctx) {
+        details = await ctx.clone().json().catch(async () => {
+          const raw = await ctx.text().catch(() => '');
+          return raw ? { raw } : null;
+        });
+      }
+      throw new Error(details?.error || invokeError.message || 'Erro ao chamar proxy');
+    }
+    if (res.data?.error) throw new Error(res.data.error);
+    return res.data;
+  };
+
+  const handlePairQR = async () => {
+    if (!instance) return;
+    setActionLoading('qr');
+    setQrCode(null);
+    try {
+      const providerName = getProviderInstanceName(instance);
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      const data = await callProviderProxy('connect', instance.provider, providerName, {
+        webhook: webhookUrl || undefined,
+        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+      });
+      const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+      if (qr) {
+        setQrCode(qr);
+        setShowQrDialog(true);
+      } else if (data?.connected || data?.jid) {
+        toast.success('Instância já está conectada!');
+        refreshInstance();
+      } else {
+        setShowQrDialog(true);
+        toast.info('Abra o WhatsApp no celular para escanear o QR Code');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao gerar QR Code');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReconnect = async () => {
+    if (!instance) return;
+    setActionLoading('reconnect');
+    try {
+      const providerName = getProviderInstanceName(instance);
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      await callProviderProxy('connect', instance.provider, providerName, {
+        webhook: webhookUrl || undefined,
+        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+      });
+      toast.success('Reconexão solicitada ao provider');
+      setTimeout(refreshInstance, 2000);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao reconectar');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTestWebhook = async () => {
+    if (!instance) return;
+    setActionLoading('webhook');
+    try {
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      if (!webhookUrl) {
+        toast.error('Webhook não configurado para esta instância');
+        return;
+      }
+      // Send a test event to the webhook-receiver edge function
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: instance.provider === 'wuzapi' ? 'Connected' : 'connection.update',
+          type: instance.provider === 'wuzapi' ? 'Connected' : undefined,
+          instance: instance.name,
+          data: {
+            state: 'open',
+            statusReason: 200,
+            _test: true,
+          },
+        }),
+      });
+      if (res.ok) {
+        toast.success('Evento de teste enviado! Verifique na aba de Logs.');
+        setTimeout(fetchEvents, 1500);
+      } else {
+        const txt = await res.text().catch(() => '');
+        toast.error(`Webhook retornou ${res.status}: ${txt}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao testar webhook');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const refreshInstance = async () => {
+    if (!id) return;
+    const { data } = await supabase.from('instances').select('*').eq('id', id).single();
+    if (data) setInstance(data as InstanceDetail);
+  };
 
   useEffect(() => {
     if (!id) return;
