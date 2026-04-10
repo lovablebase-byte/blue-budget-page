@@ -27,6 +27,7 @@ import Subscription from "./pages/Subscription";
 import CompanyInvoices from "./pages/CompanyInvoices";
 import CompanyUsers from "./pages/CompanyUsers";
 import AdminCompanies from "./pages/admin/Companies";
+import AdminInstances from "./pages/admin/Instances";
 import AdminPlans from "./pages/admin/Plans";
 import AdminUsers from "./pages/admin/Users";
 import AdminInvoices from "./pages/admin/Invoices";
