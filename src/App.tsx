@@ -46,6 +46,8 @@ import AdminAIAgents from "./pages/admin/AIAgents";
 import AdminCampaigns from "./pages/admin/Campaigns";
 import Settings from "./pages/Settings";
 import Branding from "./pages/Branding";
+import AdminSettings from "./pages/admin/Settings";
+import AdminBranding from "./pages/admin/Branding";
 
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
