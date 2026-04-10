@@ -19,6 +19,7 @@ import { type Node, type Edge } from '@xyflow/react';
 
 export default function Workflows() {
   const { company } = useAuth();
+  const { isSuspended } = useCompany();
   const wfFeature = useFeatureEnabled('workflows_enabled');
   const wfLimit = useResourceLimit('max_workflows', 'workflows');
   const queryClient = useQueryClient();
