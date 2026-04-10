@@ -151,9 +151,9 @@ export function AppSidebar() {
                         to={item.url}
                         end
                         className="hover:bg-primary/10 hover:text-primary transition-colors"
-                        activeClassName="bg-primary/15 text-primary font-medium border-l-2 border-primary"
+                        activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
                       >
-                        <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary' : 'text-sidebar-foreground'}`} />
+                        <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
                         {!collapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
@@ -177,9 +177,9 @@ export function AppSidebar() {
                       to={item.url}
                       end
                       className="hover:bg-primary/10 hover:text-primary transition-colors"
-                      activeClassName="bg-primary/15 text-primary font-medium border-l-2 border-primary"
+                      activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
                     >
-                      <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary' : 'text-sidebar-foreground'}`} />
+                      <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -204,9 +204,9 @@ export function AppSidebar() {
                           to={item.url}
                           end
                           className="hover:bg-primary/10 hover:text-primary transition-colors"
-                          activeClassName="bg-primary/15 text-primary font-medium border-l-2 border-primary"
+                          activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
                         >
-                          <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary' : 'text-sidebar-foreground'}`} />
+                          <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
                           {!collapsed && <span>{item.title}</span>}
                         </NavLink>
                       </SidebarMenuButton>
@@ -238,9 +238,9 @@ export function AppSidebar() {
                               to={item.url}
                               end
                               className="hover:bg-primary/10 hover:text-primary transition-colors"
-                              activeClassName="bg-primary/15 text-primary font-medium border-l-2 border-primary"
+                              activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
                             >
-                              <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary' : 'text-sidebar-foreground'}`} />
+                              <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
                               {!collapsed && <span>{item.title}</span>}
                             </NavLink>
                           </SidebarMenuButton>
@@ -267,9 +267,9 @@ export function AppSidebar() {
                       to="/profile"
                       end
                       className="hover:bg-primary/10 hover:text-primary transition-colors"
-                      activeClassName="bg-primary/15 text-primary font-medium border-l-2 border-primary"
+                      activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
                     >
-                      <Settings className={`h-4 w-4 ${isActive('/profile') ? 'text-primary' : 'text-sidebar-foreground'}`} />
+                      <Settings className={`h-4 w-4 ${isActive('/profile') ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
                       {!collapsed && <span>Meu Perfil</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -281,9 +281,9 @@ export function AppSidebar() {
                     to="/account"
                     end
                     className="hover:bg-primary/10 hover:text-primary transition-colors"
-                    activeClassName="bg-primary/15 text-primary font-medium border-l-2 border-primary"
+                    activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
                   >
-                    <User className={`h-4 w-4 ${isActive('/account') ? 'text-primary' : 'text-sidebar-foreground'}`} />
+                    <User className={`h-4 w-4 ${isActive('/account') ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
                     {!collapsed && <span>Minha Conta</span>}
                   </NavLink>
                 </SidebarMenuButton>
