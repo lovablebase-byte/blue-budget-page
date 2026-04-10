@@ -21,6 +21,7 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText, Loader2, Bot, Timer, Activity } from 'lucide-react';
 
 // ---- Spintax engine ----
