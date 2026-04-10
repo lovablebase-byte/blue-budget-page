@@ -17,6 +17,7 @@ import {
   Key, Globe, Eye, EyeOff,
 } from 'lucide-react';
 import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
+import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
 
 interface InstanceDetail {
   id: string;
@@ -277,11 +278,24 @@ export default function InstanceDetail() {
               <div className="space-y-2">
                 <Label>URL do Webhook</Label>
                 <div className="flex gap-2">
-                  <Input value={instance.webhook_url || ''} readOnly className="font-mono text-xs" />
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(instance.webhook_url || '')}>
+                  <Input
+                    value={instance.webhook_secret
+                      ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+                      : instance.webhook_url || 'Não configurado'}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
+                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(
+                    instance.webhook_secret
+                      ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+                      : instance.webhook_url || ''
+                  )}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  URL configurada automaticamente no provider para receber eventos em tempo real.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Secret</Label>
