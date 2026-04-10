@@ -603,21 +603,36 @@ export default function Instances() {
   const onlineCount = instances.filter(i => i.status === 'online').length;
   const offlineCount = instances.filter(i => i.status !== 'online').length;
 
+  const limitData = instanceLimit.data;
+  const canCreateByPlan = !limitData || limitData.allowed;
+
   return (
     <div className="space-y-6">
+      {limitData && (
+        <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="instâncias" />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Instâncias WhatsApp</h1>
-          <p className="text-muted-foreground">Gerencie suas conexões do WhatsApp</p>
+          <p className="text-muted-foreground">
+            Gerencie suas conexões do WhatsApp
+            {limitData && limitData.max > 0 && (
+              <span className="ml-2 text-xs">({limitData.current}/{limitData.max} do plano)</span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchInstances}>
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
           {canCreate && !isReadOnly && (
-            <Button size="sm" onClick={() => { fetchActiveProviders(); setShowCreate(true); }}>
+            <GuardedButton
+              allowed={canCreateByPlan}
+              reason={`Limite de ${limitData?.max || 0} instâncias atingido`}
+              onClick={() => { fetchActiveProviders(); setShowCreate(true); }}
+            >
               <Plus className="h-4 w-4 mr-1" /> Nova instância
-            </Button>
+            </GuardedButton>
           )}
         </div>
       </div>
