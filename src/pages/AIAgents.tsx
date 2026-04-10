@@ -19,7 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Bot, Brain, Zap } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Plus, Trash2, Bot, Brain, Zap, AlertTriangle } from 'lucide-react';
 
 const TOOLS = [
   { value: 'respond', label: 'Responder' },
