@@ -16,12 +16,12 @@ import {
 
 function UsageBar({ label, used, max, icon: Icon }: { label: string; used: number; max: number; icon: any }) {
   const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
-  const color = pct >= 90 ? 'text-destructive' : pct >= 70 ? 'text-yellow-500' : 'text-muted-foreground';
+  const color = pct >= 90 ? 'text-destructive' : pct >= 70 ? 'text-warning' : 'text-muted-foreground';
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="flex items-center gap-1.5"><Icon className="h-3.5 w-3.5 text-muted-foreground" />{label}</span>
-        <span className={color}>{used}/{max}</span>
+        <span className={`font-medium ${color}`}>{used}/{max}</span>
       </div>
       <Progress value={pct} className="h-2" />
     </div>
@@ -31,7 +31,7 @@ function UsageBar({ label, used, max, icon: Icon }: { label: string; used: numbe
 function FeatureItem({ label, enabled }: { label: string; enabled: boolean }) {
   return (
     <div className="flex items-center gap-2 text-sm">
-      {enabled ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
+      {enabled ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
       <span className={enabled ? '' : 'text-muted-foreground line-through'}>{label}</span>
     </div>
   );
@@ -42,7 +42,7 @@ const statusLabel: Record<string, string> = {
   trialing: 'Trial', suspended: 'Suspensa', expired: 'Expirada',
 };
 const statusVariant = (s: string) =>
-  s === 'active' || s === 'trialing' ? 'default' as const : 'destructive' as const;
+  s === 'active' || s === 'trialing' ? 'success' as const : 'destructive' as const;
 
 function formatDate(d: string | null | undefined) {
   if (!d) return '—';
@@ -97,7 +97,7 @@ export default function Subscription() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Plano e Assinatura</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Plano e Assinatura</h1>
 
       {/* Banners de alerta */}
       {isSuspended && (
@@ -111,9 +111,9 @@ export default function Subscription() {
         </Alert>
       )}
       {subStatus === 'past_due' && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Pagamento Pendente</AlertTitle>
+        <Alert className="border-warning/50 bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning">Pagamento Pendente</AlertTitle>
           <AlertDescription>
             Existe um pagamento pendente. Regularize para evitar a suspensão dos serviços.
           </AlertDescription>
@@ -129,9 +129,9 @@ export default function Subscription() {
         </Alert>
       )}
       {isTrialing && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Período de Teste</AlertTitle>
+        <Alert className="border-accent/50 bg-accent/10">
+          <Info className="h-4 w-4 text-accent" />
+          <AlertTitle className="text-accent">Período de Teste</AlertTitle>
           <AlertDescription>
             Você está no período de avaliação. Após o encerramento será necessário assinar um plano.
           </AlertDescription>
@@ -141,12 +141,12 @@ export default function Subscription() {
       {planData ? (
         <>
           {/* Plano Atual */}
-          <Card>
+          <Card className="border-primary/30 bg-gradient-to-br from-card to-card/80">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  {planData.name}
+                  <div className="p-1.5 rounded-lg bg-primary/10"><Sparkles className="h-5 w-5 text-primary" /></div>
+                  <span className="tracking-tight">{planData.name}</span>
                 </span>
                 <Badge variant={statusVariant(subStatus)}>
                   {statusLabel[subStatus] || subStatus}
@@ -264,7 +264,7 @@ export default function Subscription() {
 
           {/* Uso do Plano */}
           <Card>
-            <CardHeader><CardTitle className="text-lg">Consumo Atual</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg tracking-tight">Consumo Atual</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <UsageBar label="Instâncias" used={usage?.instances ?? 0} max={plan?.limits.max_instances ?? planData.max_instances} icon={Package} />
               <UsageBar label="Campanhas" used={usage?.campaigns ?? 0} max={plan?.limits.max_campaigns ?? planData.max_campaigns ?? 5} icon={MessageSquare} />
