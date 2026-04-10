@@ -36,6 +36,14 @@ import AdminReports from "./pages/admin/Reports";
 import AdminHealth from "./pages/admin/Health";
 import AdminWebhooks from "./pages/admin/Webhooks";
 import AdminLogs from "./pages/admin/Logs";
+import AdminGreetings from "./pages/admin/Greetings";
+import AdminAbsence from "./pages/admin/Absence";
+import AdminStatus from "./pages/admin/Status";
+import AdminChatbotKeys from "./pages/admin/ChatbotKeys";
+import AdminWorkflows from "./pages/admin/Workflows";
+import AdminChatbotKeywords from "./pages/admin/ChatbotKeywords";
+import AdminAIAgents from "./pages/admin/AIAgents";
+import AdminCampaigns from "./pages/admin/Campaigns";
 import Settings from "./pages/Settings";
 import Branding from "./pages/Branding";
 
@@ -103,6 +111,14 @@ const App = () => (
               <Route path="/admin/health" element={<ProtectedPage role={['admin']}><AdminHealth /></ProtectedPage>} />
               <Route path="/admin/webhooks" element={<ProtectedPage role={['admin']}><AdminWebhooks /></ProtectedPage>} />
               <Route path="/admin/logs" element={<ProtectedPage role={['admin']}><AdminLogs /></ProtectedPage>} />
+              <Route path="/admin/greetings" element={<ProtectedPage role={['admin']}><AdminGreetings /></ProtectedPage>} />
+              <Route path="/admin/absence" element={<ProtectedPage role={['admin']}><AdminAbsence /></ProtectedPage>} />
+              <Route path="/admin/status" element={<ProtectedPage role={['admin']}><AdminStatus /></ProtectedPage>} />
+              <Route path="/admin/chatbot-keys" element={<ProtectedPage role={['admin']}><AdminChatbotKeys /></ProtectedPage>} />
+              <Route path="/admin/workflows" element={<ProtectedPage role={['admin']}><AdminWorkflows /></ProtectedPage>} />
+              <Route path="/admin/chatbot-keywords" element={<ProtectedPage role={['admin']}><AdminChatbotKeywords /></ProtectedPage>} />
+              <Route path="/admin/ai-agents" element={<ProtectedPage role={['admin']}><AdminAIAgents /></ProtectedPage>} />
+              <Route path="/admin/campaigns" element={<ProtectedPage role={['admin']}><AdminCampaigns /></ProtectedPage>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
