@@ -17,8 +17,8 @@ const STATUS_OPTIONS = [
 
 function statusBadge(status: string) {
   switch (status) {
-    case 'paid': return <Badge className="bg-success text-success-foreground">Pago</Badge>;
-    case 'pending': return <Badge variant="secondary">Pendente</Badge>;
+    case 'paid': return <Badge className="bg-success/10 text-success border-success/30">Pago</Badge>;
+    case 'pending': return <Badge className="bg-warning/10 text-warning border-warning/30">Pendente</Badge>;
     case 'overdue': return <Badge variant="destructive">Vencido</Badge>;
     case 'canceled': return <Badge variant="outline">Cancelado</Badge>;
     default: return <Badge variant="outline">{status}</Badge>;

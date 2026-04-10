@@ -31,11 +31,11 @@ interface SubRow {
 
 const STATUS_OPTIONS = ['active', 'trialing', 'past_due', 'canceled', 'suspended'];
 const statusColor: Record<string, string> = {
-  active: 'bg-green-500/10 text-green-700',
-  trialing: 'bg-blue-500/10 text-blue-700',
-  past_due: 'bg-yellow-500/10 text-yellow-700',
-  canceled: 'bg-destructive/10 text-destructive',
-  suspended: 'bg-orange-500/10 text-orange-700',
+  active: 'bg-success/10 text-success border-success/30',
+  trialing: 'bg-accent/10 text-accent border-accent/30',
+  past_due: 'bg-warning/10 text-warning border-warning/30',
+  canceled: 'bg-destructive/10 text-destructive border-destructive/30',
+  suspended: 'bg-destructive/10 text-destructive border-destructive/30',
 };
 
 const emptyForm = {

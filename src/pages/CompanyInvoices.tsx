@@ -21,8 +21,8 @@ const STATUS_OPTIONS = [
 
 function statusBadge(status: string) {
   switch (status) {
-    case 'paid': return <Badge className="bg-green-600 text-white">Pago</Badge>;
-    case 'pending': return <Badge variant="secondary">Pendente</Badge>;
+    case 'paid': return <Badge className="bg-success/10 text-success border-success/30">Pago</Badge>;
+    case 'pending': return <Badge className="bg-warning/10 text-warning border-warning/30">Pendente</Badge>;
     case 'overdue': return <Badge variant="destructive">Vencido</Badge>;
     default: return <Badge variant="outline">{status}</Badge>;
   }
@@ -84,12 +84,12 @@ export default function CompanyInvoices() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Faturas</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Faturas</h1>
 
       {pendingCount > 0 && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Faturas pendentes</AlertTitle>
+        <Alert className="border-warning/50 bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning">Faturas pendentes</AlertTitle>
           <AlertDescription>
             Você possui {pendingCount} fatura(s) pendente(s) ou vencida(s). Regularize para evitar bloqueios.
           </AlertDescription>

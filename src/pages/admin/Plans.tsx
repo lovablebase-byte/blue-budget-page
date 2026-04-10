@@ -325,9 +325,30 @@ export default function AdminPlans() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CreditCard className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{plans.length}</p><p className="text-sm text-muted-foreground">Total de Planos</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Package className="h-8 w-8 text-green-500" /><div><p className="text-2xl font-bold">{activePlans}</p><p className="text-sm text-muted-foreground">Ativos</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-8 w-8 text-blue-500" /><div><p className="text-2xl font-bold">{totalSubs}</p><p className="text-sm text-muted-foreground">Assinaturas Ativas</p></div></div></CardContent></Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10"><CreditCard className="h-6 w-6 text-primary" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{plans.length}</p><p className="text-sm text-muted-foreground">Total de Planos</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><Package className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{activePlans}</p><p className="text-sm text-muted-foreground">Ativos</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-accent/10"><Users className="h-6 w-6 text-accent" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{totalSubs}</p><p className="text-sm text-muted-foreground">Assinaturas Ativas</p></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <DataTable data={plans} columns={columns} searchKey="name" searchPlaceholder="Buscar plano..." loading={isLoading} emptyMessage="Nenhum plano cadastrado"
