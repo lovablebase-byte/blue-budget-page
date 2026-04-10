@@ -450,7 +450,14 @@ export default function Instances() {
   const handleRestart = async (instance: Instance) => {
     await handleStatusChange(instance, 'connecting');
     try {
-      await callProviderProxy('connect', instance.provider, getProviderInstanceName(instance));
+      // Re-send webhook URL on reconnect to ensure provider has it
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      await callProviderProxy('connect', instance.provider, getProviderInstanceName(instance), {
+        webhook: webhookUrl || undefined,
+        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+      });
     } catch {}
     setTimeout(() => fetchInstances(), 3000);
   };

@@ -406,31 +406,9 @@ export default function Settings() {
                 O webhook é configurado no provider durante a criação da instância.
               </p>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Reconexão automática</p>
-                <p className="text-xs text-muted-foreground">Reconectar instâncias automaticamente ao cair</p>
-              </div>
-              <Switch checked={autoReconnect} onCheckedChange={setAutoReconnect} />
-            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Notificações</CardTitle>
-            <CardDescription>Preferências de alertas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Alertar instância offline</p>
-                <p className="text-xs text-muted-foreground">Receber notificação quando uma instância desconectar</p>
-              </div>
-              <Switch checked={notifyOffline} onCheckedChange={setNotifyOffline} />
-            </div>
-          </CardContent>
-        </Card>
 
         <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-fit">
           <Save className="h-4 w-4 mr-2" /> Salvar configurações
