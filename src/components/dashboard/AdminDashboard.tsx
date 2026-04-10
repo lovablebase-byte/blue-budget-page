@@ -12,14 +12,16 @@ function StatCard({ title, value, icon: Icon, subtitle, color }: {
   title: string; value: number | string; icon: any; subtitle?: string; color?: string;
 }) {
   return (
-    <Card>
+    <Card className="group">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-medium">{title}</CardTitle>
-        <Icon className={`h-4 w-4 ${color || 'text-muted-foreground'}`} />
+        <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
+        <div className={`rounded-md p-1.5 ${color ? 'bg-current/10' : 'bg-primary/10'}`}>
+          <Icon className={`h-4 w-4 ${color || 'text-primary'}`} />
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+        <div className={`text-2xl font-bold tracking-tight ${color || 'text-foreground'}`}>{value}</div>
+        {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </CardContent>
     </Card>
   );
@@ -58,18 +60,18 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Admin</h1>
-        <p className="text-muted-foreground">Visão consolidada do SaaS</p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Admin</h1>
+        <p className="text-muted-foreground text-sm">Visão consolidada do SaaS</p>
       </div>
 
       {/* Alerts */}
       {alerts.data && alerts.data.length > 0 && (
         <div className="space-y-2">
           {alerts.data.map((alert, i) => (
-            <div key={i} className={`flex items-center gap-3 rounded-lg border p-3 ${
-              alert.type === 'error' ? 'border-destructive/50 bg-destructive/10' :
-              alert.type === 'warning' ? 'border-warning/50 bg-warning/10' :
-              'border-border bg-muted/50'
+            <div key={i} className={`flex items-center gap-3 rounded-lg border p-3 backdrop-blur-sm ${
+              alert.type === 'error' ? 'border-destructive/40 bg-destructive/10 shadow-[0_0_12px_-4px_hsl(var(--destructive)/0.2)]' :
+              alert.type === 'warning' ? 'border-warning/40 bg-warning/10 shadow-[0_0_12px_-4px_hsl(var(--warning)/0.15)]' :
+              'border-border bg-muted/30'
             }`}>
               {alert.type === 'error' ? <Ban className="h-4 w-4 text-destructive shrink-0" /> :
                alert.type === 'warning' ? <AlertTriangle className="h-4 w-4 text-warning shrink-0" /> :
@@ -87,11 +89,11 @@ export default function AdminDashboard() {
         </div>
       ) : s ? (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          <StatCard title="Empresas" value={s.companies} icon={Building2} subtitle="registradas" />
-          <StatCard title="Usuários" value={s.users} icon={Users} subtitle="no sistema" />
-          <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" />
-          <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" />
-          <StatCard title="Faturas Abertas" value={s.openInvoices} icon={FileText} subtitle="pendentes" color={s.openInvoices > 0 ? 'text-warning' : undefined} />
+          <StatCard title="Empresas" value={s.companies} icon={Building2} subtitle="registradas" color="text-primary" />
+          <StatCard title="Usuários" value={s.users} icon={Users} subtitle="no sistema" color="text-accent" />
+          <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" color="text-primary" />
+          <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" color="text-info" />
+          <StatCard title="Faturas Abertas" value={s.openInvoices} icon={FileText} subtitle="pendentes" color={s.openInvoices > 0 ? 'text-warning' : 'text-muted-foreground'} />
           <StatCard title="Faturamento" value={formatCurrency(s.paidRevenueCents)} icon={DollarSign} subtitle="recebido" color="text-primary" />
         </div>
       ) : null}
@@ -104,16 +106,16 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-green-500/10 p-2"><Wifi className="h-5 w-5 text-green-500" /></div>
-                  <div><p className="text-xl font-bold">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
+                  <div className="rounded-full bg-primary/15 p-2 shadow-[0_0_10px_-3px_hsl(var(--primary)/0.3)]"><Wifi className="h-5 w-5 text-primary" /></div>
+                  <div><p className="text-xl font-bold text-foreground">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-muted p-2"><WifiOff className="h-5 w-5 text-muted-foreground" /></div>
-                  <div><p className="text-xl font-bold">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Offline</p></div>
+                  <div className="rounded-full bg-muted/60 p-2"><WifiOff className="h-5 w-5 text-muted-foreground" /></div>
+                  <div><p className="text-xl font-bold text-foreground">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Offline</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-warning/10 p-2"><Signal className="h-5 w-5 text-warning" /></div>
-                  <div><p className="text-xl font-bold">{s.instancesConnecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
+                  <div className="rounded-full bg-warning/15 p-2 shadow-[0_0_10px_-3px_hsl(var(--warning)/0.2)]"><Signal className="h-5 w-5 text-warning" /></div>
+                  <div><p className="text-xl font-bold text-foreground">{s.instancesConnecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
                 </div>
               </div>
             </CardContent>
