@@ -1,13 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { FeatureLockedBanner } from '@/components/PlanEnforcementGuard';
 import { toast } from '@/hooks/use-toast';
-import { Save, Upload, Image, Palette, Globe, X } from 'lucide-react';
+import { Save, Upload, Image, Palette, Globe, X, AlertCircle, Lock } from 'lucide-react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -15,9 +18,47 @@ function getPublicUrl(path: string) {
   return `${SUPABASE_URL}/storage/v1/object/public/branding/${path}`;
 }
 
+function hslToHex(hslStr: string): string {
+  const parts = hslStr.split(/\s+/);
+  if (parts.length < 3) return '#3b82f6';
+  const h = parseFloat(parts[0]);
+  const s = parseFloat(parts[1]) / 100;
+  const l = parseFloat(parts[2]) / 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function hexToHsl(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return '221 83% 53%';
+  let r = parseInt(result[1], 16) / 255;
+  let g = parseInt(result[2], 16) / 255;
+  let b = parseInt(result[3], 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) * 60; break;
+      case g: h = ((b - r) / d + 2) * 60; break;
+      case b: h = ((r - g) / d + 4) * 60; break;
+    }
+  }
+  return `${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
 export default function Branding() {
-  const { company } = useAuth();
+  const { company, isAdmin } = useAuth();
+  const { isSuspended, hasFeature } = useCompany();
   const queryClient = useQueryClient();
+  const whitelabelEnabled = hasFeature('whitelabel_enabled');
 
   const [form, setForm] = useState({
     logo_light_url: '',
@@ -56,47 +97,10 @@ export default function Branding() {
     }
   }, [branding]);
 
-  // HSL string to hex for color picker
-  function hslToHex(hslStr: string): string {
-    const parts = hslStr.split(/\s+/);
-    if (parts.length < 3) return '#3b82f6';
-    const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]) / 100;
-    const l = parseFloat(parts[2]) / 100;
-    const a = s * Math.min(l, 1 - l);
-    const f = (n: number) => {
-      const k = (n + h / 30) % 12;
-      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-  }
+  const isReadOnly = !isAdmin || isSuspended || !whitelabelEnabled;
 
-  // Hex to HSL string
-  function hexToHsl(hex: string): string {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return '221 83% 53%';
-    let r = parseInt(result[1], 16) / 255;
-    let g = parseInt(result[2], 16) / 255;
-    let b = parseInt(result[3], 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0;
-    const l = (max + min) / 2;
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = ((g - b) / d + (g < b ? 6 : 0)) * 60; break;
-        case g: h = ((b - r) / d + 2) * 60; break;
-        case b: h = ((r - g) / d + 4) * 60; break;
-      }
-    }
-    return `${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-  }
-
-  // Upload file to storage
   const handleUpload = async (file: File, field: 'logo_light_url' | 'logo_dark_url' | 'favicon_url') => {
-    if (!company?.id) return;
+    if (!company?.id || isReadOnly) return;
     setUploading(field);
     try {
       const ext = file.name.split('.').pop();
@@ -148,30 +152,34 @@ export default function Branding() {
         {preview ? (
           <div className="relative w-20 h-20 border rounded-md overflow-hidden bg-accent/30 flex items-center justify-center">
             <img src={preview} alt={label} className="max-w-full max-h-full object-contain" />
-            <button
-              onClick={() => setForm(f => ({ ...f, [field]: '' }))}
-              className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
-            >
-              <X className="h-3 w-3" />
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={() => setForm(f => ({ ...f, [field]: '' }))}
+                className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
         ) : (
           <div className="w-20 h-20 border rounded-md border-dashed flex items-center justify-center text-muted-foreground">
             <Image className="h-6 w-6" />
           </div>
         )}
-        <Button variant="outline" size="sm" disabled={uploading === field} asChild>
-          <label className="cursor-pointer">
-            <Upload className="h-4 w-4 mr-1" />
-            {uploading === field ? 'Enviando...' : 'Upload'}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, field); e.target.value = ''; }}
-            />
-          </label>
-        </Button>
+        {!isReadOnly && (
+          <Button variant="outline" size="sm" disabled={uploading === field} asChild>
+            <label className="cursor-pointer">
+              <Upload className="h-4 w-4 mr-1" />
+              {uploading === field ? 'Enviando...' : 'Upload'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, field); e.target.value = ''; }}
+              />
+            </label>
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -185,8 +193,27 @@ export default function Branding() {
         <p className="text-muted-foreground">Configure a identidade visual da sua empresa</p>
       </div>
 
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Assinatura suspensa</AlertTitle>
+          <AlertDescription>Edição de branding desabilitada. Regularize sua assinatura.</AlertDescription>
+        </Alert>
+      )}
+
+      {!whitelabelEnabled && !isSuspended && (
+        <FeatureLockedBanner featureLabel="Personalização de marca (White-label)" />
+      )}
+
+      {isReadOnly && !isSuspended && whitelabelEnabled && !isAdmin && (
+        <Alert>
+          <Lock className="h-4 w-4" />
+          <AlertTitle>Somente leitura</AlertTitle>
+          <AlertDescription>Apenas administradores podem editar a marca.</AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Logos */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Image className="h-5 w-5" /> Logotipos</CardTitle>
@@ -198,7 +225,6 @@ export default function Branding() {
           </CardContent>
         </Card>
 
-        {/* Favicon & Title */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> Site</CardTitle>
@@ -208,17 +234,26 @@ export default function Branding() {
             <FileUploadField label="Favicon" field="favicon_url" preview={form.favicon_url} />
             <div>
               <Label>Título do site</Label>
-              <Input value={form.site_title} onChange={e => setForm(f => ({ ...f, site_title: e.target.value }))} placeholder="Nome exibido na aba do navegador" />
+              <Input
+                value={form.site_title}
+                onChange={e => setForm(f => ({ ...f, site_title: e.target.value }))}
+                placeholder="Nome exibido na aba do navegador"
+                disabled={isReadOnly}
+              />
             </div>
             <div>
               <Label>Domínio personalizado</Label>
-              <Input value={form.custom_domain} onChange={e => setForm(f => ({ ...f, custom_domain: e.target.value }))} placeholder="painel.suaempresa.com" />
+              <Input
+                value={form.custom_domain}
+                onChange={e => setForm(f => ({ ...f, custom_domain: e.target.value }))}
+                placeholder="painel.suaempresa.com"
+                disabled={isReadOnly}
+              />
               <p className="text-xs text-muted-foreground mt-1">Configure o DNS do seu domínio para apontar para este painel</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Primary color */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" /> Cor Primária</CardTitle>
@@ -231,6 +266,7 @@ export default function Branding() {
                 value={form.primary_color}
                 onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))}
                 className="w-12 h-12 rounded-md border cursor-pointer"
+                disabled={isReadOnly}
               />
               <div className="space-y-1">
                 <p className="text-sm font-medium">{form.primary_color.toUpperCase()}</p>
@@ -246,9 +282,11 @@ export default function Branding() {
         </Card>
       </div>
 
-      <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-fit">
-        <Save className="h-4 w-4 mr-2" /> Salvar Marca
-      </Button>
+      {!isReadOnly && (
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-fit">
+          <Save className="h-4 w-4 mr-2" /> Salvar Marca
+        </Button>
+      )}
     </div>
   );
 }
