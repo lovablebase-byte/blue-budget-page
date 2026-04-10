@@ -2,6 +2,9 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
+import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
+import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +52,8 @@ function calcRiskLevel(ratePerMin: number, totalContacts: number, instanceCount:
 
 export default function Campaigns() {
   const { company } = useAuth();
+  const campaignFeature = useFeatureEnabled('campaigns_enabled');
+  const campaignLimit = useResourceLimit('max_campaigns', 'campaigns');
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('config');
@@ -298,15 +303,30 @@ export default function Campaigns() {
     },
   ];
 
+  const featureBlocked = campaignFeature.data === false;
+  const limitBlocked = campaignLimit.data && !campaignLimit.data.allowed;
+
   return (
     <div className="space-y-6">
+      {featureBlocked && <FeatureLockedBanner featureLabel="Campanhas" />}
+      {!featureBlocked && campaignLimit.data && (
+        <LimitReachedBanner current={campaignLimit.data.current} max={campaignLimit.data.max} resourceLabel="campanhas" />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Campanhas</h1>
           <p className="text-muted-foreground">Disparos em massa com proteções anti-ban e modo humano</p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Nova Campanha</Button></DialogTrigger>
+          <DialogTrigger asChild>
+            <GuardedButton
+              allowed={!featureBlocked && !limitBlocked}
+              reason={featureBlocked ? 'Campanhas não habilitadas no plano' : `Limite de ${campaignLimit.data?.max || 0} campanhas atingido`}
+              onClick={() => {}}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Nova Campanha
+            </GuardedButton>
+          </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nova Campanha</DialogTitle></DialogHeader>
             <Tabs value={activeTab} onValueChange={setActiveTab}>

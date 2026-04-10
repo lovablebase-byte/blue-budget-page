@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
+import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +19,8 @@ import { type Node, type Edge } from '@xyflow/react';
 
 export default function Workflows() {
   const { company } = useAuth();
+  const wfFeature = useFeatureEnabled('workflows_enabled');
+  const wfLimit = useResourceLimit('max_workflows', 'workflows');
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -138,28 +142,46 @@ export default function Workflows() {
     },
   ];
 
+  const featureBlocked = wfFeature.data === false;
+  const limitBlocked = wfLimit.data && !wfLimit.data.allowed;
+
   return (
     <div className="space-y-6">
+      {featureBlocked && <FeatureLockedBanner featureLabel="Workflows" />}
+      {!featureBlocked && wfLimit.data && (
+        <LimitReachedBanner current={wfLimit.data.current} max={wfLimit.data.max} resourceLabel="workflows" />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Workflows</h1>
           <p className="text-muted-foreground">Construtor visual de fluxos de chatbot</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Novo Workflow</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Novo Workflow</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
-              <div><Label>Descrição</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
-              <Button onClick={() => createMutation.mutate()} disabled={!name || createMutation.isPending} className="w-full">
-                Criar Workflow
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {!featureBlocked && !limitBlocked && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" /> Novo Workflow</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Novo Workflow</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+                <div><Label>Descrição</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
+                <Button onClick={() => createMutation.mutate()} disabled={!name || createMutation.isPending} className="w-full">
+                  Criar Workflow
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        {(featureBlocked || limitBlocked) && (
+          <GuardedButton
+            allowed={false}
+            reason={featureBlocked ? 'Workflows não habilitados no plano' : `Limite de ${wfLimit.data?.max || 0} workflows atingido`}
+            onClick={() => {}}
+          >
+            <Plus className="h-4 w-4 mr-2" /> Novo Workflow
+          </GuardedButton>
+        )}
       </div>
 
       <DataTable

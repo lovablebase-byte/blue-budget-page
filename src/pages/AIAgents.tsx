@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
+import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
+import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,6 +88,8 @@ const defaultForm = (): AgentForm => ({
 
 export default function AIAgents() {
   const { company } = useAuth();
+  const aiFeature = useFeatureEnabled('ai_agents_enabled');
+  const agentLimit = useResourceLimit('max_ai_agents', 'ai_agents');
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -209,8 +214,15 @@ export default function AIAgents() {
     },
   ];
 
+  const featureBlocked = aiFeature.data === false;
+  const limitBlocked = agentLimit.data && !agentLimit.data.allowed;
+
   return (
     <div className="space-y-6">
+      {featureBlocked && <FeatureLockedBanner featureLabel="Agentes IA" />}
+      {!featureBlocked && agentLimit.data && (
+        <LimitReachedBanner current={agentLimit.data.current} max={agentLimit.data.max} resourceLabel="agentes IA" />
+      )}
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Bot className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{agents.length}</p><p className="text-sm text-muted-foreground">Total de Agentes</p></div></div></CardContent></Card>
@@ -223,8 +235,16 @@ export default function AIAgents() {
           <h1 className="text-2xl font-bold">Agentes IA</h1>
           <p className="text-muted-foreground">Configure agentes inteligentes com integração de IA</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); else setOpen(true); }}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button></DialogTrigger>
+        <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); else if (!featureBlocked && !limitBlocked) setOpen(true); }}>
+          <DialogTrigger asChild>
+            <GuardedButton
+              allowed={!featureBlocked && !limitBlocked}
+              reason={featureBlocked ? 'Agentes IA não habilitados no plano' : `Limite de ${agentLimit.data?.max || 0} agentes atingido`}
+              onClick={() => {}}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Novo Agente
+            </GuardedButton>
+          </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{editId ? 'Editar Agente' : 'Novo Agente'}</DialogTitle></DialogHeader>
             <Tabs defaultValue="general" className="w-full">

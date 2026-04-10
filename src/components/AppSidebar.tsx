@@ -2,11 +2,12 @@ import {
   LayoutDashboard, Smartphone, MessageCircle, Clock, 
   Radio, Key, GitBranch, Bot, Megaphone, Settings,
   Building2, CreditCard, Receipt, Users, Shield, User,
-  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette, FileText
+  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette, FileText, Lock
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -14,6 +15,15 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { PlanFeatures } from '@/services/plan-enforcement';
+
+/** Map module names to plan feature flags for enforcement */
+const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
+  campaigns: 'campaigns_enabled',
+  workflow: 'workflows_enabled',
+  ai_agents: 'ai_agents_enabled',
+};
 
 const operationalItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
@@ -66,8 +76,18 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { role, isAdmin, hasPermission, signOut, company, user } = useAuth();
+  const { hasFeature, plan } = useCompany();
 
   const isActive = (path: string) => location.pathname === path;
+
+  /** Check if a module's feature is locked by the plan */
+  const isFeatureLocked = (module: string): boolean => {
+    if (isAdmin) return false; // admin always sees everything
+    const featureKey = moduleFeatureMap[module];
+    if (!featureKey) return false; // no feature gate for this module
+    if (!plan) return false; // plan not loaded yet, don't block
+    return !hasFeature(featureKey);
+  };
 
   const visibleOperational = operationalItems.filter(item => {
     if (isAdmin) return true;
@@ -103,16 +123,35 @@ export function AppSidebar() {
           <SidebarGroupLabel>Operacional</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleOperational.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink to={item.url} end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {visibleOperational.map((item) => {
+                const locked = isFeatureLocked(item.module);
+                if (locked) {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton className="opacity-50 cursor-not-allowed">
+                            <item.icon className="h-4 w-4" />
+                            {!collapsed && <span>{item.title}</span>}
+                            {!collapsed && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">Recurso bloqueado pelo plano</TooltipContent>
+                      </Tooltip>
+                    </SidebarMenuItem>
+                  );
+                }
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <NavLink to={item.url} end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
