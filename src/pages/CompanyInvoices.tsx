@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { DataTable, Column } from '@/components/DataTable';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle, Search } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Todos' },
@@ -17,7 +21,7 @@ const STATUS_OPTIONS = [
 
 function statusBadge(status: string) {
   switch (status) {
-    case 'paid': return <Badge className="bg-success text-success-foreground">Pago</Badge>;
+    case 'paid': return <Badge className="bg-green-600 text-white">Pago</Badge>;
     case 'pending': return <Badge variant="secondary">Pendente</Badge>;
     case 'overdue': return <Badge variant="destructive">Vencido</Badge>;
     default: return <Badge variant="outline">{status}</Badge>;
@@ -35,7 +39,9 @@ function formatDate(d: string | null) {
 
 export default function CompanyInvoices() {
   const { company } = useAuth();
+  const { isSuspended } = useCompany();
   const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
 
   const { data: invoices = [], isLoading } = useQuery({
@@ -53,9 +59,20 @@ export default function CompanyInvoices() {
     enabled: !!company?.id,
   });
 
-  const filtered = statusFilter === 'all'
-    ? invoices
-    : invoices.filter((i: any) => i.status === statusFilter);
+  const pendingCount = invoices.filter((i: any) => i.status === 'pending' || i.status === 'overdue').length;
+
+  const filtered = invoices
+    .filter((i: any) => statusFilter === 'all' || i.status === statusFilter)
+    .filter((i: any) => {
+      if (!search) return true;
+      const s = search.toLowerCase();
+      return (
+        formatCurrency(i.amount_cents).toLowerCase().includes(s) ||
+        (i.gateway || '').toLowerCase().includes(s) ||
+        (i.gateway_reference || '').toLowerCase().includes(s) ||
+        (i.notes || '').toLowerCase().includes(s)
+      );
+    });
 
   const columns: Column<any>[] = [
     { key: 'amount_cents', label: 'Valor', render: (row) => formatCurrency(row.amount_cents) },
@@ -69,7 +86,27 @@ export default function CompanyInvoices() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Faturas</h1>
 
-      <div className="flex items-center gap-4">
+      {pendingCount > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Faturas pendentes</AlertTitle>
+          <AlertDescription>
+            Você possui {pendingCount} fatura(s) pendente(s) ou vencida(s). Regularize para evitar bloqueios.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>
+            Sua conta está suspensa por inadimplência. Regularize as faturas pendentes.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex items-center gap-4 flex-wrap">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Status" />
@@ -80,13 +117,22 @@ export default function CompanyInvoices() {
             ))}
           </SelectContent>
         </Select>
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por valor, gateway, referência..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
       <DataTable
         data={filtered}
         columns={columns}
         loading={isLoading}
-        emptyMessage="Nenhuma fatura"
+        emptyMessage="Nenhuma fatura encontrada"
         actions={(row) => (
           <button
             className="text-sm text-primary hover:underline"
@@ -136,6 +182,21 @@ export default function CompanyInvoices() {
                 <span className="text-muted-foreground">Ref. externa</span>
                 <span className="truncate max-w-[200px]">{selectedInvoice.gateway_reference || '—'}</span>
               </div>
+              {selectedInvoice.notes && (
+                <>
+                  <Separator />
+                  <div>
+                    <span className="text-muted-foreground">Observações</span>
+                    <p className="mt-1">{selectedInvoice.notes}</p>
+                  </div>
+                </>
+              )}
+              {selectedInvoice.subscriptions?.plans?.name && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Plano</span>
+                  <span>{selectedInvoice.subscriptions.plans.name}</span>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

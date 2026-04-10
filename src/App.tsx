@@ -95,8 +95,8 @@ const App = () => (
               <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Campaigns /></ProtectedPage>} />
 
               {/* Admin company */}
-              <Route path="/subscription" element={<ProtectedPage role={['admin']}><Subscription /></ProtectedPage>} />
-              <Route path="/invoices" element={<ProtectedPage role={['admin']}><CompanyInvoices /></ProtectedPage>} />
+              <Route path="/subscription" element={<ProtectedPage><Subscription /></ProtectedPage>} />
+              <Route path="/invoices" element={<ProtectedPage><CompanyInvoices /></ProtectedPage>} />
               <Route path="/users" element={<ProtectedPage role={['admin']}><CompanyUsers /></ProtectedPage>} />
               <Route path="/settings" element={<ProtectedPage module="settings"><Settings /></ProtectedPage>} />
               <Route path="/branding" element={<ProtectedPage role={['admin']}><Branding /></ProtectedPage>} />

@@ -38,9 +38,12 @@ const operationalItems = [
   { title: 'Campanhas', url: '/campaigns', icon: Megaphone, module: 'campaigns' },
 ];
 
-const adminItems = [
-  { title: 'Planos e Assinatura', url: '/subscription', icon: CreditCard },
+const commercialItems = [
+  { title: 'Plano e Assinatura', url: '/subscription', icon: CreditCard },
   { title: 'Faturas', url: '/invoices', icon: Receipt },
+];
+
+const adminItems = [
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Ajustes', url: '/settings', icon: Settings, module: 'settings' },
   { title: 'Marca', url: '/branding', icon: Palette },
@@ -152,6 +155,26 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Comercial - visible to all authenticated users */}
+        <SidebarSeparator />
+        <SidebarGroup>
+          <SidebarGroupLabel>Comercial</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {commercialItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink to={item.url} end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
