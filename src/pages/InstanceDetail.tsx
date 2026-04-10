@@ -32,6 +32,8 @@ interface InstanceDetail {
   created_at: string;
   evolution_instance_id: string | null;
   access_token: string;
+  provider: string;
+  provider_instance_id: string | null;
 }
 
 interface WebhookEvent {
