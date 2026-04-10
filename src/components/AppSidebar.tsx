@@ -76,8 +76,18 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { role, isAdmin, hasPermission, signOut, company, user } = useAuth();
+  const { hasFeature, plan } = useCompany();
 
   const isActive = (path: string) => location.pathname === path;
+
+  /** Check if a module's feature is locked by the plan */
+  const isFeatureLocked = (module: string): boolean => {
+    if (isAdmin) return false; // admin always sees everything
+    const featureKey = moduleFeatureMap[module];
+    if (!featureKey) return false; // no feature gate for this module
+    if (!plan) return false; // plan not loaded yet, don't block
+    return !hasFeature(featureKey);
+  };
 
   const visibleOperational = operationalItems.filter(item => {
     if (isAdmin) return true;
