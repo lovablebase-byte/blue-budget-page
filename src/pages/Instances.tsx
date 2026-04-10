@@ -744,16 +744,18 @@ export default function Instances() {
             {/* Provider selector */}
             <div className="space-y-2">
               <Label>Provider *</Label>
-              {activeProviders.length === 0 ? (
+              {effectiveProviders.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4" />
-                  Nenhum provider ativo. Configure em Configurações.
+                  {activeProviders.length > 0 && planProviders.length > 0
+                    ? 'Nenhum provider disponível é permitido pelo seu plano.'
+                    : 'Nenhum provider ativo. Configure em Configurações.'}
                 </div>
               ) : (
                 <Select value={newProvider} onValueChange={setNewProvider}>
                   <SelectTrigger><SelectValue placeholder="Selecione o provider" /></SelectTrigger>
                   <SelectContent>
-                    {activeProviders.map(p => (
+                    {effectiveProviders.map(p => (
                       <SelectItem key={p.provider} value={p.provider}>
                         {providerLabels[p.provider] || p.provider}
                         {p.is_default ? ' (padrão)' : ''}
