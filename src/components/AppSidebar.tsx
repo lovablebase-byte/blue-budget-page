@@ -38,6 +38,7 @@ const adminItems = [
 
 const systemAdminItems = [
   { title: 'Empresas', url: '/admin/companies', icon: Building2 },
+  { title: 'Assinaturas', url: '/admin/subscriptions', icon: CreditCard },
   { title: 'Instâncias Globais', url: '/admin/instances', icon: Smartphone },
   { title: 'Saudações Globais', url: '/admin/greetings', icon: MessageCircle },
   { title: 'Ausência Global', url: '/admin/absence', icon: Clock },
@@ -51,6 +52,8 @@ const systemAdminItems = [
   { title: 'Usuários Globais', url: '/admin/users', icon: Shield },
   { title: 'Faturas Globais', url: '/admin/invoices', icon: Receipt },
   { title: 'Gateways', url: '/admin/gateways', icon: Globe },
+  { title: 'Ajustes Globais', url: '/admin/settings', icon: Settings },
+  { title: 'Marca Global', url: '/admin/branding', icon: Palette },
   { title: 'Relatórios', url: '/admin/reports', icon: BarChart3 },
   { title: 'Saúde do Sistema', url: '/admin/health', icon: Heart },
   { title: 'Webhooks', url: '/admin/webhooks', icon: Webhook },
