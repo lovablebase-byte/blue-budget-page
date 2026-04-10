@@ -54,11 +54,11 @@ interface ActiveProvider {
   is_default: boolean;
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Wifi }> = {
-  online: { label: 'Online', variant: 'default', icon: Wifi },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info'; icon: typeof Wifi }> = {
+  online: { label: 'Online', variant: 'success', icon: Wifi },
   offline: { label: 'Offline', variant: 'secondary', icon: WifiOff },
-  connecting: { label: 'Conectando', variant: 'outline', icon: RefreshCw },
-  pairing: { label: 'Pareando', variant: 'outline', icon: QrCode },
+  connecting: { label: 'Conectando', variant: 'info', icon: RefreshCw },
+  pairing: { label: 'Pareando', variant: 'warning', icon: QrCode },
   error: { label: 'Erro', variant: 'destructive', icon: AlertCircle },
 };
 
@@ -571,7 +571,7 @@ export default function Instances() {
     { key: 'phone_number', label: 'Número', render: (r) => r.phone_number || '—' },
     {
       key: 'provider', label: 'Provider', render: (r) => (
-        <Badge variant="outline" className="text-xs font-mono">
+        <Badge variant="outline" className="text-xs font-mono border-accent/30 text-accent/80">
           {providerLabels[r.provider] || r.provider}
         </Badge>
       )
@@ -657,31 +657,31 @@ export default function Instances() {
 
       {/* Stats cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Smartphone className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+            <div className="rounded-md p-1.5 bg-primary/10"><Smartphone className="h-4 w-4 text-primary" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{instances.length}</div>
+            <div className="text-2xl font-bold tracking-tight">{instances.length}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Online</CardTitle>
-            <Wifi className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Online</CardTitle>
+            <div className="rounded-md p-1.5 bg-success/10"><Wifi className="h-4 w-4 text-success" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{onlineCount}</div>
+            <div className="text-2xl font-bold tracking-tight text-primary">{onlineCount}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Offline</CardTitle>
-            <WifiOff className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Offline</CardTitle>
+            <div className="rounded-md p-1.5 bg-muted/50"><WifiOff className="h-4 w-4 text-muted-foreground" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{offlineCount}</div>
+            <div className="text-2xl font-bold tracking-tight">{offlineCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -840,11 +840,11 @@ export default function Instances() {
           <div className="space-y-4">
             {connectionSuccess ? (
               <div className="flex flex-col items-center gap-4 py-8">
-                <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+                <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center shadow-[0_0_30px_-5px_hsl(var(--primary)/0.4)]">
+                  <CheckCircle2 className="h-12 w-12 text-primary" />
                 </div>
                 <div className="text-center space-y-1">
-                  <p className="text-lg font-semibold text-green-700 dark:text-green-400">WhatsApp conectado com sucesso!</p>
+                  <p className="text-lg font-semibold text-primary">WhatsApp conectado com sucesso!</p>
                   <p className="text-sm text-muted-foreground">
                     Fechando automaticamente em {autoCloseCountdown ?? 0} segundo{autoCloseCountdown !== 1 ? 's' : ''}...
                   </p>
@@ -854,7 +854,7 @@ export default function Instances() {
               <>
                 {/* QR Code */}
                 <div className="flex flex-col items-center gap-3 py-3">
-                  <div className="w-52 h-52 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+                  <div className="w-52 h-52 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
                     {qrLoading ? (
                       <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
                     ) : qrCodeBase64 ? (
@@ -933,11 +933,11 @@ export default function Instances() {
           </DialogHeader>
           {connectionSuccess ? (
             <div className="flex flex-col items-center gap-4 py-8">
-              <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+              <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center shadow-[0_0_30px_-5px_hsl(var(--primary)/0.4)]">
+                <CheckCircle2 className="h-12 w-12 text-primary" />
               </div>
               <div className="text-center space-y-1">
-                <p className="text-lg font-semibold text-green-700 dark:text-green-400">WhatsApp conectado com sucesso!</p>
+                <p className="text-lg font-semibold text-primary">WhatsApp conectado com sucesso!</p>
                 <p className="text-sm text-muted-foreground">
                   Fechando automaticamente em {autoCloseCountdown ?? 0} segundo{autoCloseCountdown !== 1 ? 's' : ''}...
                 </p>
@@ -945,7 +945,7 @@ export default function Instances() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-4 py-4">
-              <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+              <div className="w-64 h-64 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
                 {qrLoading ? (
                   <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
                 ) : qrCodeBase64 ? (
