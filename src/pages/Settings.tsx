@@ -38,7 +38,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
 
   const [companyName, setCompanyName] = useState('');
-  const [notifyOffline, setNotifyOffline] = useState(true);
+  
 
   const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
@@ -343,15 +343,6 @@ export default function Settings() {
             <div>
               <Label>Nome da empresa</Label>
               <Input value={companyName} onChange={e => setCompanyName(e.target.value)} />
-            </div>
-            <div>
-              <Label>Fuso horário padrão</Label>
-              <Select value={defaultTimezone} onValueChange={setDefaultTimezone}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>
