@@ -75,6 +75,8 @@ const TIMEZONES = [
 
 export default function Instances() {
   const { company, hasPermission, isReadOnly } = useAuth();
+  const { allowedProviders: planProviders } = useCompany();
+  const instanceLimit = useResourceLimit('max_instances', 'instances');
   const navigate = useNavigate();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
