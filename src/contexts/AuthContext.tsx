@@ -11,7 +11,6 @@ interface AuthContextType {
   userRole: UserRoleData | null;
   company: CompanyData | null;
   permissions: ModulePermission[];
-  isSuperAdmin: boolean;
   isAdmin: boolean;
   isReadOnly: boolean;
   hasPermission: (module: string, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
@@ -34,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isMountedRef = useRef(true);
 
-  const isSuperAdmin = role === 'super_admin';
   const isAdmin = role === 'admin';
 
   const fetchUserData = useCallback(async (userId: string) => {
@@ -50,11 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!isMountedRef.current) return;
 
       if (roleData) {
-        setRole(roleData.role as AppRole);
-        setUserRole(roleData as UserRoleData);
+        // Normalize: treat any legacy super_admin as admin
+        const normalizedRole = (roleData.role === 'super_admin' ? 'admin' : roleData.role) as AppRole;
+        setRole(normalizedRole);
+        setUserRole({ ...roleData, role: normalizedRole } as UserRoleData);
 
-
-        // Fetch company if not super_admin
+        // Fetch company
         if (roleData.company_id) {
           const { data: companyData } = await supabase
             .from('companies')
@@ -80,25 +79,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Fetch permissions for non-super_admin users
-        if (roleData.role !== 'super_admin') {
-          const { data: permsData } = await supabase
-            .from('permissions')
-            .select('*, modules(name)')
-            .eq('user_role_id', roleData.id);
+        // Fetch permissions for all users (admin gets bypass via hasPermission)
+        const { data: permsData } = await supabase
+          .from('permissions')
+          .select('*, modules(name)')
+          .eq('user_role_id', roleData.id);
 
-          if (!isMountedRef.current) return;
-          if (permsData) {
-            const mapped: ModulePermission[] = permsData.map((p: any) => ({
-              module: p.modules?.name,
-              can_view: p.can_view,
-              can_create: p.can_create,
-              can_edit: p.can_edit,
-              can_delete: p.can_delete,
-              extra_permissions: p.extra_permissions || {},
-            }));
-            setPermissions(mapped);
-          }
+        if (!isMountedRef.current) return;
+        if (permsData) {
+          const mapped: ModulePermission[] = permsData.map((p: any) => ({
+            module: p.modules?.name,
+            can_view: p.can_view,
+            can_create: p.can_create,
+            can_edit: p.can_edit,
+            can_delete: p.can_delete,
+            extra_permissions: p.extra_permissions || {},
+          }));
+          setPermissions(mapped);
         }
       }
     } catch (err) {
@@ -118,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasPermission = (module: string, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
-    if (isSuperAdmin) return true;
     if (isAdmin) return true;
     if (isReadOnly && action !== 'view') return false;
 
@@ -146,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserDataLoaded(false);
   };
 
-  // Effect 1: Listen to auth state changes (NO async Supabase calls here)
+  // Effect 1: Listen to auth state changes
   useEffect(() => {
     isMountedRef.current = true;
 
@@ -161,7 +157,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserRole(null);
           setCompany(null);
           setPermissions([]);
-          
           setUserDataLoaded(false);
           setLoading(false);
         }
@@ -184,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Effect 2: Fetch user data AFTER user is set (separate from auth listener)
+  // Effect 2: Fetch user data AFTER user is set
   useEffect(() => {
     if (user) {
       setUserDataLoaded(false);
@@ -203,7 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user, session, loading, role, userRole, company,
-        permissions, isSuperAdmin, isAdmin, isReadOnly,
+        permissions, isAdmin, isReadOnly,
         hasPermission, signOut, refreshAuth,
       }}
     >
@@ -215,8 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 const defaultAuthContext: AuthContextType = {
   user: null, session: null, loading: true, role: null,
   userRole: null, company: null, permissions: [],
-  isSuperAdmin: false, isAdmin: false, isReadOnly: false,
-  
+  isAdmin: false, isReadOnly: false,
   hasPermission: () => false,
   signOut: async () => {},
   refreshAuth: async () => {},

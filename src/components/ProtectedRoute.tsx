@@ -5,7 +5,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredModule?: string;
   requiredAction?: 'view' | 'create' | 'edit' | 'delete';
-  requiredRole?: ('super_admin' | 'admin' | 'user')[];
+  requiredRole?: ('admin' | 'user')[];
 }
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
@@ -31,17 +31,17 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     );
   }
 
-  if (role === 'super_admin' || role === 'admin') {
-    if (requiredRole && !requiredRole.includes(role)) {
-      return <Navigate to="/access-denied" replace state={{ requiredRole, userRole: role, module: requiredModule }} />;
-    }
+  // Admin has full access (bypass)
+  if (role === 'admin') {
     return <>{children}</>;
   }
 
-  if (requiredRole && role && !requiredRole.includes(role)) {
+  // Role-based restriction (e.g. admin-only pages)
+  if (requiredRole && !requiredRole.includes(role)) {
     return <Navigate to="/access-denied" replace state={{ requiredRole, userRole: role, module: requiredModule }} />;
   }
 
+  // Module permission check for 'user' role
   if (requiredModule && !hasPermission(requiredModule, requiredAction)) {
     return <Navigate to="/access-denied" replace state={{ module: requiredModule, action: requiredAction, userRole: role }} />;
   }

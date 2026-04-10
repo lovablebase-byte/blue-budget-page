@@ -34,10 +34,9 @@ const adminItems = [
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Ajustes', url: '/settings', icon: Settings, module: 'settings' },
   { title: 'Marca', url: '/branding', icon: Palette },
-  
 ];
 
-const superAdminItems = [
+const systemAdminItems = [
   { title: 'Empresas', url: '/admin/companies', icon: Building2 },
   { title: 'Planos Globais', url: '/admin/plans', icon: CreditCard },
   { title: 'Usuários Globais', url: '/admin/users', icon: Shield },
@@ -54,12 +53,12 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, isSuperAdmin, isAdmin, hasPermission, signOut, company, user } = useAuth();
+  const { role, isAdmin, hasPermission, signOut, company, user } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
   const visibleOperational = operationalItems.filter(item => {
-    if (isSuperAdmin || isAdmin) return true;
+    if (isAdmin) return true;
     return hasPermission(item.module, 'view');
   });
 
@@ -107,7 +106,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Admin (company owner) */}
-        {(isAdmin || isSuperAdmin) && (
+        {isAdmin && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
@@ -130,8 +129,8 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Super Admin */}
-        {isSuperAdmin && (
+        {/* System Admin */}
+        {isAdmin && (
           <>
             <SidebarSeparator />
             <Collapsible defaultOpen={location.pathname.startsWith('/admin')}>
@@ -143,7 +142,7 @@ export function AppSidebar() {
                 <CollapsibleContent>
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {superAdminItems.map((item) => (
+                      {systemAdminItems.map((item) => (
                         <SidebarMenuItem key={item.title}>
                           <SidebarMenuButton asChild isActive={isActive(item.url)}>
                             <NavLink to={item.url} end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
