@@ -153,9 +153,37 @@ export default function ChatbotKeys() {
           <AlertDescription>Sua conta está suspensa. Não é possível gerenciar chaves.</AlertDescription>
         </Alert>
       )}
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10"><Key className="h-6 w-6 text-primary" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{keys.length}</p><p className="text-sm text-muted-foreground">Total de Chaves</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><Key className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{keys.filter((k: any) => k.is_active).length}</p><p className="text-sm text-muted-foreground">Ativas</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10"><Key className="h-6 w-6 text-destructive" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-muted-foreground">{keys.filter((k: any) => !k.is_active).length}</p><p className="text-sm text-muted-foreground">Revogadas</p></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Chaves de Chatbot</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Chaves de Chatbot</h1>
           <p className="text-muted-foreground">Gerencie chaves de acesso à API</p>
         </div>
         {!featureBlocked && !isSuspended && (

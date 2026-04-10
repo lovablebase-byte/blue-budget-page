@@ -161,9 +161,37 @@ export default function Workflows() {
           <AlertDescription>Sua conta está suspensa. Não é possível criar ou editar workflows.</AlertDescription>
         </Alert>
       )}
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-accent/10"><GitBranch className="h-6 w-6 text-accent" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{workflows.length}</p><p className="text-sm text-muted-foreground">Total</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><GitBranch className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{workflows.filter((w: any) => w.is_published).length}</p><p className="text-sm text-muted-foreground">Publicados</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-muted/30"><GitBranch className="h-6 w-6 text-muted-foreground" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-muted-foreground">{workflows.filter((w: any) => !w.is_published).length}</p><p className="text-sm text-muted-foreground">Rascunhos</p></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Workflows</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Workflows</h1>
           <p className="text-muted-foreground">Construtor visual de fluxos de chatbot</p>
         </div>
         {!featureBlocked && !limitBlocked && (

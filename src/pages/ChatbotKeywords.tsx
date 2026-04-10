@@ -239,27 +239,26 @@ export default function ChatbotKeywords() {
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total de regras</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{items.length}</div></CardContent>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10"><MessageSquare className="h-6 w-6 text-primary" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{items.length}</p><p className="text-sm text-muted-foreground">Total de regras</p></div>
+            </div>
+          </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Ativas</CardTitle>
-            <MessageSquare className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-primary">{activeCount}</div></CardContent>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><MessageSquare className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{activeCount}</p><p className="text-sm text-muted-foreground">Ativas</p></div>
+            </div>
+          </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Palavras-chave</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {items.reduce((acc, i) => acc + (i.keywords?.length || 0), 0)}
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-accent/10"><MessageSquare className="h-6 w-6 text-accent" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{items.reduce((acc, i) => acc + (i.keywords?.length || 0), 0)}</p><p className="text-sm text-muted-foreground">Palavras-chave</p></div>
             </div>
           </CardContent>
         </Card>
