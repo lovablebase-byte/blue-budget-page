@@ -103,31 +103,32 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="border-r-border/30">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground glow-primary-sm">
-            <MessageCircle className="h-4 w-4" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark shadow-[0_0_16px_-3px_hsl(var(--primary)/0.5)]">
+            <MessageCircle className="h-4 w-4 text-primary-foreground drop-shadow-[0_0_4px_hsl(var(--glow)/0.6)]" />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground">WA Manager</span>
-              <span className="text-xs text-primary/70">{company?.name || 'Sistema'}</span>
+              <span className="text-sm font-bold text-foreground tracking-tight">WA Manager</span>
+              <span className="text-[11px] text-primary/80 font-medium">{company?.name || 'Sistema'}</span>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarSeparator className="border-border/40" />
+      <SidebarSeparator className="border-border/30" />
 
       <SidebarContent>
         {/* Operational */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-primary/60 uppercase tracking-wider text-[10px] font-bold">Operacional</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Operacional</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleOperational.map((item) => {
                 const locked = isFeatureLocked(item.module);
+                const active = isActive(item.url);
                 if (locked) {
                   return (
                     <SidebarMenuItem key={item.title}>
@@ -146,14 +147,14 @@ export function AppSidebar() {
                 }
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <SidebarMenuButton asChild isActive={active}>
                       <NavLink
                         to={item.url}
                         end
-                        className="hover:bg-primary/10 hover:text-primary transition-colors"
-                        activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
+                        className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
+                        activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
                       >
-                        <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
+                        <item.icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
                         {!collapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
@@ -165,26 +166,29 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Comercial */}
-        <SidebarSeparator className="border-border/40" />
+        <SidebarSeparator className="border-border/30" />
         <SidebarGroup>
-          <SidebarGroupLabel className="text-primary/60 uppercase tracking-wider text-[10px] font-bold">Comercial</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Comercial</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {commercialItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="hover:bg-primary/10 hover:text-primary transition-colors"
-                      activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
-                    >
-                      <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {commercialItems.map((item) => {
+                const active = isActive(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={active}>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
+                        activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
+                      >
+                        <item.icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -192,26 +196,29 @@ export function AppSidebar() {
         {/* Admin (company owner) */}
         {isAdmin && (
           <>
-            <SidebarSeparator className="border-border/40" />
+            <SidebarSeparator className="border-border/30" />
             <SidebarGroup>
-              <SidebarGroupLabel className="text-primary/60 uppercase tracking-wider text-[10px] font-bold">Empresa</SidebarGroupLabel>
+              <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Empresa</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {adminItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                        <NavLink
-                          to={item.url}
-                          end
-                          className="hover:bg-primary/10 hover:text-primary transition-colors"
-                          activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
-                        >
-                          <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
-                          {!collapsed && <span>{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {adminItems.map((item) => {
+                    const active = isActive(item.url);
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild isActive={active}>
+                          <NavLink
+                            to={item.url}
+                            end
+                            className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
+                            activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
+                          >
+                            <item.icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
+                            {!collapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -221,31 +228,34 @@ export function AppSidebar() {
         {/* System Admin */}
         {isAdmin && (
           <>
-            <SidebarSeparator className="border-border/40" />
+            <SidebarSeparator className="border-border/30" />
             <Collapsible defaultOpen={location.pathname.startsWith('/admin')}>
               <SidebarGroup>
-                <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-bold text-primary/60 uppercase tracking-wider hover:text-primary transition-colors">
+                <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-bold text-accent/70 uppercase tracking-widest hover:text-accent transition-colors">
                   Admin do Sistema
                   {!collapsed && <ChevronDown className="h-3 w-3" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {systemAdminItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                            <NavLink
-                              to={item.url}
-                              end
-                              className="hover:bg-primary/10 hover:text-primary transition-colors"
-                              activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
-                            >
-                              <item.icon className={`h-4 w-4 ${isActive(item.url) ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
-                              {!collapsed && <span>{item.title}</span>}
-                            </NavLink>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
+                      {systemAdminItems.map((item) => {
+                        const active = isActive(item.url);
+                        return (
+                          <SidebarMenuItem key={item.title}>
+                            <SidebarMenuButton asChild isActive={active}>
+                              <NavLink
+                                to={item.url}
+                                end
+                                className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
+                                activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
+                              >
+                                <item.icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
+                                {!collapsed && <span>{item.title}</span>}
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </CollapsibleContent>
@@ -255,9 +265,9 @@ export function AppSidebar() {
         )}
 
         {/* Personal */}
-        <SidebarSeparator className="border-border/40" />
+        <SidebarSeparator className="border-border/30" />
         <SidebarGroup>
-          <SidebarGroupLabel className="text-primary/60 uppercase tracking-wider text-[10px] font-bold">Pessoal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Pessoal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {role === 'user' && (
@@ -266,10 +276,10 @@ export function AppSidebar() {
                     <NavLink
                       to="/profile"
                       end
-                      className="hover:bg-primary/10 hover:text-primary transition-colors"
-                      activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
+                      className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
+                      activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
                     >
-                      <Settings className={`h-4 w-4 ${isActive('/profile') ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
+                      <Settings className={`h-4 w-4 transition-all ${isActive('/profile') ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
                       {!collapsed && <span>Meu Perfil</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -280,10 +290,10 @@ export function AppSidebar() {
                   <NavLink
                     to="/account"
                     end
-                    className="hover:bg-primary/10 hover:text-primary transition-colors"
-                    activeClassName="bg-primary/20 text-primary font-semibold border-l-[3px] border-primary shadow-[inset_0_0_12px_-4px_hsl(145_69%_49%/0.2)]"
+                    className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
+                    activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
                   >
-                    <User className={`h-4 w-4 ${isActive('/account') ? 'text-primary drop-shadow-[0_0_4px_hsl(145_69%_49%/0.5)]' : 'text-sidebar-foreground'}`} />
+                    <User className={`h-4 w-4 transition-all ${isActive('/account') ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
                     {!collapsed && <span>Minha Conta</span>}
                   </NavLink>
                 </SidebarMenuButton>
