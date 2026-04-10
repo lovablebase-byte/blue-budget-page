@@ -1333,9 +1333,11 @@ export type Database = {
         Row: {
           ai_agents_enabled: boolean
           api_access: boolean
+          billing_cycle: string
           campaigns_enabled: boolean
           created_at: string
           description: string | null
+          display_order: number
           id: string
           is_active: boolean
           max_ai_agents: number
@@ -1348,6 +1350,7 @@ export type Database = {
           max_users: number
           max_workflows: number
           name: string
+          notes: string | null
           price_cents: number
           support_priority: string
           updated_at: string
@@ -1357,9 +1360,11 @@ export type Database = {
         Insert: {
           ai_agents_enabled?: boolean
           api_access?: boolean
+          billing_cycle?: string
           campaigns_enabled?: boolean
           created_at?: string
           description?: string | null
+          display_order?: number
           id?: string
           is_active?: boolean
           max_ai_agents?: number
@@ -1372,6 +1377,7 @@ export type Database = {
           max_users?: number
           max_workflows?: number
           name: string
+          notes?: string | null
           price_cents?: number
           support_priority?: string
           updated_at?: string
@@ -1381,9 +1387,11 @@ export type Database = {
         Update: {
           ai_agents_enabled?: boolean
           api_access?: boolean
+          billing_cycle?: string
           campaigns_enabled?: boolean
           created_at?: string
           description?: string | null
+          display_order?: number
           id?: string
           is_active?: boolean
           max_ai_agents?: number
@@ -1396,6 +1404,7 @@ export type Database = {
           max_users?: number
           max_workflows?: number
           name?: string
+          notes?: string | null
           price_cents?: number
           support_priority?: string
           updated_at?: string
@@ -1483,36 +1492,45 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          canceled_at: string | null
           company_id: string
           created_at: string
           expires_at: string | null
           id: string
+          notes: string | null
           plan_id: string
           renewal_date: string | null
           started_at: string
           status: string
+          suspended_at: string | null
           updated_at: string
         }
         Insert: {
+          canceled_at?: string | null
           company_id: string
           created_at?: string
           expires_at?: string | null
           id?: string
+          notes?: string | null
           plan_id: string
           renewal_date?: string | null
           started_at?: string
           status?: string
+          suspended_at?: string | null
           updated_at?: string
         }
         Update: {
+          canceled_at?: string | null
           company_id?: string
           created_at?: string
           expires_at?: string | null
           id?: string
+          notes?: string | null
           plan_id?: string
           renewal_date?: string | null
           started_at?: string
           status?: string
+          suspended_at?: string | null
           updated_at?: string
         }
         Relationships: [
