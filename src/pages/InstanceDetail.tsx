@@ -45,11 +45,10 @@ interface WebhookEvent {
   payload: any;
 }
 
-interface EvoConfig {
-  base_url: string;
-  api_key: string;
-  is_active: boolean;
-}
+const providerLabels: Record<string, string> = {
+  evolution: 'Evolution API',
+  wuzapi: 'Wuzapi',
+};
 
 export default function InstanceDetail() {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +58,6 @@ export default function InstanceDetail() {
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [evoConfig, setEvoConfig] = useState<EvoConfig | null>(null);
   const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
@@ -73,15 +71,6 @@ export default function InstanceDetail() {
         .single();
       if (error) { toast.error(error.message); navigate('/instances'); return; }
       setInstance(data as InstanceDetail);
-      // Fetch Evolution API config for endpoint/token display
-      if (data?.company_id) {
-        const { data: evo } = await supabase
-          .from('evolution_api_config')
-          .select('base_url, api_key, is_active')
-          .eq('company_id', data.company_id)
-          .single();
-        if (evo) setEvoConfig(evo as EvoConfig);
-      }
       setLoading(false);
     };
     fetchData();
@@ -141,6 +130,9 @@ export default function InstanceDetail() {
           <h1 className="text-2xl font-bold">{instance.name}</h1>
           <p className="text-muted-foreground text-sm">{instance.phone_number || 'Número não registrado'}</p>
         </div>
+        <Badge variant="outline" className="text-xs font-mono mr-2">
+          {providerLabels[instance.provider] || instance.provider}
+        </Badge>
         <Badge variant={statusColor} className="gap-1">
           {statusIcon} {instance.status}
         </Badge>
@@ -163,6 +155,12 @@ export default function InstanceDetail() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Conexão</span>
                   <Badge variant={statusColor}>{instance.status}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Provider</span>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {providerLabels[instance.provider] || instance.provider}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Reconexão</span>
@@ -211,7 +209,7 @@ export default function InstanceDetail() {
             </Card>
           </div>
 
-          {/* API Endpoint & Session Token — same values as creation modal */}
+          {/* API Endpoint & Session Token */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -253,18 +251,10 @@ export default function InstanceDetail() {
                     readOnly
                     className="font-mono text-xs"
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowToken(!showToken)}
-                  >
+                  <Button variant="outline" size="icon" onClick={() => setShowToken(!showToken)}>
                     {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyToClipboard(instance.access_token)}
-                  >
+                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(instance.access_token)}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
