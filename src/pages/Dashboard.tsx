@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 const REFRESH_INTERVAL = 10000;
 
 export default function Dashboard() {
-  const { role, company, isAdmin, isAdmin, isReadOnly, user } = useAuth();
+  const { role, company, isAdmin, isReadOnly, user } = useAuth();
   const [timezone, setTimezone] = useState('America/Sao_Paulo');
   const [savingTz, setSavingTz] = useState(false);
   const [showToken, setShowToken] = useState(false);
