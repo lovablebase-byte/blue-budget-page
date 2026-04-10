@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +61,131 @@ export default function InstanceDetail() {
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [showQrDialog, setShowQrDialog] = useState(false);
+
+  const getProviderInstanceName = (inst: InstanceDetail): string => {
+    return inst.provider_instance_id || inst.evolution_instance_id || inst.name;
+  };
+
+  const callProviderProxy = async (action: string, provider?: string, instanceName?: string, payload?: any) => {
+    const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
+      body: { action, provider, instanceName, payload },
+    });
+    if (res.error) {
+      const invokeError: any = res.error;
+      const ctx = invokeError?.context;
+      let details: any = null;
+      if (ctx) {
+        details = await ctx.clone().json().catch(async () => {
+          const raw = await ctx.text().catch(() => '');
+          return raw ? { raw } : null;
+        });
+      }
+      throw new Error(details?.error || invokeError.message || 'Erro ao chamar proxy');
+    }
+    if (res.data?.error) throw new Error(res.data.error);
+    return res.data;
+  };
+
+  const handlePairQR = async () => {
+    if (!instance) return;
+    setActionLoading('qr');
+    setQrCode(null);
+    try {
+      const providerName = getProviderInstanceName(instance);
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      const data = await callProviderProxy('connect', instance.provider, providerName, {
+        webhook: webhookUrl || undefined,
+        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+      });
+      const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+      if (qr) {
+        setQrCode(qr);
+        setShowQrDialog(true);
+      } else if (data?.connected || data?.jid) {
+        toast.success('Instância já está conectada!');
+        refreshInstance();
+      } else {
+        setShowQrDialog(true);
+        toast.info('Abra o WhatsApp no celular para escanear o QR Code');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao gerar QR Code');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReconnect = async () => {
+    if (!instance) return;
+    setActionLoading('reconnect');
+    try {
+      const providerName = getProviderInstanceName(instance);
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      await callProviderProxy('connect', instance.provider, providerName, {
+        webhook: webhookUrl || undefined,
+        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+      });
+      toast.success('Reconexão solicitada ao provider');
+      setTimeout(refreshInstance, 2000);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao reconectar');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTestWebhook = async () => {
+    if (!instance) return;
+    setActionLoading('webhook');
+    try {
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      if (!webhookUrl) {
+        toast.error('Webhook não configurado para esta instância');
+        return;
+      }
+      // Send a test event to the webhook-receiver edge function
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: instance.provider === 'wuzapi' ? 'Connected' : 'connection.update',
+          type: instance.provider === 'wuzapi' ? 'Connected' : undefined,
+          instance: instance.name,
+          data: {
+            state: 'open',
+            statusReason: 200,
+            _test: true,
+          },
+        }),
+      });
+      if (res.ok) {
+        toast.success('Evento de teste enviado! Verifique na aba de Logs.');
+        setTimeout(fetchEvents, 1500);
+      } else {
+        const txt = await res.text().catch(() => '');
+        toast.error(`Webhook retornou ${res.status}: ${txt}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao testar webhook');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const refreshInstance = async () => {
+    if (!id) return;
+    const { data } = await supabase.from('instances').select('*').eq('id', id).single();
+    if (data) setInstance(data as InstanceDetail);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -175,11 +301,11 @@ export default function InstanceDetail() {
                 </div>
                 <Separator />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1 gap-1">
-                    <QrCode className="h-3.5 w-3.5" /> Parear QR
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handlePairQR} disabled={actionLoading === 'qr'}>
+                    {actionLoading === 'qr' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />} Parear QR
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1 gap-1">
-                    <RefreshCw className="h-3.5 w-3.5" /> Reconectar
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handleReconnect} disabled={actionLoading === 'reconnect'}>
+                    {actionLoading === 'reconnect' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Reconectar
                   </Button>
                 </div>
               </CardContent>
@@ -314,8 +440,8 @@ export default function InstanceDetail() {
                   ))}
                 </div>
               </div>
-              <Button variant="outline" size="sm">
-                <Send className="h-4 w-4 mr-1" /> Testar webhook
+              <Button variant="outline" size="sm" onClick={handleTestWebhook} disabled={actionLoading === 'webhook'}>
+                {actionLoading === 'webhook' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />} Testar webhook
               </Button>
             </CardContent>
           </Card>
@@ -341,6 +467,34 @@ export default function InstanceDetail() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* QR Code Dialog */}
+      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Parear WhatsApp</DialogTitle>
+            <DialogDescription>
+              Escaneie o QR Code com o WhatsApp • Provider: {providerLabels[instance.provider] || instance.provider}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+              {qrCode ? (
+                <img src={qrCode} alt="QR Code" className="w-full h-full object-contain" />
+              ) : (
+                <div className="text-center text-muted-foreground p-4">
+                  <QrCode className="h-16 w-16 mx-auto mb-2" />
+                  <p className="text-sm">Clique para gerar</p>
+                </div>
+              )}
+            </div>
+            <Button onClick={handlePairQR} disabled={actionLoading === 'qr'}>
+              {actionLoading === 'qr' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+              {qrCode ? 'Atualizar QR' : 'Gerar QR Code'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

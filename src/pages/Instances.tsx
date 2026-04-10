@@ -439,13 +439,59 @@ export default function Instances() {
       try {
         await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
       } catch {}
+      const { error } = await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
+      if (error) toast.error(error.message);
+      else { toast.success('Instância desconectada'); fetchInstances(); }
+      return;
     }
+
+    if (newStatus === 'connecting') {
+      // Actually call provider connect instead of just changing DB status
+      toast.info('Conectando ao provider...');
+      try {
+        const providerName = getProviderInstanceName(instance);
+        const webhookUrl = instance.webhook_secret
+          ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+          : instance.webhook_url;
+        const data = await callProviderProxy('connect', instance.provider, providerName, {
+          webhook: webhookUrl || undefined,
+          events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+        });
+
+        const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+        if (qr) {
+          // Provider returned QR - open QR modal
+          await supabase.from('instances').update({ status: 'pairing' }).eq('id', instance.id);
+          setSelectedInstance(instance);
+          setQrCodeBase64(qr);
+          setQrError(null);
+          setConnectionSuccess(false);
+          setShowQR(true);
+        } else if (data?.connected || data?.jid) {
+          // Already connected
+          await supabase.from('instances').update({ status: 'online', last_connected_at: new Date().toISOString() }).eq('id', instance.id);
+          toast.success('Instância conectada!');
+        } else {
+          await supabase.from('instances').update({ status: 'connecting' }).eq('id', instance.id);
+          // Open QR modal to let user generate QR
+          setSelectedInstance(instance);
+          setQrCodeBase64(null);
+          setQrError(null);
+          setConnectionSuccess(false);
+          setShowQR(true);
+        }
+        fetchInstances();
+      } catch (e: any) {
+        toast.error(e.message || 'Falha ao conectar');
+        fetchInstances();
+      }
+      return;
+    }
+
+    // Generic status change
     const { error } = await supabase.from('instances').update({ status: newStatus }).eq('id', instance.id);
     if (error) toast.error(error.message);
-    else {
-      toast.success(`Status alterado para ${statusConfig[newStatus]?.label || newStatus}`);
-      fetchInstances();
-    }
+    else { toast.success(`Status alterado para ${statusConfig[newStatus]?.label || newStatus}`); fetchInstances(); }
   };
 
   const handleRestart = async (instance: Instance) => {
