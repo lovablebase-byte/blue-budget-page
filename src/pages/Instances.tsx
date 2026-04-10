@@ -44,10 +44,9 @@ interface Instance {
   provider_instance_id: string | null;
 }
 
-interface EvolutionRemoteInstance {
-  instanceName: string | null;
-  instanceId: string | null;
-  raw: Record<string, any>;
+interface ActiveProvider {
+  provider: string;
+  is_default: boolean;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Wifi }> = {
@@ -56,6 +55,11 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   connecting: { label: 'Conectando', variant: 'outline', icon: RefreshCw },
   pairing: { label: 'Pareando', variant: 'outline', icon: QrCode },
   error: { label: 'Erro', variant: 'destructive', icon: AlertCircle },
+};
+
+const providerLabels: Record<string, string> = {
+  evolution: 'Evolution',
+  wuzapi: 'Wuzapi',
 };
 
 const TIMEZONES = [
@@ -79,6 +83,9 @@ export default function Instances() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Active providers
+  const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
+
   // QR Code states
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
@@ -91,32 +98,75 @@ export default function Instances() {
   const [newTags, setNewTags] = useState('');
   const [newTimezone, setNewTimezone] = useState('America/Sao_Paulo');
   const [newReconnect, setNewReconnect] = useState('auto');
+  const [newProvider, setNewProvider] = useState('');
   const [copyFromInstance, setCopyFromInstance] = useState('');
   const [testNumber, setTestNumber] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
-  const extractEvolutionRemoteInstance = (item: any): EvolutionRemoteInstance => {
-    const source = item?.instance ?? item ?? {};
-    return {
-      instanceName: source.instanceName ?? source.name ?? item?.instanceName ?? item?.name ?? null,
-      instanceId: source.instanceId ?? source.id ?? item?.instanceId ?? item?.id ?? null,
-      raw: item ?? {},
-    };
+  // Fetch active providers
+  const fetchActiveProviders = async () => {
+    if (!company) return;
+    const { data } = await supabase
+      .from('whatsapp_api_configs')
+      .select('provider, is_default')
+      .eq('company_id', company.id)
+      .eq('is_active', true);
+
+    const providers = (data || []) as ActiveProvider[];
+
+    // If no providers in new table, check legacy
+    if (providers.length === 0) {
+      const { data: legacy } = await supabase
+        .from('evolution_api_config')
+        .select('is_active')
+        .eq('company_id', company.id)
+        .eq('is_active', true)
+        .limit(1);
+      if (legacy?.length) {
+        providers.push({ provider: 'evolution', is_default: true });
+      }
+    }
+
+    setActiveProviders(providers);
+
+    // Auto-select provider
+    if (providers.length === 1) {
+      setNewProvider(providers[0].provider);
+    } else {
+      const def = providers.find(p => p.is_default);
+      if (def) setNewProvider(def.provider);
+    }
   };
 
-  const normalizeEvolutionInstances = (raw: any): EvolutionRemoteInstance[] => {
-    const list = Array.isArray(raw)
-      ? raw
-      : Array.isArray(raw?.instances)
-        ? raw.instances
-        : Array.isArray(raw?.data)
-          ? raw.data
-          : [];
+  // Helper to get instance identifier for provider calls
+  const getProviderInstanceName = (instance: Instance): string => {
+    return instance.provider_instance_id || instance.evolution_instance_id || instance.name;
+  };
 
-    return list
-      .map(extractEvolutionRemoteInstance)
-      .filter((item) => item.instanceName || item.instanceId);
+  const callProviderProxy = async (action: string, provider?: string, instanceName?: string, payload?: any) => {
+    const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
+      body: { action, provider, instanceName, payload },
+    });
+
+    if (res.error) {
+      const invokeError: any = res.error;
+      const errorContext = invokeError?.context;
+      let errorDetails: any = null;
+      if (errorContext) {
+        errorDetails = await errorContext.clone().json().catch(async () => {
+          const rawText = await errorContext.text().catch(() => '');
+          return rawText ? { raw: rawText } : null;
+        });
+      }
+      throw new Error(errorDetails?.error || invokeError.message || 'Erro ao chamar proxy');
+    }
+
+    if (res.data?.error) {
+      throw new Error(res.data.error);
+    }
+
+    return res.data;
   };
 
   const writeDeleteAuditLog = async (instanceId: string, payload: Record<string, any>) => {
@@ -128,45 +178,27 @@ export default function Instances() {
         _payload: payload,
       });
     } catch {
-      // Do not block main flow on audit failures
+      // Do not block main flow
     }
   };
 
   const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
-    // Only sync instances that were actually created in Evolution API
-    if (!instance.evolution_instance_id) return instance;
+    const providerName = getProviderInstanceName(instance);
+    if (!providerName || providerName === instance.name && !instance.evolution_instance_id && !instance.provider_instance_id) {
+      return instance;
+    }
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return instance;
-
-      const res = await supabase.functions.invoke('evolution-proxy', {
-        body: { action: 'status', instanceName: instance.evolution_instance_id },
-      });
-
-      // Handle errors - supabase.functions.invoke puts error info in res.error for non-2xx
-      if (res.error) {
-        // Instance doesn't exist in Evolution API - mark as error and stop polling
-        if (instance.status !== 'error') {
-          await supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', instance.id);
-        }
-        return { ...instance, status: 'error', evolution_instance_id: null };
-      }
-
-      if (res.data?.error) {
-        if (instance.status !== 'error') {
-          await supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', instance.id);
-        }
-        return { ...instance, status: 'error', evolution_instance_id: null };
-      }
-
-      const evoState = res.data?.instance?.state || res.data?.state || '';
+      const res = await callProviderProxy('status', instance.provider, providerName);
+      const state = res?.instance?.state || '';
       let newStatus = instance.status;
-      if (evoState === 'open' || evoState === 'connected') {
-        newStatus = 'online';
-      } else if (evoState === 'close' || evoState === 'disconnected') {
-        newStatus = 'offline';
-      } else if (evoState === 'connecting') {
-        newStatus = 'connecting';
+      if (state === 'open' || state === 'connected') newStatus = 'online';
+      else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
+      else if (state === 'connecting') newStatus = 'connecting';
+      else if (state === 'not_found') {
+        if (instance.status !== 'error') {
+          await supabase.from('instances').update({ status: 'error' }).eq('id', instance.id);
+        }
+        return { ...instance, status: 'error' };
       }
       if (newStatus !== instance.status) {
         const updateData: Record<string, any> = { status: newStatus };
@@ -177,45 +209,6 @@ export default function Instances() {
       return instance;
     } catch {
       return instance;
-    }
-  };
-
-  const reconcileWithEvolution = async (localInstances: Instance[]) => {
-    // Only reconcile instances that have an evolution_instance_id
-    const linkedInstances = localInstances.filter(i => i.evolution_instance_id);
-    if (linkedInstances.length === 0) return localInstances;
-
-    try {
-      const remoteData = await callEvolutionProxy('fetchInstances');
-      const remoteInstances = normalizeEvolutionInstances(remoteData);
-      const remoteKeys = new Set(
-        remoteInstances.flatMap((item) => [item.instanceName, item.instanceId].filter(Boolean) as string[])
-      );
-
-      // Mark instances that no longer exist in Evolution
-      const updates: Promise<any>[] = [];
-      const reconciled = localInstances.map(inst => {
-        if (inst.evolution_instance_id && !remoteKeys.has(inst.evolution_instance_id)) {
-          console.warn('[RECONCILE] Instância órfã detectada (removida da Evolution):', {
-            localId: inst.id, name: inst.name, evolutionId: inst.evolution_instance_id,
-          });
-          updates.push(
-            Promise.resolve(supabase.from('instances').update({ status: 'error', evolution_instance_id: null }).eq('id', inst.id))
-          );
-          return { ...inst, status: 'error', evolution_instance_id: null };
-        }
-        return inst;
-      });
-
-      if (updates.length > 0) {
-        await Promise.all(updates);
-        toast.info(`${updates.length} instância(s) removida(s) externamente foram detectadas e atualizadas.`);
-      }
-
-      return reconciled;
-    } catch {
-      // If fetchInstances fails (e.g. Evolution not configured), skip reconciliation
-      return localInstances;
     }
   };
 
@@ -233,35 +226,31 @@ export default function Instances() {
     setInstances(dbInstances);
     setLoading(false);
 
-    // Reconcile with Evolution API (detect orphans) then sync status
-    const reconciled = await reconcileWithEvolution(dbInstances);
-    const synced = await Promise.all(reconciled.map(syncInstanceStatus));
-    const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status || s.evolution_instance_id !== dbInstances[i]?.evolution_instance_id);
+    // Sync status in background
+    const synced = await Promise.all(dbInstances.map(syncInstanceStatus));
+    const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
     if (changed) setInstances(synced);
   };
 
-  useEffect(() => { fetchInstances(); }, [company]);
-
-  // Auto-refresh status every 30s
+  useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
   useEffect(() => {
     const interval = setInterval(fetchInstances, 30000);
     return () => clearInterval(interval);
   }, [company]);
 
-  // Poll connection status when QR modal or post-create modal is open
+  // Poll connection status when QR modal is open
   useEffect(() => {
     const instanceToWatch = showPostCreate ? createdInstance : showQR ? selectedInstance : null;
-    if (!instanceToWatch?.evolution_instance_id || connectionSuccess) return;
+    if (!instanceToWatch || connectionSuccess) return;
+    const providerName = getProviderInstanceName(instanceToWatch);
+    if (!providerName) return;
 
     const pollInterval = setInterval(async () => {
       try {
-        const res = await supabase.functions.invoke('evolution-proxy', {
-          body: { action: 'status', instanceName: instanceToWatch.evolution_instance_id },
-        });
-        const evoState = res.data?.instance?.state || res.data?.state || '';
-        if (evoState === 'open' || evoState === 'connected') {
+        const res = await callProviderProxy('status', instanceToWatch.provider, providerName);
+        const state = res?.instance?.state || '';
+        if (state === 'open' || state === 'connected') {
           setConnectionSuccess(true);
-          // Update DB
           await supabase.from('instances').update({
             status: 'online',
             last_connected_at: new Date().toISOString(),
@@ -273,7 +262,7 @@ export default function Instances() {
     return () => clearInterval(pollInterval);
   }, [showPostCreate, showQR, createdInstance, selectedInstance, connectionSuccess]);
 
-  // Auto-close countdown after connection success
+  // Auto-close countdown
   useEffect(() => {
     if (!connectionSuccess) return;
     setAutoCloseCountdown(3);
@@ -281,15 +270,12 @@ export default function Instances() {
       setAutoCloseCountdown(prev => {
         if (prev === null || prev <= 1) {
           clearInterval(countdownInterval);
-          // Close whichever modal is open
           setShowPostCreate(false);
           setShowQR(false);
-          // Reset states
           setConnectionSuccess(false);
           setQrCodeBase64(null);
           setQrError(null);
           setAutoCloseCountdown(null);
-          // Refresh list
           fetchInstances();
           return null;
         }
@@ -302,99 +288,61 @@ export default function Instances() {
   const resetForm = () => {
     setNewName(''); setNewTags(''); setNewTimezone('America/Sao_Paulo');
     setNewReconnect('auto'); setCopyFromInstance('');
-  };
-
-  const callEvolutionProxy = async (action: string, instanceName?: string, payload?: any) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Não autenticado');
-
-    const requestBody = { action, instanceName, payload };
-    const res = await supabase.functions.invoke('evolution-proxy', {
-      body: requestBody,
-    });
-
-    if (res.error) {
-      const invokeError: any = res.error;
-      const errorContext = invokeError?.context;
-      let errorStatus: number | undefined;
-      let errorDetails: any = null;
-
-      if (errorContext) {
-        errorStatus = errorContext.status;
-        errorDetails = await errorContext.clone().json().catch(async () => {
-          const rawText = await errorContext.text().catch(() => '');
-          return rawText ? { raw: rawText } : null;
-        });
-      }
-
-      const message = errorDetails?.error || invokeError.message || 'Erro ao chamar proxy';
-      const normalizedError = new Error(message) as Error & {
-        status?: number;
-        details?: any;
-        request?: any;
-      };
-      normalizedError.status = errorStatus;
-      normalizedError.details = errorDetails;
-      normalizedError.request = requestBody;
-      throw normalizedError;
+    // Re-select default provider
+    if (activeProviders.length === 1) {
+      setNewProvider(activeProviders[0].provider);
+    } else {
+      const def = activeProviders.find(p => p.is_default);
+      setNewProvider(def?.provider || '');
     }
-
-    if (res.data?.error) {
-      const normalizedError = new Error(res.data.error) as Error & {
-        status?: number;
-        details?: any;
-        request?: any;
-      };
-      normalizedError.status = res.data?._meta?.status;
-      normalizedError.details = res.data;
-      normalizedError.request = requestBody;
-      throw normalizedError;
-    }
-
-    return res.data;
   };
 
   const handleCreate = async () => {
-    if (!company || !newName.trim()) return;
+    if (!company || !newName.trim() || !newProvider) return;
     setCreating(true);
     try {
       const instanceName = newName.trim();
       const webhookUrl = `${window.location.origin}/api/webhooks/${company.slug}`;
+      let providerInstanceId: string | null = null;
       let evolutionInstanceId: string | null = null;
-      let evoActive = false;
+      let providerActive = false;
 
-      // 1. Try to create in Evolution API via proxy
+      // Create via provider proxy
       try {
-        const evoData = await callEvolutionProxy('create', instanceName, {
+        const createData = await callProviderProxy('create', newProvider, instanceName, {
           webhook: webhookUrl,
           webhookByEvents: true,
-          events: [
-            'messages.upsert', 'send.message', 'connection.update',
-            'qrcode.updated', 'messages.update',
-          ],
+          events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
         });
-        const remoteCreated = extractEvolutionRemoteInstance(evoData?.instance ?? evoData);
-        evolutionInstanceId = remoteCreated.instanceName || instanceName;
-        evoActive = true;
-        toast.success('Instância criada na Evolution API!');
-      } catch (evoErr: any) {
-        if (evoErr.message?.includes('não configurada') || evoErr.message?.includes('desativada')) {
-          toast.info('Evolution API não configurada. Instância criada apenas no painel.');
+
+        if (newProvider === 'evolution') {
+          providerInstanceId = createData?.instanceId || createData?.instanceName || instanceName;
+          evolutionInstanceId = providerInstanceId;
+        } else if (newProvider === 'wuzapi') {
+          providerInstanceId = createData?.instanceToken || createData?.instanceId || instanceName;
+        }
+        providerActive = true;
+        toast.success('Instância criada no provider!');
+      } catch (err: any) {
+        if (err.message?.includes('não configurad') || err.message?.includes('desativad')) {
+          toast.info('Provider não configurado. Instância criada apenas no painel.');
         } else {
-          throw evoErr;
+          throw err;
         }
       }
 
-      // 2. Save to database
+      // Save to DB
       const { data, error } = await supabase.from('instances').insert({
         company_id: company.id,
         name: instanceName,
+        provider: newProvider,
+        provider_instance_id: providerInstanceId,
         evolution_instance_id: evolutionInstanceId,
         webhook_url: webhookUrl,
         tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
         timezone: newTimezone,
         reconnect_policy: newReconnect,
-        status: evoActive ? 'pairing' : 'offline',
+        status: providerActive ? 'pairing' : 'offline',
       }).select().single();
       if (error) throw error;
 
@@ -404,9 +352,8 @@ export default function Instances() {
       setShowPostCreate(true);
       fetchInstances();
 
-      // 3. Auto-fetch QR code
-      if (evoActive) {
-        setTimeout(() => fetchQRCode(instanceName), 500);
+      if (providerActive) {
+        setTimeout(() => fetchQRCode(data as Instance), 500);
       }
     } catch (e: any) {
       toast.error(e.message);
@@ -419,159 +366,46 @@ export default function Instances() {
     if (!selectedInstance) return;
     setDeleting(true);
 
-    const startedAt = new Date().toISOString();
-
     try {
       const { data: freshInstance, error: freshError } = await supabase
         .from('instances')
         .select('*')
         .eq('id', selectedInstance.id)
         .single();
-
       if (freshError) throw freshError;
       const instance = freshInstance as Instance;
 
-      const deleteAuditLog: Record<string, any> = {
-        timestamp: startedAt,
-        local_instance_id: instance.id,
-        local_instance_name: instance.name,
-        configured_remote_identifier: instance.evolution_instance_id,
-        company_id: instance.company_id,
-        action: 'delete_instance_sync',
-        endpoint_called: null,
-        method_http: 'DELETE',
-        payload_sent: null,
-        status_http: null,
-        response_body: null,
-        error_message: null,
-        final_result: 'pending',
-      };
+      const providerName = getProviderInstanceName(instance);
 
-      let resolvedRemoteName: string | null = instance.evolution_instance_id ?? instance.name;
-      let resolvedRemoteId: string | null = null;
-      let remoteDeletionConfirmed = !instance.evolution_instance_id;
-
-      // 1) Resolve remote identifier from current Evolution snapshot
-      const remoteSnapshot = await callEvolutionProxy('fetchInstances');
-      const remoteInstances = normalizeEvolutionInstances(remoteSnapshot);
-
-      const remoteMatch = remoteInstances.find((remote) => {
-        const matchesStoredIdentifier =
-          !!instance.evolution_instance_id &&
-          (remote.instanceName === instance.evolution_instance_id || remote.instanceId === instance.evolution_instance_id);
-        const matchesLocalName = remote.instanceName === instance.name;
-        return matchesStoredIdentifier || matchesLocalName;
-      });
-
-      if (remoteMatch) {
-        resolvedRemoteName = remoteMatch.instanceName ?? resolvedRemoteName;
-        resolvedRemoteId = remoteMatch.instanceId;
-      }
-
-      // 2) Delete in Evolution first
-      if (resolvedRemoteName) {
+      // Delete in provider first
+      if (providerName) {
         try {
-          const deleteResponse = await callEvolutionProxy('delete', resolvedRemoteName);
-          remoteDeletionConfirmed = true;
-          deleteAuditLog.endpoint_called = deleteResponse?._meta?.endpoint ?? null;
-          deleteAuditLog.method_http = deleteResponse?._meta?.method ?? 'DELETE';
-          deleteAuditLog.payload_sent = deleteResponse?._meta?.requestBody ?? null;
-          deleteAuditLog.status_http = deleteResponse?._meta?.status ?? 200;
-          deleteAuditLog.response_body = deleteResponse;
-        } catch (evoErr: any) {
-          deleteAuditLog.endpoint_called = evoErr?.details?._meta?.endpoint ?? null;
-          deleteAuditLog.method_http = evoErr?.details?._meta?.method ?? 'DELETE';
-          deleteAuditLog.payload_sent = evoErr?.details?._meta?.requestBody ?? null;
-          deleteAuditLog.status_http = evoErr?.status ?? evoErr?.details?._meta?.status ?? null;
-          deleteAuditLog.response_body = evoErr?.details ?? null;
-          deleteAuditLog.error_message = evoErr?.message ?? 'Erro desconhecido na exclusão remota';
-
-          const isNotFound =
-            evoErr?.status === 404 ||
-            /404|not\s*found|does not exist|não existe/i.test(String(evoErr?.message ?? ''));
-
-          if (isNotFound) {
-            // 3) Confirm orphan to avoid false-positive deletion
-            const recheckSnapshot = await callEvolutionProxy('fetchInstances');
-            const recheckInstances = normalizeEvolutionInstances(recheckSnapshot);
-            const stillExistsRemotely = recheckInstances.some((remote) =>
-              (resolvedRemoteName && remote.instanceName === resolvedRemoteName) ||
-              (resolvedRemoteId && remote.instanceId === resolvedRemoteId) ||
-              (!!instance.evolution_instance_id &&
-                (remote.instanceName === instance.evolution_instance_id || remote.instanceId === instance.evolution_instance_id))
-            );
-
-            if (stillExistsRemotely) {
-              deleteAuditLog.final_result = 'failed_remote_identifier_mismatch';
-              await writeDeleteAuditLog(instance.id, {
-                ...deleteAuditLog,
-                resolved_remote_name: resolvedRemoteName,
-                resolved_remote_id: resolvedRemoteId,
-                completed_at: new Date().toISOString(),
-              });
-              toast.error('Falha ao excluir na Evolution: identificador remoto inválido. A instância não foi removida no SaaS.');
-              return;
-            }
-
-            remoteDeletionConfirmed = true;
-            deleteAuditLog.final_result = 'orphan_remote_not_found';
-          } else {
-            deleteAuditLog.final_result = 'failed_remote_delete';
-            await writeDeleteAuditLog(instance.id, {
-              ...deleteAuditLog,
-              resolved_remote_name: resolvedRemoteName,
-              resolved_remote_id: resolvedRemoteId,
-              completed_at: new Date().toISOString(),
-            });
-            toast.error(`Falha ao excluir na Evolution: ${evoErr?.message}. A instância NÃO foi removida no SaaS.`);
+          await callProviderProxy('delete', instance.provider, providerName);
+        } catch (err: any) {
+          const isNotFound = err?.message && /404|not\s*found/i.test(err.message);
+          if (!isNotFound) {
+            toast.error(`Falha ao excluir no provider: ${err.message}`);
             return;
           }
         }
       }
 
-      if (!remoteDeletionConfirmed) {
-        toast.error('Não foi possível confirmar exclusão remota na Evolution. Operação cancelada.');
-        return;
-      }
-
-      // 4) Remove local only after remote confirmed or confirmed orphan
-      const { error: localDeleteError } = await supabase
-        .from('instances')
-        .delete()
-        .eq('id', instance.id);
-
-      if (localDeleteError) throw localDeleteError;
-
-      deleteAuditLog.final_result =
-        deleteAuditLog.final_result === 'orphan_remote_not_found'
-          ? 'deleted_local_orphan_remote'
-          : 'deleted_local_and_remote';
+      // Delete locally
+      const { error: localErr } = await supabase.from('instances').delete().eq('id', instance.id);
+      if (localErr) throw localErr;
 
       await writeDeleteAuditLog(instance.id, {
-        ...deleteAuditLog,
-        resolved_remote_name: resolvedRemoteName,
-        resolved_remote_id: resolvedRemoteId,
-        completed_at: new Date().toISOString(),
+        provider: instance.provider,
+        provider_instance_id: instance.provider_instance_id,
+        name: instance.name,
+        deleted_at: new Date().toISOString(),
       });
 
-      toast.success('Instância excluída com sucesso (SaaS + Evolution)');
+      toast.success('Instância excluída com sucesso');
       setShowDelete(false);
       setSelectedInstance(null);
       fetchInstances();
     } catch (e: any) {
-      if (selectedInstance?.id) {
-        await writeDeleteAuditLog(selectedInstance.id, {
-          timestamp: startedAt,
-          local_instance_id: selectedInstance.id,
-          local_instance_name: selectedInstance.name,
-          configured_remote_identifier: selectedInstance.evolution_instance_id,
-          company_id: selectedInstance.company_id,
-          action: 'delete_instance_sync',
-          error_message: e?.message ?? 'Erro inesperado',
-          final_result: 'failed_unexpected',
-          completed_at: new Date().toISOString(),
-        });
-      }
       toast.error(e.message);
     } finally {
       setDeleting(false);
@@ -579,6 +413,12 @@ export default function Instances() {
   };
 
   const handleStatusChange = async (instance: Instance, newStatus: string) => {
+    if (newStatus === 'offline') {
+      // Logout via provider
+      try {
+        await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
+      } catch {}
+    }
     const { error } = await supabase.from('instances').update({ status: newStatus }).eq('id', instance.id);
     if (error) toast.error(error.message);
     else {
@@ -589,26 +429,28 @@ export default function Instances() {
 
   const handleRestart = async (instance: Instance) => {
     await handleStatusChange(instance, 'connecting');
-    // Simulate reconnection cycle
-    setTimeout(async () => {
-      await supabase.from('instances').update({
-        status: 'online',
-        last_connected_at: new Date().toISOString(),
-      }).eq('id', instance.id);
-      toast.success(`${instance.name} reconectada`);
-      fetchInstances();
-    }, 3000);
+    try {
+      await callProviderProxy('connect', instance.provider, getProviderInstanceName(instance));
+    } catch {}
+    setTimeout(() => fetchInstances(), 3000);
   };
 
   const handleSendTest = async () => {
-    if (!testNumber || !testMessage) return;
+    if (!testNumber || !testMessage || !selectedInstance) return;
     setSendingTest(true);
-    setTimeout(() => {
-      toast.success('Mensagem teste enviada (simulação)');
-      setSendingTest(false);
+    try {
+      await callProviderProxy('sendText', selectedInstance.provider, getProviderInstanceName(selectedInstance), {
+        number: testNumber,
+        text: testMessage,
+      });
+      toast.success('Mensagem teste enviada!');
       setShowTestMsg(false);
       setTestNumber(''); setTestMessage('');
-    }, 1000);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao enviar');
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   const copyToClipboard = (text: string, label?: string) => {
@@ -616,18 +458,25 @@ export default function Instances() {
     toast.success(`${label || 'Valor'} copiado!`);
   };
 
-  const fetchQRCode = async (instanceName: string) => {
+  const fetchQRCode = async (instanceOrName: Instance | string) => {
     if (!company) return;
+    const instance = typeof instanceOrName === 'string'
+      ? instances.find(i => i.name === instanceOrName) || createdInstance
+      : instanceOrName;
+    if (!instance) return;
+
     setQrCodeBase64(null);
     setQrError(null);
     setQrLoading(true);
     try {
-      const data = await callEvolutionProxy('connect', instanceName);
+      const providerName = getProviderInstanceName(instance);
+      const data = await callProviderProxy('connect', instance.provider, providerName);
 
-      if (data.base64) {
-        setQrCodeBase64(data.base64);
-      } else if (data.code) {
-        setQrError('QR Code gerado, mas sem imagem base64. Verifique a versão da Evolution API.');
+      const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+      if (qr) {
+        setQrCodeBase64(qr);
+      } else if (data?.connected || data?.jid) {
+        setConnectionSuccess(true);
       } else {
         setQrError('A instância pode já estar conectada.');
       }
@@ -641,6 +490,13 @@ export default function Instances() {
   const columns: Column<Instance>[] = [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'phone_number', label: 'Número', render: (r) => r.phone_number || '—' },
+    {
+      key: 'provider', label: 'Provider', render: (r) => (
+        <Badge variant="outline" className="text-xs font-mono">
+          {providerLabels[r.provider] || r.provider}
+        </Badge>
+      )
+    },
     {
       key: 'status', label: 'Status', render: (r) => {
         const cfg = statusConfig[r.status] || statusConfig.offline;
@@ -680,7 +536,7 @@ export default function Instances() {
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
           {canCreate && !isReadOnly && (
-            <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Button size="sm" onClick={() => { fetchActiveProviders(); setShowCreate(true); }}>
               <Plus className="h-4 w-4 mr-1" /> Nova instância
             </Button>
           )}
@@ -777,6 +633,29 @@ export default function Instances() {
             <DialogDescription>Crie uma nova conexão WhatsApp</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Provider selector */}
+            <div className="space-y-2">
+              <Label>Provider *</Label>
+              {activeProviders.length === 0 ? (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  Nenhum provider ativo. Configure em Configurações.
+                </div>
+              ) : (
+                <Select value={newProvider} onValueChange={setNewProvider}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o provider" /></SelectTrigger>
+                  <SelectContent>
+                    {activeProviders.map(p => (
+                      <SelectItem key={p.provider} value={p.provider}>
+                        {providerLabels[p.provider] || p.provider}
+                        {p.is_default ? ' (padrão)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Nome da instância *</Label>
               <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ex: Suporte Principal" />
@@ -821,7 +700,11 @@ export default function Instances() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleCreate} disabled={creating || !newName.trim()} className="w-full">
+            <Button
+              onClick={handleCreate}
+              disabled={creating || !newName.trim() || !newProvider || activeProviders.length === 0}
+              className="w-full"
+            >
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Criar instância
             </Button>
@@ -836,7 +719,9 @@ export default function Instances() {
             <DialogTitle className="flex items-center gap-2 text-primary">
               <Smartphone className="h-5 w-5" /> Instância criada!
             </DialogTitle>
-            <DialogDescription>Escaneie o QR Code para conectar e use os dados abaixo para integração</DialogDescription>
+            <DialogDescription>
+              Escaneie o QR Code para conectar • Provider: {providerLabels[createdInstance?.provider || ''] || createdInstance?.provider}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {connectionSuccess ? (
@@ -868,13 +753,13 @@ export default function Instances() {
                       </div>
                     )}
                   </div>
-                  {!qrLoading && !qrCodeBase64 && (
-                    <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                  {!qrLoading && !qrCodeBase64 && createdInstance && (
+                    <Button variant="outline" size="sm" onClick={() => fetchQRCode(createdInstance)}>
                       <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
                     </Button>
                   )}
-                  {qrCodeBase64 && (
-                    <Button variant="outline" size="sm" onClick={() => createdInstance && fetchQRCode(createdInstance.name)}>
+                  {qrCodeBase64 && createdInstance && (
+                    <Button variant="outline" size="sm" onClick={() => fetchQRCode(createdInstance)}>
                       <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
                     </Button>
                   )}
@@ -895,18 +780,14 @@ export default function Instances() {
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Cole esta URL no seu sistema de delivery. Aceita multipart/form-data, JSON e form-urlencoded.</p>
+                  <p className="text-xs text-muted-foreground">Cole esta URL no seu sistema de delivery.</p>
                 </div>
 
                 {/* Session token */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1.5"><Key className="h-3.5 w-3.5" /> Token da sessão</Label>
                   <div className="flex gap-2">
-                    <Input
-                      value={createdInstance?.access_token || ''}
-                      readOnly
-                      className="font-mono text-xs"
-                    />
+                    <Input value={createdInstance?.access_token || ''} readOnly className="font-mono text-xs" />
                     <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdInstance?.access_token || '', 'Token')}>
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -932,7 +813,9 @@ export default function Instances() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
-            <DialogDescription>Escaneie o QR Code com o WhatsApp no celular</DialogDescription>
+            <DialogDescription>
+              Escaneie o QR Code • Provider: {providerLabels[selectedInstance?.provider || ''] || selectedInstance?.provider}
+            </DialogDescription>
           </DialogHeader>
           {connectionSuccess ? (
             <div className="flex flex-col items-center gap-4 py-8">
@@ -961,7 +844,7 @@ export default function Instances() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance.name)} disabled={qrLoading}>
+                <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance)} disabled={qrLoading}>
                   {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
                   {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
                 </Button>
@@ -979,7 +862,9 @@ export default function Instances() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Enviar mensagem teste</DialogTitle>
-            <DialogDescription>Envie uma mensagem de teste via {selectedInstance?.name}</DialogDescription>
+            <DialogDescription>
+              Envie uma mensagem de teste via {selectedInstance?.name} ({providerLabels[selectedInstance?.provider || ''] || selectedInstance?.provider})
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

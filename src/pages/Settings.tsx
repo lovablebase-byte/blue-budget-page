@@ -9,14 +9,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
-import { Save, Globe, Bell, Webhook, Plug, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { Save, Globe, Bell, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star } from 'lucide-react';
 
 const TIMEZONES = [
   'America/Sao_Paulo', 'America/Manaus', 'America/Bahia', 'America/Recife',
   'America/Fortaleza', 'America/Belem', 'America/Cuiaba', 'America/Porto_Velho',
   'America/Rio_Branco', 'America/Noronha',
 ];
+
+interface ProviderState {
+  baseUrl: string;
+  apiKey: string;
+  isActive: boolean;
+  isDefault: boolean;
+  testing: boolean;
+  testStatus: 'idle' | 'success' | 'error';
+  saving: boolean;
+}
+
+const defaultProviderState = (): ProviderState => ({
+  baseUrl: '', apiKey: '', isActive: false, isDefault: false,
+  testing: false, testStatus: 'idle', saving: false,
+});
 
 export default function Settings() {
   const { company } = useAuth();
@@ -28,12 +43,8 @@ export default function Settings() {
   const [autoReconnect, setAutoReconnect] = useState(true);
   const [notifyOffline, setNotifyOffline] = useState(true);
 
-  // Evolution API state
-  const [evoBaseUrl, setEvoBaseUrl] = useState('');
-  const [evoApiKey, setEvoApiKey] = useState('');
-  const [evoActive, setEvoActive] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
+  const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
 
   const { data: companyData } = useQuery({
     queryKey: ['company-settings', company?.id],
@@ -46,7 +57,22 @@ export default function Settings() {
     enabled: !!company?.id,
   });
 
-  const { data: evoConfig } = useQuery({
+  // Load new whatsapp_api_configs
+  const { data: waConfigs } = useQuery({
+    queryKey: ['whatsapp-api-configs', company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      const { data } = await supabase
+        .from('whatsapp_api_configs')
+        .select('*')
+        .eq('company_id', company.id);
+      return data || [];
+    },
+    enabled: !!company?.id,
+  });
+
+  // Legacy fallback
+  const { data: legacyEvoConfig } = useQuery({
     queryKey: ['evolution-config', company?.id],
     queryFn: async () => {
       if (!company?.id) return null;
@@ -64,13 +90,22 @@ export default function Settings() {
     if (companyData) setCompanyName(companyData.name);
   }, [companyData]);
 
+  // Hydrate provider states from DB
   useEffect(() => {
+    const evoConfig = waConfigs?.find((c: any) => c.provider === 'evolution');
+    const wuzConfig = waConfigs?.find((c: any) => c.provider === 'wuzapi');
+
     if (evoConfig) {
-      setEvoBaseUrl(evoConfig.base_url);
-      setEvoApiKey(evoConfig.api_key);
-      setEvoActive(evoConfig.is_active);
+      setEvo(prev => ({ ...prev, baseUrl: evoConfig.base_url, apiKey: evoConfig.api_key || '', isActive: evoConfig.is_active, isDefault: evoConfig.is_default }));
+    } else if (legacyEvoConfig) {
+      // Fallback from legacy table
+      setEvo(prev => ({ ...prev, baseUrl: legacyEvoConfig.base_url, apiKey: legacyEvoConfig.api_key || '', isActive: legacyEvoConfig.is_active, isDefault: false }));
     }
-  }, [evoConfig]);
+
+    if (wuzConfig) {
+      setWuz(prev => ({ ...prev, baseUrl: wuzConfig.base_url, apiKey: wuzConfig.api_key || '', isActive: wuzConfig.is_active, isDefault: wuzConfig.is_default }));
+    }
+  }, [waConfigs, legacyEvoConfig]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -80,63 +115,219 @@ export default function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-settings'] });
-      toast({ title: 'Configurações salvas' });
+      toast.success('Configurações salvas');
     },
-    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const saveEvoMutation = useMutation({
-    mutationFn: async () => {
-      if (!company?.id) return;
-      const payload = {
-        company_id: company.id,
-        base_url: evoBaseUrl.replace(/\/+$/, ''),
-        api_key: evoApiKey,
-        is_active: evoActive,
-      };
-      if (evoConfig) {
-        const { error } = await supabase
-          .from('evolution_api_config')
-          .update(payload)
-          .eq('company_id', company.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('evolution_api_config')
-          .insert(payload);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['evolution-config'] });
-      toast({ title: 'Integração Evolution API salva' });
-    },
-    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
-  });
+  const saveProvider = async (provider: 'evolution' | 'wuzapi', state: ProviderState) => {
+    if (!company?.id) return;
 
-  const testConnection = async () => {
-    if (!evoBaseUrl || !evoApiKey) {
-      toast({ title: 'Preencha a URL e a API Key', variant: 'destructive' });
-      return;
+    const payload = {
+      company_id: company.id,
+      provider,
+      base_url: state.baseUrl.replace(/\/+$/, ''),
+      api_key: state.apiKey || null,
+      is_active: state.isActive,
+      is_default: state.isDefault,
+    };
+
+    // If setting as default, unset others
+    if (state.isDefault) {
+      await supabase
+        .from('whatsapp_api_configs')
+        .update({ is_default: false })
+        .eq('company_id', company.id)
+        .neq('provider', provider);
     }
-    setTestingConnection(true);
-    setConnectionStatus('idle');
+
+    // Upsert into new table
+    const existing = waConfigs?.find((c: any) => c.provider === provider);
+    if (existing) {
+      const { error } = await supabase
+        .from('whatsapp_api_configs')
+        .update(payload)
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('whatsapp_api_configs')
+        .insert(payload);
+      if (error) throw error;
+    }
+
+    // Also sync to legacy table for Evolution
+    if (provider === 'evolution') {
+      const legacyPayload = {
+        company_id: company.id,
+        base_url: payload.base_url,
+        api_key: payload.api_key || '',
+        is_active: payload.is_active,
+      };
+      if (legacyEvoConfig) {
+        await supabase.from('evolution_api_config').update(legacyPayload).eq('company_id', company.id);
+      } else {
+        await supabase.from('evolution_api_config').insert(legacyPayload);
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
+    queryClient.invalidateQueries({ queryKey: ['evolution-config'] });
+  };
+
+  const handleSaveProvider = async (provider: 'evolution' | 'wuzapi') => {
+    const state = provider === 'evolution' ? evo : wuz;
+    const setState = provider === 'evolution' ? setEvo : setWuz;
+    setState(prev => ({ ...prev, saving: true }));
     try {
-      const url = evoBaseUrl.replace(/\/+$/, '');
-      const res = await fetch(`${url}/instance/fetchInstances`, {
-        method: 'GET',
-        headers: { apikey: evoApiKey },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setConnectionStatus('success');
-      toast({ title: 'Conexão bem-sucedida!', description: 'A Evolution API respondeu corretamente.' });
-    } catch (err: any) {
-      setConnectionStatus('error');
-      toast({ title: 'Falha na conexão', description: err.message || 'Não foi possível conectar.', variant: 'destructive' });
+      await saveProvider(provider, state);
+      toast.success(`Integração ${provider === 'evolution' ? 'Evolution API' : 'Wuzapi'} salva`);
+    } catch (e: any) {
+      toast.error(e.message);
     } finally {
-      setTestingConnection(false);
+      setState(prev => ({ ...prev, saving: false }));
     }
   };
+
+  const testConnection = async (provider: 'evolution' | 'wuzapi') => {
+    const state = provider === 'evolution' ? evo : wuz;
+    const setState = provider === 'evolution' ? setEvo : setWuz;
+
+    if (!state.baseUrl || !state.apiKey) {
+      toast.error('Preencha a URL e a API Key');
+      return;
+    }
+
+    setState(prev => ({ ...prev, testing: true, testStatus: 'idle' }));
+    try {
+      const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
+        body: { action: 'testConnection', provider },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || 'Falha na conexão');
+
+      // For test to work, provider must already be saved. If not saved yet, do direct test.
+      setState(prev => ({ ...prev, testStatus: 'success' }));
+      toast.success('Conexão bem-sucedida!');
+    } catch {
+      // Try direct connection test
+      try {
+        const baseUrl = state.baseUrl.replace(/\/+$/, '');
+        if (provider === 'evolution') {
+          const r = await fetch(`${baseUrl}/instance/fetchInstances`, {
+            method: 'GET',
+            headers: { apikey: state.apiKey },
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        } else {
+          const r = await fetch(`${baseUrl}/admin/users`, {
+            method: 'GET',
+            headers: { Authorization: state.apiKey },
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        }
+        setState(prev => ({ ...prev, testStatus: 'success' }));
+        toast.success('Conexão bem-sucedida!');
+      } catch (err: any) {
+        setState(prev => ({ ...prev, testStatus: 'error' }));
+        toast.error(err.message || 'Não foi possível conectar');
+      }
+    } finally {
+      setState(prev => ({ ...prev, testing: false }));
+    }
+  };
+
+  const renderProviderCard = (
+    provider: 'evolution' | 'wuzapi',
+    label: string,
+    description: string,
+    state: ProviderState,
+    setState: React.Dispatch<React.SetStateAction<ProviderState>>,
+  ) => (
+    <Card key={provider}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Plug className="h-5 w-5" /> {label}
+            </CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {state.isDefault && (
+              <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
+                <Star className="h-3 w-3" /> Padrão
+              </Badge>
+            )}
+            {state.isActive && (
+              <Badge className="bg-green-600 hover:bg-green-700">Ativo</Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label>URL da API</Label>
+          <Input
+            value={state.baseUrl}
+            onChange={e => { setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' })); }}
+            placeholder={provider === 'evolution' ? 'https://sua-evolution-api.com' : 'https://sua-wuzapi.com:8080'}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {provider === 'evolution' ? 'URL base da sua instância Evolution API' : 'URL base da sua instância Wuzapi'}
+          </p>
+        </div>
+        <div>
+          <Label>{provider === 'evolution' ? 'API Key' : 'Admin Token'}</Label>
+          <Input
+            type="password"
+            value={state.apiKey}
+            onChange={e => { setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' })); }}
+            placeholder={provider === 'evolution' ? 'Sua chave de autenticação' : 'WUZAPI_ADMIN_TOKEN'}
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Ativar integração</p>
+            <p className="text-xs text-muted-foreground">Habilitar comunicação com {label}</p>
+          </div>
+          <Switch checked={state.isActive} onCheckedChange={v => setState(prev => ({ ...prev, isActive: v }))} />
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Provider padrão</p>
+            <p className="text-xs text-muted-foreground">Usar como padrão ao criar novas instâncias</p>
+          </div>
+          <Switch checked={state.isDefault} onCheckedChange={v => {
+            setState(prev => ({ ...prev, isDefault: v }));
+            if (v) {
+              // Uncheck the other provider's default
+              const otherSetState = provider === 'evolution' ? setWuz : setEvo;
+              otherSetState(prev => ({ ...prev, isDefault: false }));
+            }
+          }} />
+        </div>
+
+        <div className="flex items-center gap-3 pt-2">
+          <Button variant="outline" onClick={() => testConnection(provider)} disabled={state.testing || !state.baseUrl || !state.apiKey}>
+            {state.testing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : state.testStatus === 'success' ? (
+              <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
+            ) : state.testStatus === 'error' ? (
+              <XCircle className="h-4 w-4 mr-2 text-red-500" />
+            ) : (
+              <Plug className="h-4 w-4 mr-2" />
+            )}
+            Testar conexão
+          </Button>
+          <Button onClick={() => handleSaveProvider(provider)} disabled={state.saving}>
+            {state.saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Save className="h-4 w-4 mr-2" /> Salvar integração
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
@@ -168,68 +359,27 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Evolution API Integration */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Plug className="h-5 w-5" /> Evolution API
-                </CardTitle>
-                <CardDescription>Integração com a API de gerenciamento WhatsApp</CardDescription>
-              </div>
-              {evoConfig?.is_active && (
-                <Badge variant="default" className="bg-green-600 hover:bg-green-700">Conectado</Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>URL da API</Label>
-              <Input
-                value={evoBaseUrl}
-                onChange={e => { setEvoBaseUrl(e.target.value); setConnectionStatus('idle'); }}
-                placeholder="https://sua-evolution-api.com"
-              />
-              <p className="text-xs text-muted-foreground mt-1">URL base da sua instância Evolution API (sem barra no final)</p>
-            </div>
-            <div>
-              <Label>API Key</Label>
-              <Input
-                type="password"
-                value={evoApiKey}
-                onChange={e => { setEvoApiKey(e.target.value); setConnectionStatus('idle'); }}
-                placeholder="Sua chave de autenticação"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Ativar integração</p>
-                <p className="text-xs text-muted-foreground">Habilitar comunicação com a Evolution API</p>
-              </div>
-              <Switch checked={evoActive} onCheckedChange={setEvoActive} />
-            </div>
+        {/* WhatsApp Providers */}
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold">Provedores WhatsApp</h2>
+          <p className="text-sm text-muted-foreground">Configure os provedores de API WhatsApp disponíveis para sua empresa</p>
+        </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <Button variant="outline" onClick={testConnection} disabled={testingConnection || !evoBaseUrl || !evoApiKey}>
-                {testingConnection ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : connectionStatus === 'success' ? (
-                  <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
-                ) : connectionStatus === 'error' ? (
-                  <XCircle className="h-4 w-4 mr-2 text-red-500" />
-                ) : (
-                  <Plug className="h-4 w-4 mr-2" />
-                )}
-                Testar conexão
-              </Button>
-              <Button onClick={() => saveEvoMutation.mutate()} disabled={saveEvoMutation.isPending}>
-                {saveEvoMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                <Save className="h-4 w-4 mr-2" /> Salvar integração
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {renderProviderCard(
+          'evolution',
+          'Evolution API',
+          'Integração com a Evolution API para gerenciamento de WhatsApp',
+          evo,
+          setEvo,
+        )}
+
+        {renderProviderCard(
+          'wuzapi',
+          'Wuzapi',
+          'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp',
+          wuz,
+          setWuz,
+        )}
 
         <Card>
           <CardHeader>
