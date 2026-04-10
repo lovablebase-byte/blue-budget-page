@@ -15,11 +15,17 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { toast } from 'sonner';
+import AdminDashboard from '@/components/dashboard/AdminDashboard';
 
 const REFRESH_INTERVAL = 10000;
 
 export default function Dashboard() {
   const { role, company, isAdmin, isReadOnly, user } = useAuth();
+
+  // Admin gets the new dedicated dashboard
+  if (isAdmin) {
+    return <AdminDashboard />;
+  }
   const [timezone, setTimezone] = useState('America/Sao_Paulo');
   const [savingTz, setSavingTz] = useState(false);
   const [showToken, setShowToken] = useState(false);
