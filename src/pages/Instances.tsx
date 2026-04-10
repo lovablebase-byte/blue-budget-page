@@ -75,7 +75,7 @@ const TIMEZONES = [
 
 export default function Instances() {
   const { company, hasPermission, isReadOnly } = useAuth();
-  const { allowedProviders: planProviders } = useCompany();
+  const { allowedProviders: planProviders, isSuspended } = useCompany();
   const instanceLimit = useResourceLimit('max_instances', 'instances');
   const navigate = useNavigate();
   const [instances, setInstances] = useState<Instance[]>([]);
@@ -606,8 +606,22 @@ export default function Instances() {
   const limitData = instanceLimit.data;
   const canCreateByPlan = !limitData || limitData.allowed;
 
+  // Filter active providers by what the plan allows
+  const effectiveProviders = planProviders.length > 0
+    ? activeProviders.filter(p => planProviders.includes(p.provider))
+    : activeProviders;
+
   return (
     <div className="space-y-6">
+      {isSuspended && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <AlertCircle className="h-5 w-5 text-destructive" />
+          <div>
+            <p className="font-medium">Assinatura suspensa</p>
+            <p className="text-sm text-muted-foreground">Não é possível criar ou gerenciar instâncias. Entre em contato com o administrador.</p>
+          </div>
+        </div>
+      )}
       {limitData && (
         <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="instâncias" />
       )}
