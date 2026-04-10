@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import {
   CreditCard, Calendar, Package, Users, MessageSquare, Bot,
-  Workflow, Contact, Shield, Sparkles, Lock, CheckCircle2, XCircle,
+  Workflow, Shield, Sparkles, Lock, CheckCircle2, XCircle,
   AlertTriangle, Info
 } from 'lucide-react';
 
