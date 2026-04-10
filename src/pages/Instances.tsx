@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
+import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
 
 interface Instance {
   id: string;
@@ -302,10 +303,33 @@ export default function Instances() {
     setCreating(true);
     try {
       const instanceName = newName.trim();
-      const webhookUrl = `${window.location.origin}/api/webhooks/${company.slug}`;
+      // Generate a webhook secret for this instance
+      const webhookSecret = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+
       let providerInstanceId: string | null = null;
       let evolutionInstanceId: string | null = null;
       let providerActive = false;
+
+      // We'll insert the DB record first to get the instance ID for the webhook URL
+      const { data: dbRecord, error: insertErr } = await supabase.from('instances').insert({
+        company_id: company.id,
+        name: instanceName,
+        provider: newProvider,
+        provider_instance_id: null,
+        evolution_instance_id: null,
+        webhook_url: '', // will be updated after we have the ID
+        webhook_secret: webhookSecret,
+        tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
+        timezone: newTimezone,
+        reconnect_policy: newReconnect,
+        status: 'offline',
+      }).select().single();
+      if (insertErr) throw insertErr;
+
+      const instanceRecord = dbRecord as Instance;
+
+      // Build real webhook URL pointing to the edge function
+      const webhookUrl = getWebhookEndpoint(instanceRecord.id, webhookSecret, newProvider);
 
       // Create via provider proxy
       try {
@@ -327,23 +351,19 @@ export default function Instances() {
         if (err.message?.includes('não configurad') || err.message?.includes('desativad')) {
           toast.info('Provider não configurado. Instância criada apenas no painel.');
         } else {
+          // Clean up DB record on provider failure
+          await supabase.from('instances').delete().eq('id', instanceRecord.id);
           throw err;
         }
       }
 
-      // Save to DB
-      const { data, error } = await supabase.from('instances').insert({
-        company_id: company.id,
-        name: instanceName,
-        provider: newProvider,
+      // Update DB record with provider IDs and real webhook URL
+      const { data, error } = await supabase.from('instances').update({
         provider_instance_id: providerInstanceId,
         evolution_instance_id: evolutionInstanceId,
         webhook_url: webhookUrl,
-        tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
-        timezone: newTimezone,
-        reconnect_policy: newReconnect,
         status: providerActive ? 'pairing' : 'offline',
-      }).select().single();
+      }).eq('id', instanceRecord.id).select().single();
       if (error) throw error;
 
       setShowCreate(false);
