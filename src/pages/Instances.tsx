@@ -34,6 +34,7 @@ interface Instance {
   phone_number: string | null;
   status: string;
   webhook_url: string | null;
+  webhook_secret: string | null;
   tags: string[];
   timezone: string;
   reconnect_policy: string;

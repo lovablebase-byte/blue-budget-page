@@ -38,8 +38,6 @@ export default function Settings() {
   const queryClient = useQueryClient();
 
   const [companyName, setCompanyName] = useState('');
-  const [defaultTimezone, setDefaultTimezone] = useState('America/Sao_Paulo');
-  const [autoReconnect, setAutoReconnect] = useState(true);
   const [notifyOffline, setNotifyOffline] = useState(true);
 
   const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
