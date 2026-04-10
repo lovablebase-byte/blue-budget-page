@@ -983,7 +983,10 @@ export type Database = {
           gateway: string | null
           gateway_reference: string | null
           id: string
+          notes: string | null
           paid_at: string | null
+          period_end: string | null
+          period_start: string | null
           status: string
           subscription_id: string | null
           updated_at: string
@@ -996,7 +999,10 @@ export type Database = {
           gateway?: string | null
           gateway_reference?: string | null
           id?: string
+          notes?: string | null
           paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
           status?: string
           subscription_id?: string | null
           updated_at?: string
@@ -1009,7 +1015,10 @@ export type Database = {
           gateway?: string | null
           gateway_reference?: string | null
           id?: string
+          notes?: string | null
           paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
           status?: string
           subscription_id?: string | null
           updated_at?: string
