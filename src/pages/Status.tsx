@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { DataTable, Column } from '@/components/DataTable';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
@@ -13,10 +14,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Edit, MoreHorizontal, Loader2, Radio,
-  Clock, Image, Smartphone, Calendar,
+  Clock, Image, Smartphone, Calendar, AlertTriangle,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -64,6 +66,7 @@ const defaultDays = (): Record<string, DayConfig> =>
 
 export default function StatusPage() {
   const { company, hasPermission, isReadOnly } = useAuth();
+  const { isSuspended } = useCompany();
   const [items, setItems] = useState<StatusTemplate[]>([]);
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,12 +217,19 @@ export default function StatusPage() {
 
   return (
     <div className="space-y-6">
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível criar ou editar agendamentos de status.</AlertDescription>
+        </Alert>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Status do WhatsApp</h1>
           <p className="text-muted-foreground">Agendamento automático de status com imagem por dia da semana</p>
         </div>
-        {hasPermission('status', 'create') && !isReadOnly && (
+        {hasPermission('status', 'create') && !isReadOnly && !isSuspended && (
           <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Novo agendamento</Button>
         )}
       </div>
