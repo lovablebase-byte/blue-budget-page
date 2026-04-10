@@ -67,16 +67,16 @@ export default function Auth() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 relative overflow-hidden">
       {/* Ambient glow effects */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-accent/6 rounded-full blur-[100px] pointer-events-none" />
 
-      <Card className="w-full max-w-md border-primary/20 shadow-2xl shadow-primary/5">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary glow-primary">
-            <MessageSquare className="h-7 w-7 text-primary-foreground" />
+      <Card className="w-full max-w-md border-border/60 shadow-[0_0_60px_-15px_hsl(var(--primary)/0.15),0_25px_50px_-12px_rgba(0,0,0,0.6)] hover:border-primary/30 transition-all duration-300">
+        <CardHeader className="text-center pb-4">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark glow-primary">
+            <MessageSquare className="h-8 w-8 text-primary-foreground drop-shadow-[0_0_6px_hsl(var(--glow)/0.5)]" />
           </div>
-          <CardTitle className="text-2xl text-foreground">WhatsApp Manager</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-bold text-foreground tracking-tight">WhatsApp Manager</CardTitle>
+          <CardDescription className="text-muted-foreground mt-1">
             {mode === 'login' && 'Entre na sua conta'}
             {mode === 'signup' && 'Crie uma nova conta'}
             {mode === 'forgot' && 'Recupere sua senha'}
@@ -86,20 +86,20 @@ export default function Auth() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
               <div className="space-y-2">
-                <Label htmlFor="name">Nome completo</Label>
+                <Label htmlFor="name" className="text-foreground/90">Nome completo</Label>
                 <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Seu nome" required />
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email" className="text-foreground/90">E-mail</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required />
             </div>
             {mode !== 'forgot' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Senha</Label>
+                  <Label htmlFor="password" className="text-foreground/90">Senha</Label>
                   {mode === 'login' && (
-                    <button type="button" onClick={() => setMode('forgot')} className="text-xs text-primary hover:text-primary-hover hover:underline transition-colors">
+                    <button type="button" onClick={() => setMode('forgot')} className="text-xs text-primary hover:text-[hsl(var(--glow))] hover:underline transition-colors">
                       Esqueceu a senha?
                     </button>
                   )}
@@ -107,7 +107,7 @@ export default function Auth() {
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <Button type="submit" className="w-full h-11 text-sm font-semibold shadow-[0_0_20px_-4px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_28px_-4px_hsl(var(--glow)/0.5)] transition-all duration-300" disabled={submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === 'login' && 'Entrar no painel'}
               {mode === 'signup' && 'Criar conta'}
@@ -115,15 +115,15 @@ export default function Auth() {
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm text-muted-foreground">
+          <div className="mt-5 text-center text-sm text-muted-foreground">
             {mode === 'forgot' ? (
-              <button type="button" onClick={() => setMode('login')} className="text-primary hover:text-primary-hover hover:underline font-medium inline-flex items-center gap-1 transition-colors">
+              <button type="button" onClick={() => setMode('login')} className="text-primary hover:text-[hsl(var(--glow))] hover:underline font-medium inline-flex items-center gap-1 transition-colors">
                 <ArrowLeft className="h-3 w-3" /> Voltar ao login
               </button>
             ) : (
               <>
                 {mode === 'login' ? 'Não tem conta?' : 'Já tem conta?'}{' '}
-                <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="text-primary hover:text-primary-hover hover:underline font-medium transition-colors">
+                <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="text-primary hover:text-[hsl(var(--glow))] hover:underline font-medium transition-colors">
                   {mode === 'login' ? 'Criar conta' : 'Fazer login'}
                 </button>
               </>
