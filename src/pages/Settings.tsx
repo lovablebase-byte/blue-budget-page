@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Globe, Bell, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star } from 'lucide-react';
+import { Save, Globe, Bell, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy } from 'lucide-react';
 
 const TIMEZONES = [
   'America/Sao_Paulo', 'America/Manaus', 'America/Bahia', 'America/Recife',
@@ -39,7 +39,6 @@ export default function Settings() {
 
   const [companyName, setCompanyName] = useState('');
   const [defaultTimezone, setDefaultTimezone] = useState('America/Sao_Paulo');
-  const [defaultWebhookUrl, setDefaultWebhookUrl] = useState('');
   const [autoReconnect, setAutoReconnect] = useState(true);
   const [notifyOffline, setNotifyOffline] = useState(true);
 
@@ -384,12 +383,28 @@ export default function Settings() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Webhook className="h-5 w-5" /> Webhooks</CardTitle>
-            <CardDescription>URL padrão para novas instâncias</CardDescription>
+            <CardDescription>Endpoint centralizado para receber eventos dos providers WhatsApp</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>URL padrão de webhook</Label>
-              <Input value={defaultWebhookUrl} onChange={e => setDefaultWebhookUrl(e.target.value)} placeholder="https://seu-servidor.com/webhook" />
+              <Label>URL base do webhook (gerada automaticamente)</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={`https://rmswpurvnqqayemvuocv.supabase.co/functions/v1/webhook-receiver`}
+                  readOnly
+                  className="font-mono text-xs"
+                />
+                <Button variant="outline" size="icon" onClick={() => {
+                  navigator.clipboard.writeText('https://rmswpurvnqqayemvuocv.supabase.co/functions/v1/webhook-receiver');
+                  toast.success('URL copiada!');
+                }}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Cada instância recebe automaticamente uma URL única com identificador e token de segurança.
+                O webhook é configurado no provider durante a criação da instância.
+              </p>
             </div>
             <div className="flex items-center justify-between">
               <div>
