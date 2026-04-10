@@ -267,7 +267,16 @@ export default function InstanceDetail() {
         </Badge>
       </div>
 
-      <Tabs defaultValue="overview">
+      {isSuspended && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <AlertCircle className="h-5 w-5 text-destructive" />
+          <div>
+            <p className="font-medium">Assinatura suspensa</p>
+            <p className="text-sm text-muted-foreground">Ações de gerenciamento estão temporariamente indisponíveis.</p>
+          </div>
+        </div>
+      )}
+
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
