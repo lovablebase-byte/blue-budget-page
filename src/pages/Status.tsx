@@ -209,7 +209,7 @@ export default function StatusPage() {
     },
     {
       key: 'auto_send', label: 'Auto', render: (r) =>
-        <Badge variant={r.auto_send ? 'default' : 'secondary'}>{r.auto_send ? 'Sim' : 'Não'}</Badge>
+        <Badge variant={r.auto_send ? 'success' : 'secondary'}>{r.auto_send ? 'Ativo' : 'Inativo'}</Badge>
     },
   ];
 
@@ -236,27 +236,27 @@ export default function StatusPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+            <div className="rounded-md p-1.5 bg-primary/10"><Calendar className="h-4 w-4 text-primary" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{items.length}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold tracking-tight">{items.length}</div></CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Automáticos</CardTitle>
-            <Radio className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Automáticos</CardTitle>
+            <div className="rounded-md p-1.5 bg-success/10"><Radio className="h-4 w-4 text-success" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-primary">{activeCount}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold tracking-tight text-primary">{activeCount}</div></CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Instâncias</CardTitle>
-            <Smartphone className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Instâncias</CardTitle>
+            <div className="rounded-md p-1.5 bg-accent/10"><Smartphone className="h-4 w-4 text-accent" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold tracking-tight">
               {new Set(items.map(i => getSchedule(i)?.instance_id).filter(Boolean)).size}/{instances.length}
             </div>
           </CardContent>
@@ -339,7 +339,7 @@ export default function StatusPage() {
                 {WEEKDAY_KEYS.map(key => {
                   const day = dayConfigs[key];
                   return (
-                    <div key={key} className="rounded-lg border p-3 space-y-2">
+                    <div key={key} className="rounded-lg border border-border/60 bg-card/50 p-3 space-y-2 transition-colors hover:border-primary/20">
                       <div className="flex items-center gap-3">
                         <Switch
                           checked={day?.enabled ?? false}
