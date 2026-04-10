@@ -2,11 +2,12 @@ import {
   LayoutDashboard, Smartphone, MessageCircle, Clock, 
   Radio, Key, GitBranch, Bot, Megaphone, Settings,
   Building2, CreditCard, Receipt, Users, Shield, User,
-  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette, FileText
+  Globe, BarChart3, Heart, Webhook, LogOut, ChevronDown, MessageSquare, Palette, FileText, Lock
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -14,6 +15,15 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { PlanFeatures } from '@/services/plan-enforcement';
+
+/** Map module names to plan feature flags for enforcement */
+const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
+  campaigns: 'campaigns_enabled',
+  workflow: 'workflows_enabled',
+  ai_agents: 'ai_agents_enabled',
+};
 
 const operationalItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
