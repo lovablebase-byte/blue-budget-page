@@ -233,8 +233,8 @@ export default function InstanceDetail() {
     );
   }
 
-  const statusIcon = instance.status === 'online' ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />;
-  const statusColor = instance.status === 'online' ? 'default' : instance.status === 'error' ? 'destructive' : 'secondary';
+  const statusIcon = instance.status === 'online' ? <Wifi className="h-4 w-4" /> : instance.status === 'connecting' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <WifiOff className="h-4 w-4" />;
+  const statusColor = instance.status === 'online' ? 'success' as const : instance.status === 'error' ? 'destructive' as const : instance.status === 'connecting' ? 'info' as const : 'secondary' as const;
 
   const eventColumns: Column<WebhookEvent>[] = [
     { key: 'event_type', label: 'Evento', sortable: true },
@@ -259,7 +259,7 @@ export default function InstanceDetail() {
           <h1 className="text-2xl font-bold">{instance.name}</h1>
           <p className="text-muted-foreground text-sm">{instance.phone_number || 'Número não registrado'}</p>
         </div>
-        <Badge variant="outline" className="text-xs font-mono mr-2">
+        <Badge variant="outline" className="text-xs font-mono mr-2 border-accent/30 text-accent/80">
           {providerLabels[instance.provider] || instance.provider}
         </Badge>
         <Badge variant={statusColor} className="gap-1">
