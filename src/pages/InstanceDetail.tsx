@@ -466,6 +466,34 @@ export default function InstanceDetail() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* QR Code Dialog */}
+      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Parear WhatsApp</DialogTitle>
+            <DialogDescription>
+              Escaneie o QR Code com o WhatsApp • Provider: {providerLabels[instance.provider] || instance.provider}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+              {qrCode ? (
+                <img src={qrCode} alt="QR Code" className="w-full h-full object-contain" />
+              ) : (
+                <div className="text-center text-muted-foreground p-4">
+                  <QrCode className="h-16 w-16 mx-auto mb-2" />
+                  <p className="text-sm">Clique para gerar</p>
+                </div>
+              )}
+            </div>
+            <Button onClick={handlePairQR} disabled={actionLoading === 'qr'}>
+              {actionLoading === 'qr' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+              {qrCode ? 'Atualizar QR' : 'Gerar QR Code'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
