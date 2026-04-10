@@ -88,6 +88,8 @@ const defaultForm = (): AgentForm => ({
 
 export default function AIAgents() {
   const { company } = useAuth();
+  const aiFeature = useFeatureEnabled('ai_agents_enabled');
+  const agentLimit = useResourceLimit('max_ai_agents', 'ai_agents');
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
