@@ -153,6 +153,13 @@ export default function Workflows() {
       {!featureBlocked && wfLimit.data && (
         <LimitReachedBanner current={wfLimit.data.current} max={wfLimit.data.max} resourceLabel="workflows" />
       )}
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível criar ou editar workflows.</AlertDescription>
+        </Alert>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Workflows</h1>
