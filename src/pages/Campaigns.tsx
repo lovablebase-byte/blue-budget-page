@@ -52,6 +52,7 @@ function calcRiskLevel(ratePerMin: number, totalContacts: number, instanceCount:
 
 export default function Campaigns() {
   const { company } = useAuth();
+  const { isSuspended } = useCompany();
   const campaignFeature = useFeatureEnabled('campaigns_enabled');
   const campaignLimit = useResourceLimit('max_campaigns', 'campaigns');
   const queryClient = useQueryClient();
