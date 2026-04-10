@@ -104,9 +104,30 @@ export default function AdminChatbotKeys() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Key className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{keys.length}</p><p className="text-sm text-muted-foreground">Total</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-500">{activeCount}</p><p className="text-sm text-muted-foreground">Ativas</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-destructive">{keys.length - activeCount}</p><p className="text-sm text-muted-foreground">Revogadas</p></CardContent></Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10"><Key className="h-6 w-6 text-primary" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{keys.length}</p><p className="text-sm text-muted-foreground">Total</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><Key className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{activeCount}</p><p className="text-sm text-muted-foreground">Ativas</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10"><Key className="h-6 w-6 text-destructive" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-destructive">{keys.length - activeCount}</p><p className="text-sm text-muted-foreground">Revogadas</p></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <DataTable data={keys} columns={columns} searchKey="name" searchPlaceholder="Buscar chave..." loading={isLoading} emptyMessage="Nenhuma chave encontrada"
