@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Save, Globe, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy } from 'lucide-react';
+import { Save, Globe, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy, AlertCircle, Info, Lock } from 'lucide-react';
+import { getCompanySettings, getEffectiveSetting } from '@/services/admin-settings';
 
 interface ProviderState {
   baseUrl: string;
@@ -27,12 +30,11 @@ const defaultProviderState = (): ProviderState => ({
 });
 
 export default function Settings() {
-  const { company } = useAuth();
+  const { company, isAdmin } = useAuth();
+  const { isSuspended, allowedProviders, hasFeature } = useCompany();
   const queryClient = useQueryClient();
 
   const [companyName, setCompanyName] = useState('');
-  
-
   const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
 
@@ -47,30 +49,37 @@ export default function Settings() {
     enabled: !!company?.id,
   });
 
-  // Load new whatsapp_api_configs
+  // Effective settings (inherited from admin or company-specific)
+  const { data: companySettings = [] } = useQuery({
+    queryKey: ['company-settings-list', company?.id],
+    queryFn: () => getCompanySettings(company!.id),
+    enabled: !!company?.id,
+  });
+
+  // Global settings for comparison (inherited)
+  const { data: globalSettings = [] } = useQuery({
+    queryKey: ['global-settings'],
+    queryFn: async () => {
+      const { data } = await supabase.from('global_settings').select('*').order('setting_key');
+      return data || [];
+    },
+  });
+
   const { data: waConfigs } = useQuery({
     queryKey: ['whatsapp-api-configs', company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
-      const { data } = await supabase
-        .from('whatsapp_api_configs')
-        .select('*')
-        .eq('company_id', company.id);
+      const { data } = await supabase.from('whatsapp_api_configs').select('*').eq('company_id', company.id);
       return data || [];
     },
     enabled: !!company?.id,
   });
 
-  // Legacy fallback
   const { data: legacyEvoConfig } = useQuery({
     queryKey: ['evolution-config', company?.id],
     queryFn: async () => {
       if (!company?.id) return null;
-      const { data } = await supabase
-        .from('evolution_api_config')
-        .select('*')
-        .eq('company_id', company.id)
-        .single();
+      const { data } = await supabase.from('evolution_api_config').select('*').eq('company_id', company.id).single();
       return data;
     },
     enabled: !!company?.id,
@@ -80,18 +89,14 @@ export default function Settings() {
     if (companyData) setCompanyName(companyData.name);
   }, [companyData]);
 
-  // Hydrate provider states from DB
   useEffect(() => {
     const evoConfig = waConfigs?.find((c: any) => c.provider === 'evolution');
     const wuzConfig = waConfigs?.find((c: any) => c.provider === 'wuzapi');
-
     if (evoConfig) {
       setEvo(prev => ({ ...prev, baseUrl: evoConfig.base_url, apiKey: evoConfig.api_key || '', isActive: evoConfig.is_active, isDefault: evoConfig.is_default }));
     } else if (legacyEvoConfig) {
-      // Fallback from legacy table
       setEvo(prev => ({ ...prev, baseUrl: legacyEvoConfig.base_url, apiKey: legacyEvoConfig.api_key || '', isActive: legacyEvoConfig.is_active, isDefault: false }));
     }
-
     if (wuzConfig) {
       setWuz(prev => ({ ...prev, baseUrl: wuzConfig.base_url, apiKey: wuzConfig.api_key || '', isActive: wuzConfig.is_active, isDefault: wuzConfig.is_default }));
     }
@@ -112,7 +117,6 @@ export default function Settings() {
 
   const saveProvider = async (provider: 'evolution' | 'wuzapi', state: ProviderState) => {
     if (!company?.id) return;
-
     const payload = {
       company_id: company.id,
       provider,
@@ -121,46 +125,25 @@ export default function Settings() {
       is_active: state.isActive,
       is_default: state.isDefault,
     };
-
-    // If setting as default, unset others
     if (state.isDefault) {
-      await supabase
-        .from('whatsapp_api_configs')
-        .update({ is_default: false })
-        .eq('company_id', company.id)
-        .neq('provider', provider);
+      await supabase.from('whatsapp_api_configs').update({ is_default: false }).eq('company_id', company.id).neq('provider', provider);
     }
-
-    // Upsert into new table
     const existing = waConfigs?.find((c: any) => c.provider === provider);
     if (existing) {
-      const { error } = await supabase
-        .from('whatsapp_api_configs')
-        .update(payload)
-        .eq('id', existing.id);
+      const { error } = await supabase.from('whatsapp_api_configs').update(payload).eq('id', existing.id);
       if (error) throw error;
     } else {
-      const { error } = await supabase
-        .from('whatsapp_api_configs')
-        .insert(payload);
+      const { error } = await supabase.from('whatsapp_api_configs').insert(payload);
       if (error) throw error;
     }
-
-    // Also sync to legacy table for Evolution
     if (provider === 'evolution') {
-      const legacyPayload = {
-        company_id: company.id,
-        base_url: payload.base_url,
-        api_key: payload.api_key || '',
-        is_active: payload.is_active,
-      };
+      const legacyPayload = { company_id: company.id, base_url: payload.base_url, api_key: payload.api_key || '', is_active: payload.is_active };
       if (legacyEvoConfig) {
         await supabase.from('evolution_api_config').update(legacyPayload).eq('company_id', company.id);
       } else {
         await supabase.from('evolution_api_config').insert(legacyPayload);
       }
     }
-
     queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
     queryClient.invalidateQueries({ queryKey: ['evolution-config'] });
   };
@@ -182,37 +165,20 @@ export default function Settings() {
   const testConnection = async (provider: 'evolution' | 'wuzapi') => {
     const state = provider === 'evolution' ? evo : wuz;
     const setState = provider === 'evolution' ? setEvo : setWuz;
-
-    if (!state.baseUrl || !state.apiKey) {
-      toast.error('Preencha a URL e a API Key');
-      return;
-    }
-
-    // Ensure config is saved first so proxy can read it
+    if (!state.baseUrl || !state.apiKey) { toast.error('Preencha a URL e a API Key'); return; }
     setState(prev => ({ ...prev, testing: true, testStatus: 'idle' }));
     try {
-      // Save provider config first to ensure proxy has credentials
       await saveProvider(provider, state);
       queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
-
-      // Now test via proxy (server-side only, no API key exposure)
-      const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
-        body: { action: 'testConnection', provider },
-      });
+      const res = await supabase.functions.invoke('whatsapp-provider-proxy', { body: { action: 'testConnection', provider } });
       if (res.error) {
         const invokeError: any = res.error;
         const ctx = invokeError?.context;
         let details: any = null;
-        if (ctx) {
-          details = await ctx.clone().json().catch(async () => {
-            const raw = await ctx.text().catch(() => '');
-            return raw ? { raw } : null;
-          });
-        }
+        if (ctx) { details = await ctx.clone().json().catch(async () => { const raw = await ctx.text().catch(() => ''); return raw ? { raw } : null; }); }
         throw new Error(details?.error || invokeError.message || 'Falha na conexão');
       }
       if (res.data?.error) throw new Error(res.data.error);
-
       setState(prev => ({ ...prev, testStatus: 'success' }));
       toast.success('Conexão bem-sucedida!');
     } catch (err: any) {
@@ -223,98 +189,98 @@ export default function Settings() {
     }
   };
 
+  const isProviderAllowed = (provider: string) => allowedProviders.length === 0 || allowedProviders.includes(provider);
+
+  // Merge global + company settings for display
+  const effectiveSettings = globalSettings.map((gs: any) => {
+    const override = companySettings.find((cs: any) => cs.setting_key === gs.setting_key);
+    return {
+      key: gs.setting_key,
+      value: override ? override.setting_value : gs.setting_value,
+      description: gs.description,
+      isInherited: !override,
+    };
+  });
+
   const renderProviderCard = (
     provider: 'evolution' | 'wuzapi',
     label: string,
     description: string,
     state: ProviderState,
     setState: React.Dispatch<React.SetStateAction<ProviderState>>,
-  ) => (
-    <Card key={provider}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Plug className="h-5 w-5" /> {label}
-            </CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            {state.isDefault && (
-              <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
-                <Star className="h-3 w-3" /> Padrão
-              </Badge>
-            )}
-            {state.isActive && (
-              <Badge className="bg-green-600 hover:bg-green-700">Ativo</Badge>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label>URL da API</Label>
-          <Input
-            value={state.baseUrl}
-            onChange={e => { setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' })); }}
-            placeholder={provider === 'evolution' ? 'https://sua-evolution-api.com' : 'https://sua-wuzapi.com:8080'}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {provider === 'evolution' ? 'URL base da sua instância Evolution API' : 'URL base da sua instância Wuzapi'}
-          </p>
-        </div>
-        <div>
-          <Label>{provider === 'evolution' ? 'API Key' : 'Admin Token'}</Label>
-          <Input
-            type="password"
-            value={state.apiKey}
-            onChange={e => { setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' })); }}
-            placeholder={provider === 'evolution' ? 'Sua chave de autenticação' : 'WUZAPI_ADMIN_TOKEN'}
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Ativar integração</p>
-            <p className="text-xs text-muted-foreground">Habilitar comunicação com {label}</p>
-          </div>
-          <Switch checked={state.isActive} onCheckedChange={v => setState(prev => ({ ...prev, isActive: v }))} />
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Provider padrão</p>
-            <p className="text-xs text-muted-foreground">Usar como padrão ao criar novas instâncias</p>
-          </div>
-          <Switch checked={state.isDefault} onCheckedChange={v => {
-            setState(prev => ({ ...prev, isDefault: v }));
-            if (v) {
-              // Uncheck the other provider's default
-              const otherSetState = provider === 'evolution' ? setWuz : setEvo;
-              otherSetState(prev => ({ ...prev, isDefault: false }));
-            }
-          }} />
-        </div>
+  ) => {
+    const allowed = isProviderAllowed(provider);
+    const canEdit = isAdmin && !isSuspended && allowed;
 
-        <div className="flex items-center gap-3 pt-2">
-          <Button variant="outline" onClick={() => testConnection(provider)} disabled={state.testing || !state.baseUrl || !state.apiKey}>
-            {state.testing ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : state.testStatus === 'success' ? (
-              <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
-            ) : state.testStatus === 'error' ? (
-              <XCircle className="h-4 w-4 mr-2 text-red-500" />
-            ) : (
-              <Plug className="h-4 w-4 mr-2" />
-            )}
-            Testar conexão
-          </Button>
-          <Button onClick={() => handleSaveProvider(provider)} disabled={state.saving}>
-            {state.saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <Save className="h-4 w-4 mr-2" /> Salvar integração
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+    return (
+      <Card key={provider} className={!allowed ? 'opacity-60' : ''}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Plug className="h-5 w-5" /> {label}
+              </CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {!allowed && (
+                <Badge variant="outline" className="gap-1 border-yellow-500 text-yellow-600">
+                  <Lock className="h-3 w-3" /> Não permitido
+                </Badge>
+              )}
+              {state.isDefault && allowed && (
+                <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
+                  <Star className="h-3 w-3" /> Padrão
+                </Badge>
+              )}
+              {state.isActive && allowed && (
+                <Badge className="bg-green-600 hover:bg-green-700">Ativo</Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!allowed && (
+            <Alert>
+              <Lock className="h-4 w-4" />
+              <AlertDescription>Este provider não está disponível no seu plano atual.</AlertDescription>
+            </Alert>
+          )}
+          <div>
+            <Label>URL da API</Label>
+            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} placeholder={provider === 'evolution' ? 'https://sua-evolution-api.com' : 'https://sua-wuzapi.com:8080'} disabled={!canEdit} />
+          </div>
+          <div>
+            <Label>{provider === 'evolution' ? 'API Key' : 'Admin Token'}</Label>
+            <Input type="password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div><p className="text-sm font-medium">Ativar integração</p></div>
+            <Switch checked={state.isActive} onCheckedChange={v => setState(prev => ({ ...prev, isActive: v }))} disabled={!canEdit} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div><p className="text-sm font-medium">Provider padrão</p></div>
+            <Switch checked={state.isDefault} onCheckedChange={v => {
+              setState(prev => ({ ...prev, isDefault: v }));
+              if (v) { const otherSet = provider === 'evolution' ? setWuz : setEvo; otherSet(prev => ({ ...prev, isDefault: false })); }
+            }} disabled={!canEdit} />
+          </div>
+          {canEdit && (
+            <div className="flex items-center gap-3 pt-2">
+              <Button variant="outline" onClick={() => testConnection(provider)} disabled={state.testing || !state.baseUrl || !state.apiKey}>
+                {state.testing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : state.testStatus === 'success' ? <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" /> : state.testStatus === 'error' ? <XCircle className="h-4 w-4 mr-2 text-red-500" /> : <Plug className="h-4 w-4 mr-2" />}
+                Testar conexão
+              </Button>
+              <Button onClick={() => handleSaveProvider(provider)} disabled={state.saving}>
+                {state.saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Save className="h-4 w-4 mr-2" /> Salvar integração
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -322,6 +288,14 @@ export default function Settings() {
         <h1 className="text-2xl font-bold">Configurações</h1>
         <p className="text-muted-foreground">Configurações gerais da empresa</p>
       </div>
+
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Assinatura suspensa</AlertTitle>
+          <AlertDescription>Edição de configurações desabilitada. Regularize sua assinatura.</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6">
         <Card>
@@ -332,10 +306,40 @@ export default function Settings() {
           <CardContent className="space-y-4">
             <div>
               <Label>Nome da empresa</Label>
-              <Input value={companyName} onChange={e => setCompanyName(e.target.value)} />
+              <Input value={companyName} onChange={e => setCompanyName(e.target.value)} disabled={!isAdmin || isSuspended} />
             </div>
           </CardContent>
         </Card>
+
+        {/* Effective Settings (inherited/overridden) */}
+        {effectiveSettings.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5" /> Configurações Efetivas</CardTitle>
+              <CardDescription>Valores herdados do sistema ou sobrescritos para a empresa</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {effectiveSettings.map((s: any) => (
+                  <div key={s.key} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{s.key}</p>
+                      {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono">{s.value || '—'}</span>
+                      {s.isInherited ? (
+                        <Badge variant="outline" className="text-xs">Herdado</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">Customizado</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* WhatsApp Providers */}
         <div className="space-y-2">
@@ -343,21 +347,8 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground">Configure os provedores de API WhatsApp disponíveis para sua empresa</p>
         </div>
 
-        {renderProviderCard(
-          'evolution',
-          'Evolution API',
-          'Integração com a Evolution API para gerenciamento de WhatsApp',
-          evo,
-          setEvo,
-        )}
-
-        {renderProviderCard(
-          'wuzapi',
-          'Wuzapi',
-          'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp',
-          wuz,
-          setWuz,
-        )}
+        {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API para gerenciamento de WhatsApp', evo, setEvo)}
+        {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp', wuz, setWuz)}
 
         <Card>
           <CardHeader>
@@ -368,13 +359,9 @@ export default function Settings() {
             <div>
               <Label>URL base do webhook (gerada automaticamente)</Label>
               <div className="flex gap-2 mt-1">
-                <Input
-                  value={`https://rmswpurvnqqayemvuocv.supabase.co/functions/v1/webhook-receiver`}
-                  readOnly
-                  className="font-mono text-xs"
-                />
+                <Input value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-receiver`} readOnly className="font-mono text-xs" />
                 <Button variant="outline" size="icon" onClick={() => {
-                  navigator.clipboard.writeText('https://rmswpurvnqqayemvuocv.supabase.co/functions/v1/webhook-receiver');
+                  navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-receiver`);
                   toast.success('URL copiada!');
                 }}>
                   <Copy className="h-4 w-4" />
@@ -382,16 +369,16 @@ export default function Settings() {
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 Cada instância recebe automaticamente uma URL única com identificador e token de segurança.
-                O webhook é configurado no provider durante a criação da instância.
               </p>
             </div>
           </CardContent>
         </Card>
 
-
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-fit">
-          <Save className="h-4 w-4 mr-2" /> Salvar configurações
-        </Button>
+        {isAdmin && !isSuspended && (
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-fit">
+            <Save className="h-4 w-4 mr-2" /> Salvar configurações
+          </Button>
+        )}
       </div>
     </div>
   );
