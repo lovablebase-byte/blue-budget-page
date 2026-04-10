@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
+import { useFeatureEnabled } from '@/hooks/use-plan-enforcement';
+import { FeatureLockedBanner } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Copy, Eye, EyeOff, Trash2, Key } from 'lucide-react';
+import { Plus, Copy, Eye, EyeOff, Trash2, Key, AlertTriangle } from 'lucide-react';
 
 const SCOPES = [
   { value: 'send_message', label: 'Enviar mensagem' },
@@ -24,6 +28,8 @@ const SCOPES = [
 
 export default function ChatbotKeys() {
   const { company } = useAuth();
+  const { isSuspended } = useCompany();
+  const apiFeature = useFeatureEnabled('api_access');
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -135,13 +141,24 @@ export default function ChatbotKeys() {
     },
   ];
 
+  const featureBlocked = apiFeature.data === false;
+
   return (
     <div className="space-y-6">
+      {featureBlocked && <FeatureLockedBanner featureLabel="API de Chatbot" />}
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível gerenciar chaves.</AlertDescription>
+        </Alert>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Chaves de Chatbot</h1>
           <p className="text-muted-foreground">Gerencie chaves de acesso à API</p>
         </div>
+        {!featureBlocked && !isSuspended && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Nova Chave</Button>
