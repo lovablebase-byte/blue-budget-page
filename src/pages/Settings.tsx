@@ -6,17 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Globe, Bell, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy } from 'lucide-react';
-
-const TIMEZONES = [
-  'America/Sao_Paulo', 'America/Manaus', 'America/Bahia', 'America/Recife',
-  'America/Fortaleza', 'America/Belem', 'America/Cuiaba', 'America/Porto_Velho',
-  'America/Rio_Branco', 'America/Noronha',
-];
+import { Save, Globe, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy } from 'lucide-react';
 
 interface ProviderState {
   baseUrl: string;
@@ -38,9 +31,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
 
   const [companyName, setCompanyName] = useState('');
-  const [defaultTimezone, setDefaultTimezone] = useState('America/Sao_Paulo');
-  const [autoReconnect, setAutoReconnect] = useState(true);
-  const [notifyOffline, setNotifyOffline] = useState(true);
+  
 
   const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
@@ -346,15 +337,6 @@ export default function Settings() {
               <Label>Nome da empresa</Label>
               <Input value={companyName} onChange={e => setCompanyName(e.target.value)} />
             </div>
-            <div>
-              <Label>Fuso horário padrão</Label>
-              <Select value={defaultTimezone} onValueChange={setDefaultTimezone}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
           </CardContent>
         </Card>
 
@@ -406,31 +388,9 @@ export default function Settings() {
                 O webhook é configurado no provider durante a criação da instância.
               </p>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Reconexão automática</p>
-                <p className="text-xs text-muted-foreground">Reconectar instâncias automaticamente ao cair</p>
-              </div>
-              <Switch checked={autoReconnect} onCheckedChange={setAutoReconnect} />
-            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Notificações</CardTitle>
-            <CardDescription>Preferências de alertas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Alertar instância offline</p>
-                <p className="text-xs text-muted-foreground">Receber notificação quando uma instância desconectar</p>
-              </div>
-              <Switch checked={notifyOffline} onCheckedChange={setNotifyOffline} />
-            </div>
-          </CardContent>
-        </Card>
 
         <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-fit">
           <Save className="h-4 w-4 mr-2" /> Salvar configurações

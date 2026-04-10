@@ -90,6 +90,15 @@ async function handleEvolution(
       };
     }
     case "connect": {
+      // If webhook payload is provided, update webhook config before connecting
+      if (payload?.webhook) {
+        await evoFetch(baseUrl, apiKey, "POST", `/webhook/set/${instanceName}`, {
+          url: payload.webhook,
+          webhook_by_events: true,
+          webhook_base64: true,
+          events: payload.events || [],
+        }).catch(() => {});
+      }
       const r = await evoFetch(baseUrl, apiKey, "GET", `/instance/connect/${instanceName}`);
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
       return {
@@ -205,10 +214,14 @@ async function handleWuzapi(
     }
     case "connect": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token da instância obrigatório" } };
-      const cr = await wuzFetch(baseUrl, instanceName, "POST", "/session/connect", {
-        Subscribe: ["Message"],
+      const connectBody: any = {
+        Subscribe: ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"],
         Immediate: true,
-      });
+      };
+      if (payload?.webhook) {
+        connectBody.Webhook = payload.webhook;
+      }
+      const cr = await wuzFetch(baseUrl, instanceName, "POST", "/session/connect", connectBody);
       if (cr.data?.data?.jid) {
         return { ok: true, status: 200, body: { connected: true, jid: cr.data.data.jid } };
       }
