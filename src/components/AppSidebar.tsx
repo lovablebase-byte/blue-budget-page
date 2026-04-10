@@ -38,9 +38,12 @@ const operationalItems = [
   { title: 'Campanhas', url: '/campaigns', icon: Megaphone, module: 'campaigns' },
 ];
 
-const adminItems = [
-  { title: 'Planos e Assinatura', url: '/subscription', icon: CreditCard },
+const commercialItems = [
+  { title: 'Plano e Assinatura', url: '/subscription', icon: CreditCard },
   { title: 'Faturas', url: '/invoices', icon: Receipt },
+];
+
+const adminItems = [
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Ajustes', url: '/settings', icon: Settings, module: 'settings' },
   { title: 'Marca', url: '/branding', icon: Palette },
