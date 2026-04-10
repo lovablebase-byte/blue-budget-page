@@ -16,7 +16,7 @@ export interface RolePermissionDefault {
   extra_permissions?: Record<string, boolean>;
 }
 
-// Admin tem acesso total a todos os módulos da empresa
+// Admin tem acesso total (bypass no código), mas permissões ficam registradas para referência
 export const ADMIN_DEFAULT_PERMISSIONS: RolePermissionDefault[] = [
   { module: 'dashboard', can_view: true, can_create: false, can_edit: false, can_delete: false },
   { module: 'instances', can_view: true, can_create: true, can_edit: true, can_delete: true,
@@ -37,7 +37,7 @@ export const ADMIN_DEFAULT_PERMISSIONS: RolePermissionDefault[] = [
   { module: 'settings', can_view: true, can_create: false, can_edit: true, can_delete: false },
 ];
 
-// Operador: acesso limitado
+// Operador (user): acesso limitado
 export const OPERATOR_DEFAULT_PERMISSIONS: RolePermissionDefault[] = [
   { module: 'dashboard', can_view: true, can_create: false, can_edit: false, can_delete: false },
   { module: 'instances', can_view: true, can_create: false, can_edit: true, can_delete: false,
@@ -46,7 +46,7 @@ export const OPERATOR_DEFAULT_PERMISSIONS: RolePermissionDefault[] = [
 
 /**
  * Retorna as permissões padrão para um papel.
- * Super Admin não precisa de permissões (bypass total).
+ * Admin tem bypass total no código, mas permissões são registradas para referência.
  */
 export function getDefaultPermissions(role: string): RolePermissionDefault[] {
   switch (role) {

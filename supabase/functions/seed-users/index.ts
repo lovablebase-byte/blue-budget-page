@@ -79,9 +79,8 @@ serve(async (req) => {
     const { data: modules } = await supabase.from("modules").select("id, name");
     const moduleMap = new Map((modules || []).map((m: any) => [m.name, m.id]));
 
-    // 4. Seed users
+    // 4. Seed users (only admin and user roles)
     const users = [
-      { email: "superadmin@superadmin.com", password: "123456", fullName: "Super Admin", role: "super_admin", companyId: null as string | null, perms: [] as typeof ADMIN_DEFAULT_PERMISSIONS },
       { email: "admin@admin.com", password: "123456", fullName: "Admin Demo", role: "admin", companyId, perms: ADMIN_DEFAULT_PERMISSIONS },
       { email: "usuario@usuario.com", password: "123456", fullName: "Operador Demo", role: "user", companyId, perms: OPERATOR_DEFAULT_PERMISSIONS },
     ];
@@ -118,7 +117,7 @@ serve(async (req) => {
 
       // Ensure user_role
       const { data: existingRole } = await supabase
-        .from("user_roles").select("id").eq("user_id", userId).single();
+        .from("user_roles").select("id, role").eq("user_id", userId).single();
 
       let userRoleId: string;
       if (!existingRole) {
@@ -130,11 +129,15 @@ serve(async (req) => {
         results.push(`Role ${u.role} atribuído a ${u.email}`);
       } else {
         userRoleId = existingRole.id;
+        // Update role if it was super_admin
+        if (existingRole.role === 'super_admin') {
+          await supabase.from("user_roles").update({ role: 'admin' }).eq("id", userRoleId);
+          results.push(`Role de ${u.email} atualizado de super_admin para admin`);
+        }
       }
 
       // ── UPSERT de permissões: adicionar faltantes, nunca remover existentes ──
       if (u.perms.length > 0 && moduleMap.size > 0) {
-        // Buscar permissões atuais
         const { data: currentPerms } = await supabase
           .from("permissions")
           .select("module_id")
@@ -144,12 +147,9 @@ serve(async (req) => {
 
         for (const pm of u.perms) {
           const moduleId = moduleMap.get(pm.module);
-          if (!moduleId) continue; // módulo não existe ainda no DB, pular
+          if (!moduleId) continue;
           
-          if (existingModuleIds.has(moduleId)) {
-            // Já existe — não sobrescrever (preservar customizações)
-            continue;
-          }
+          if (existingModuleIds.has(moduleId)) continue;
 
           await supabase.from("permissions").insert({
             user_role_id: userRoleId,

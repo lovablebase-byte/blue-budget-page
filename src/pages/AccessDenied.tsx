@@ -8,7 +8,7 @@ import { useState } from 'react';
 export default function AccessDenied() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role, permissions, refreshAuth } = useAuth();
+  const { role, permissions, hasPermission, refreshAuth } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const state = location.state as { module?: string; action?: string; requiredRole?: string[]; userRole?: string } | null;
 
@@ -16,7 +16,23 @@ export default function AccessDenied() {
     setRefreshing(true);
     await refreshAuth();
     setRefreshing(false);
-    navigate('/dashboard', { replace: true });
+    // After refresh, try to find first allowed route
+    const routes = [
+      { path: '/dashboard', module: 'dashboard' },
+      { path: '/instances', module: 'instances' },
+      { path: '/greetings', module: 'greetings' },
+    ];
+    if (role === 'admin') {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    for (const route of routes) {
+      if (hasPermission(route.module, 'view')) {
+        navigate(route.path, { replace: true });
+        return;
+      }
+    }
+    navigate('/profile', { replace: true });
   };
 
   return (
@@ -27,14 +43,14 @@ export default function AccessDenied() {
 
       <div className="mb-6 space-y-2 text-sm text-muted-foreground">
         {role && (
-          <p>Seu papel: <Badge variant="outline" className="ml-1">{role}</Badge></p>
+          <p>Seu papel: <Badge variant="outline" className="ml-1">{role === 'admin' ? 'Admin' : 'Usuário'}</Badge></p>
         )}
         {state?.module && (
           <p>Permissão requerida: <Badge variant="secondary" className="ml-1">{state.module}.{state.action || 'view'}</Badge></p>
         )}
         {state?.requiredRole && (
           <p>Papéis permitidos: {state.requiredRole.map((r: string) => (
-            <Badge key={r} variant="secondary" className="ml-1">{r}</Badge>
+            <Badge key={r} variant="secondary" className="ml-1">{r === 'admin' ? 'Admin' : 'Usuário'}</Badge>
           ))}</p>
         )}
         {permissions.length > 0 && (
@@ -42,7 +58,7 @@ export default function AccessDenied() {
             <p className="font-medium text-foreground mb-1">Suas permissões atuais:</p>
             <div className="flex flex-wrap gap-1 justify-center max-w-md">
               {permissions.filter(p => p.can_view).map(p => (
-                <Badge key={p.module} variant="outline" className="text-xs">{p.module}</Badge>
+                <Badge key={p.module} variant="outline" className="text-xs">{p.module}.view</Badge>
               ))}
             </div>
           </div>
@@ -50,7 +66,7 @@ export default function AccessDenied() {
       </div>
 
       <div className="flex gap-3">
-        <Button onClick={() => navigate('/dashboard')}>Ir ao Dashboard</Button>
+        <Button onClick={() => navigate('/')}>Ir ao Início</Button>
         <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
           Recarregar Permissões

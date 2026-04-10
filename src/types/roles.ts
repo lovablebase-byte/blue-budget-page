@@ -1,4 +1,4 @@
-export type AppRole = 'super_admin' | 'admin' | 'user';
+export type AppRole = 'admin' | 'user';
 
 export type ModuleName = 
   | 'dashboard' | 'instances' | 'greetings' | 'absence' 

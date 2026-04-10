@@ -38,7 +38,6 @@ export default function AdminUsers() {
         <Select value={row.role} onValueChange={(v) => updateRole.mutate({ id: row.id, role: v })}>
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="super_admin">Super Admin</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="user">Usuário</SelectItem>
           </SelectContent>

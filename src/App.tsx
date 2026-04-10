@@ -44,7 +44,7 @@ import { BrandingProvider } from "@/contexts/BrandingContext";
 
 const queryClient = new QueryClient();
 
-function ProtectedPage({ children, module, role }: { children: React.ReactNode; module?: string; role?: ('super_admin' | 'admin' | 'user')[] }) {
+function ProtectedPage({ children, module, role }: { children: React.ReactNode; module?: string; role?: ('admin' | 'user')[] }) {
   return (
     <ProtectedRoute requiredModule={module} requiredRole={role}>
       <AppLayout>{children}</AppLayout>
@@ -81,27 +81,26 @@ const App = () => (
               <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Campaigns /></ProtectedPage>} />
 
               {/* Admin company */}
-              <Route path="/subscription" element={<ProtectedPage role={['admin', 'super_admin']}><Subscription /></ProtectedPage>} />
-              <Route path="/invoices" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyInvoices /></ProtectedPage>} />
-              <Route path="/users" element={<ProtectedPage role={['admin', 'super_admin']}><CompanyUsers /></ProtectedPage>} />
+              <Route path="/subscription" element={<ProtectedPage role={['admin']}><Subscription /></ProtectedPage>} />
+              <Route path="/invoices" element={<ProtectedPage role={['admin']}><CompanyInvoices /></ProtectedPage>} />
+              <Route path="/users" element={<ProtectedPage role={['admin']}><CompanyUsers /></ProtectedPage>} />
               <Route path="/settings" element={<ProtectedPage module="settings"><Settings /></ProtectedPage>} />
-              <Route path="/branding" element={<ProtectedPage role={['admin', 'super_admin']}><Branding /></ProtectedPage>} />
-              
+              <Route path="/branding" element={<ProtectedPage role={['admin']}><Branding /></ProtectedPage>} />
 
               {/* Personal */}
               <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
               <Route path="/account" element={<ProtectedPage><Account /></ProtectedPage>} />
 
-              {/* Super Admin */}
-              <Route path="/admin/companies" element={<ProtectedPage role={['super_admin']}><AdminCompanies /></ProtectedPage>} />
-              <Route path="/admin/plans" element={<ProtectedPage role={['super_admin']}><AdminPlans /></ProtectedPage>} />
-              <Route path="/admin/users" element={<ProtectedPage role={['super_admin']}><AdminUsers /></ProtectedPage>} />
-              <Route path="/admin/invoices" element={<ProtectedPage role={['super_admin']}><AdminInvoices /></ProtectedPage>} />
-              <Route path="/admin/gateways" element={<ProtectedPage role={['super_admin']}><AdminGateways /></ProtectedPage>} />
-              <Route path="/admin/reports" element={<ProtectedPage role={['super_admin']}><AdminReports /></ProtectedPage>} />
-              <Route path="/admin/health" element={<ProtectedPage role={['super_admin']}><AdminHealth /></ProtectedPage>} />
-              <Route path="/admin/webhooks" element={<ProtectedPage role={['super_admin']}><AdminWebhooks /></ProtectedPage>} />
-              <Route path="/admin/logs" element={<ProtectedPage role={['super_admin', 'admin']}><AdminLogs /></ProtectedPage>} />
+              {/* Admin */}
+              <Route path="/admin/companies" element={<ProtectedPage role={['admin']}><AdminCompanies /></ProtectedPage>} />
+              <Route path="/admin/plans" element={<ProtectedPage role={['admin']}><AdminPlans /></ProtectedPage>} />
+              <Route path="/admin/users" element={<ProtectedPage role={['admin']}><AdminUsers /></ProtectedPage>} />
+              <Route path="/admin/invoices" element={<ProtectedPage role={['admin']}><AdminInvoices /></ProtectedPage>} />
+              <Route path="/admin/gateways" element={<ProtectedPage role={['admin']}><AdminGateways /></ProtectedPage>} />
+              <Route path="/admin/reports" element={<ProtectedPage role={['admin']}><AdminReports /></ProtectedPage>} />
+              <Route path="/admin/health" element={<ProtectedPage role={['admin']}><AdminHealth /></ProtectedPage>} />
+              <Route path="/admin/webhooks" element={<ProtectedPage role={['admin']}><AdminWebhooks /></ProtectedPage>} />
+              <Route path="/admin/logs" element={<ProtectedPage role={['admin']}><AdminLogs /></ProtectedPage>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
