@@ -78,9 +78,30 @@ export default function AdminChatbotKeywords() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><MessageSquare className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{keywords.length}</p><p className="text-sm text-muted-foreground">Total</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-green-500">{activeCount}</p><p className="text-sm text-muted-foreground">Ativas</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-muted-foreground">{keywords.length - activeCount}</p><p className="text-sm text-muted-foreground">Inativas</p></CardContent></Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10"><MessageSquare className="h-6 w-6 text-primary" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{keywords.length}</p><p className="text-sm text-muted-foreground">Total</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><MessageSquare className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{activeCount}</p><p className="text-sm text-muted-foreground">Ativas</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-muted/30"><MessageSquare className="h-6 w-6 text-muted-foreground" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-muted-foreground">{keywords.length - activeCount}</p><p className="text-sm text-muted-foreground">Inativas</p></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <DataTable data={keywords} columns={columns} searchKey="response" searchPlaceholder="Buscar por resposta..." loading={isLoading} emptyMessage="Nenhuma regra encontrada"
