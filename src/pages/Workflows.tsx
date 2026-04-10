@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
