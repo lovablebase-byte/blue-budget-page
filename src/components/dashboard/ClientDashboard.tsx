@@ -119,7 +119,19 @@ export default function ClientDashboard() {
     setRecentInvoices(invoicesRes.data || []);
     setPendingInvoices(pendingInvRes.count ?? 0);
 
+    // Fetch real hourly data from webhook_events for today
+    const { data: hourlyEvents } = await supabase
+      .from('webhook_events')
+      .select('created_at')
+      .eq('company_id', company.id)
+      .eq('direction', 'outbound')
+      .gte('created_at', todayStart);
+
     const hours = Array.from({ length: 24 }, (_, i) => ({ hour: `${i.toString().padStart(2, '0')}h`, envios: 0 }));
+    (hourlyEvents || []).forEach((evt: any) => {
+      const h = new Date(evt.created_at).getHours();
+      hours[h].envios++;
+    });
     setHourlyData(hours);
 
     const camps = (campaignsRes.data || []).map((c: any) => {

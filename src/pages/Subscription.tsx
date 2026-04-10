@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import {
   CreditCard, Calendar, Package, Users, MessageSquare, Bot,
-  Workflow, Contact, Shield, Sparkles, Lock, CheckCircle2, XCircle,
+  Workflow, Shield, Sparkles, Lock, CheckCircle2, XCircle,
   AlertTriangle, Info
 } from 'lucide-react';
 
@@ -74,17 +74,19 @@ export default function Subscription() {
     queryKey: ['usage', company?.id],
     queryFn: async () => {
       if (!company?.id) return null;
-      const [instances, campaigns, agents, workflows] = await Promise.all([
+      const [instances, campaigns, agents, workflows, users] = await Promise.all([
         supabase.from('instances').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
         supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
         supabase.from('ai_agents').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
         supabase.from('workflows').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
+        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
       ]);
       return {
         instances: instances.count ?? 0,
         campaigns: campaigns.count ?? 0,
         ai_agents: agents.count ?? 0,
         workflows: workflows.count ?? 0,
+        users: users.count ?? 0,
       };
     },
     enabled: !!company?.id,
@@ -268,8 +270,7 @@ export default function Subscription() {
               <UsageBar label="Campanhas" used={usage?.campaigns ?? 0} max={plan?.limits.max_campaigns ?? planData.max_campaigns ?? 5} icon={MessageSquare} />
               <UsageBar label="Agentes IA" used={usage?.ai_agents ?? 0} max={plan?.limits.max_ai_agents ?? planData.max_ai_agents ?? 1} icon={Bot} />
               <UsageBar label="Workflows" used={usage?.workflows ?? 0} max={plan?.limits.max_workflows ?? planData.max_workflows ?? 3} icon={Workflow} />
-              <UsageBar label="Usuários" used={0} max={plan?.limits.max_users ?? planData.max_users} icon={Users} />
-              <UsageBar label="Contatos" used={0} max={plan?.limits.max_contacts ?? planData.max_contacts ?? 1000} icon={Contact} />
+              <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan?.limits.max_users ?? planData.max_users} icon={Users} />
               <div className="text-xs text-muted-foreground pt-2">
                 Msgs/dia: {plan?.limits.max_messages_day ?? planData.max_messages_day ?? 0} · Msgs/mês: {(plan?.limits.max_messages_month ?? planData.max_messages_month ?? 0).toLocaleString()}
               </div>
