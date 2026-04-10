@@ -26,18 +26,19 @@ const REFRESH_INTERVAL = 10000;
 function UsageBar({ label, used, max, icon: Icon }: { label: string; used: number; max: number; icon: any }) {
   const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
   const isAtLimit = used >= max && max > 0;
+  const isNearLimit = pct >= 80 && !isAtLimit;
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="flex items-center gap-1.5">
-          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+          <Icon className={`h-3.5 w-3.5 ${isAtLimit ? 'text-destructive' : isNearLimit ? 'text-warning' : 'text-primary/70'}`} />
           {label}
         </span>
-        <span className={isAtLimit ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+        <span className={`font-medium ${isAtLimit ? 'text-destructive' : isNearLimit ? 'text-warning' : 'text-muted-foreground'}`}>
           {used}/{max}
         </span>
       </div>
-      <Progress value={pct} className={`h-2 ${isAtLimit ? '[&>div]:bg-destructive' : ''}`} />
+      <Progress value={pct} className={`h-2 ${isAtLimit ? '[&>div]:bg-destructive' : isNearLimit ? '[&>div]:bg-warning' : '[&>div]:bg-primary'}`} />
     </div>
   );
 }
@@ -187,7 +188,7 @@ export default function ClientDashboard() {
   const maxInstances = getLimit('max_instances');
   const instancesAtLimit = instanceStatus.total >= maxInstances && maxInstances > 0;
 
-  const PIE_COLORS = ['hsl(var(--primary))', 'hsl(var(--muted-foreground))', 'hsl(0 84% 60%)', 'hsl(45 93% 47%)'];
+  const PIE_COLORS = ['hsl(var(--primary))', 'hsl(var(--muted-foreground))', 'hsl(var(--destructive))', 'hsl(var(--warning))'];
   const instancePieData = [
     { name: 'Online', value: instanceStatus.online },
     { name: 'Offline', value: instanceStatus.offline },
@@ -237,10 +238,10 @@ export default function ClientDashboard() {
       {alerts.length > 0 && (
         <div className="space-y-2">
           {alerts.map((alert, i) => (
-            <div key={i} className={`flex items-center gap-3 rounded-lg border p-3 ${
-              alert.type === 'error' ? 'border-destructive/50 bg-destructive/10' : 'border-yellow-500/50 bg-yellow-500/10'
+            <div key={i} className={`flex items-center gap-3 rounded-lg border p-3 backdrop-blur-sm ${
+              alert.type === 'error' ? 'border-destructive/40 bg-destructive/10 shadow-[0_0_12px_-4px_hsl(var(--destructive)/0.2)]' : 'border-warning/40 bg-warning/10 shadow-[0_0_12px_-4px_hsl(var(--warning)/0.15)]'
             }`}>
-              {alert.type === 'error' ? <Ban className="h-4 w-4 text-destructive shrink-0" /> : <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0" />}
+              {alert.type === 'error' ? <Ban className="h-4 w-4 text-destructive shrink-0" /> : <AlertTriangle className="h-4 w-4 text-warning shrink-0" />}
               <p className="text-sm font-medium">{alert.message}</p>
             </div>
           ))}
@@ -254,54 +255,54 @@ export default function ClientDashboard() {
 
       {/* KPI Cards Row 1 — Messages */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Hoje</CardTitle>
-            <Send className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">Hoje</CardTitle>
+            <div className="rounded-md p-1.5 bg-primary/10"><Send className="h-4 w-4 text-primary" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{msgMetrics.today}</div>
-            <p className="text-xs text-muted-foreground">mensagens</p>
+            <div className="text-2xl font-bold tracking-tight">{msgMetrics.today}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">mensagens</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Semana</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">Semana</CardTitle>
+            <div className="rounded-md p-1.5 bg-primary/10"><TrendingUp className="h-4 w-4 text-primary" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{msgMetrics.week}</div>
-            <p className="text-xs text-muted-foreground">mensagens</p>
+            <div className="text-2xl font-bold tracking-tight">{msgMetrics.week}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">mensagens</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Mês</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">Mês</CardTitle>
+            <div className="rounded-md p-1.5 bg-accent/10"><BarChart3 className="h-4 w-4 text-accent" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{msgMetrics.month}</div>
-            <p className="text-xs text-muted-foreground">mensagens</p>
+            <div className="text-2xl font-bold tracking-tight">{msgMetrics.month}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">mensagens</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Entrega</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">Entrega</CardTitle>
+            <div className="rounded-md p-1.5 bg-success/10"><CheckCircle2 className="h-4 w-4 text-success" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{deliveryRate}%</div>
-            <p className="text-xs text-muted-foreground">taxa</p>
+            <div className="text-2xl font-bold tracking-tight text-primary">{deliveryRate}%</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">taxa</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Faturas pendentes</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">Faturas pendentes</CardTitle>
+            <div className={`rounded-md p-1.5 ${pendingInvoices > 0 ? 'bg-destructive/10' : 'bg-muted/50'}`}><CreditCard className={`h-4 w-4 ${pendingInvoices > 0 ? 'text-destructive' : 'text-muted-foreground'}`} /></div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${pendingInvoices > 0 ? 'text-destructive' : ''}`}>{pendingInvoices}</div>
-            <p className="text-xs text-muted-foreground">em aberto</p>
+            <div className={`text-2xl font-bold tracking-tight ${pendingInvoices > 0 ? 'text-destructive' : ''}`}>{pendingInvoices}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">em aberto</p>
           </CardContent>
         </Card>
       </div>
@@ -309,19 +310,19 @@ export default function ClientDashboard() {
       {/* Instance status cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="flex items-center gap-3 p-4">
-          <div className="rounded-full bg-green-500/10 p-2"><Wifi className="h-5 w-5 text-green-500" /></div>
+          <div className="rounded-full bg-primary/15 p-2.5 shadow-[0_0_12px_-3px_hsl(var(--primary)/0.35)]"><Wifi className="h-5 w-5 text-primary" /></div>
           <div><p className="text-2xl font-bold">{instanceStatus.online}</p><p className="text-xs text-muted-foreground">Online</p></div>
         </Card>
         <Card className="flex items-center gap-3 p-4">
-          <div className="rounded-full bg-muted p-2"><WifiOff className="h-5 w-5 text-muted-foreground" /></div>
+          <div className="rounded-full bg-muted/60 p-2.5"><WifiOff className="h-5 w-5 text-muted-foreground" /></div>
           <div><p className="text-2xl font-bold">{instanceStatus.offline}</p><p className="text-xs text-muted-foreground">Offline</p></div>
         </Card>
         <Card className="flex items-center gap-3 p-4">
-          <div className="rounded-full bg-destructive/10 p-2"><Ban className="h-5 w-5 text-destructive" /></div>
+          <div className="rounded-full bg-destructive/15 p-2.5 shadow-[0_0_12px_-3px_hsl(var(--destructive)/0.2)]"><Ban className="h-5 w-5 text-destructive" /></div>
           <div><p className="text-2xl font-bold">{instanceStatus.blocked}</p><p className="text-xs text-muted-foreground">Bloqueadas</p></div>
         </Card>
         <Card className="flex items-center gap-3 p-4">
-          <div className="rounded-full bg-yellow-500/10 p-2"><Signal className="h-5 w-5 text-yellow-500" /></div>
+          <div className="rounded-full bg-warning/15 p-2.5 shadow-[0_0_12px_-3px_hsl(var(--warning)/0.15)]"><Signal className="h-5 w-5 text-warning" /></div>
           <div><p className="text-2xl font-bold">{instanceStatus.connecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
         </Card>
       </div>
@@ -405,7 +406,7 @@ export default function ClientDashboard() {
                           {f.label}
                         </span>
                         {enabled ? (
-                          <Badge variant="outline" className="text-xs border-green-500/50 text-green-600">Ativo</Badge>
+                          <Badge variant="outline" className="text-xs border-primary/50 text-primary">Ativo</Badge>
                         ) : (
                           <Badge variant="outline" className="text-xs border-muted text-muted-foreground gap-1">
                             <Lock className="h-3 w-3" /> Bloqueado
@@ -514,7 +515,7 @@ export default function ClientDashboard() {
                   <div key={inst.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0">
                     <div className="flex items-center gap-2">
                       {inst.status === 'online' || inst.status === 'connected' ? (
-                        <Wifi className="h-3.5 w-3.5 text-green-500" />
+                        <Wifi className="h-3.5 w-3.5 text-primary" />
                       ) : (
                         <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
