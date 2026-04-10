@@ -6,6 +6,7 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FlowCanvas } from '@/components/workflow/FlowCanvas';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, GitBranch, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, GitBranch, ArrowLeft, AlertCircle } from 'lucide-react';
 import { type Node, type Edge } from '@xyflow/react';
 
 export default function Workflows() {
