@@ -277,6 +277,7 @@ export default function InstanceDetail() {
         </div>
       )}
 
+      <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
