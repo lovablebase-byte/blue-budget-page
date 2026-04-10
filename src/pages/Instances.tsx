@@ -592,6 +592,10 @@ export default function Instances() {
         r.tags?.length ? r.tags.map(t => <Badge key={t} variant="outline" className="mr-1 text-xs">{t}</Badge>) : '—'
     },
     {
+      key: 'created_at', label: 'Criada em', sortable: true, render: (r) =>
+        new Date(r.created_at).toLocaleDateString('pt-BR')
+    },
+    {
       key: 'last_connected_at', label: 'Última conexão', render: (r) =>
         r.last_connected_at ? new Date(r.last_connected_at).toLocaleString('pt-BR') : 'Nunca'
     },
