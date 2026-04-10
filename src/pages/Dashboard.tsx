@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 const REFRESH_INTERVAL = 10000;
 
 export default function Dashboard() {
-  const { role, company, isSuperAdmin, isAdmin, isReadOnly, user } = useAuth();
+  const { role, company, isAdmin, isAdmin, isReadOnly, user } = useAuth();
   const [timezone, setTimezone] = useState('America/Sao_Paulo');
   const [savingTz, setSavingTz] = useState(false);
   const [showToken, setShowToken] = useState(false);
@@ -139,13 +139,13 @@ export default function Dashboard() {
         });
     }
 
-    if (isSuperAdmin) {
+    if (isAdmin) {
       supabase.from('companies').select('id', { count: 'exact', head: true })
         .then(({ count }) => setStats(s => ({ ...s, companies: count || 0 })));
       supabase.from('user_roles').select('id', { count: 'exact', head: true })
         .then(({ count }) => setStats(s => ({ ...s, users: count || 0 })));
     }
-  }, [user, company, isSuperAdmin]);
+  }, [user, company, isAdmin]);
 
   // Auto-refresh metrics
   useEffect(() => {
@@ -188,15 +188,15 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Bem-vindo{isSuperAdmin ? ', Admin' : company ? `, ${company.name}` : ''}
+            Bem-vindo{isAdmin ? ', Admin' : company ? `, ${company.name}` : ''}
           </h1>
           <p className="text-muted-foreground">
-            {isSuperAdmin ? 'Visão global do sistema' : 'Painel de controle da sua empresa'}
+            {isAdmin ? 'Visão global do sistema' : 'Painel de controle da sua empresa'}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Atualizado: {lastRefresh.toLocaleTimeString('pt-BR')}</span>
-          <Badge variant={isSuperAdmin ? 'default' : 'secondary'} className="capitalize">
+          <Badge variant={isAdmin ? 'default' : 'secondary'} className="capitalize">
             {role?.replace('_', ' ') || 'usuário'}
           </Badge>
         </div>
@@ -493,7 +493,7 @@ export default function Dashboard() {
       </div>
 
       {/* Super admin */}
-      {isSuperAdmin && (
+      {isAdmin && (
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
