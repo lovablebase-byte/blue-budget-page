@@ -816,6 +816,8 @@ export type Database = {
           last_connected_at: string | null
           name: string
           phone_number: string | null
+          provider: string
+          provider_instance_id: string | null
           reconnect_policy: string | null
           status: string
           tags: string[] | null
@@ -833,6 +835,8 @@ export type Database = {
           last_connected_at?: string | null
           name: string
           phone_number?: string | null
+          provider?: string
+          provider_instance_id?: string | null
           reconnect_policy?: string | null
           status?: string
           tags?: string[] | null
@@ -850,6 +854,8 @@ export type Database = {
           last_connected_at?: string | null
           name?: string
           phone_number?: string | null
+          provider?: string
+          provider_instance_id?: string | null
           reconnect_policy?: string | null
           status?: string
           tags?: string[] | null
@@ -1476,6 +1482,50 @@ export type Database = {
             columns: ["instance_id"]
             isOneToOne: false
             referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_api_configs: {
+        Row: {
+          api_key: string | null
+          base_url: string
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          base_url?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          base_url?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_api_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
