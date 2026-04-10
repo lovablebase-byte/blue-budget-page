@@ -121,6 +121,8 @@ const App = () => (
               <Route path="/admin/chatbot-keywords" element={<ProtectedPage role={['admin']}><AdminChatbotKeywords /></ProtectedPage>} />
               <Route path="/admin/ai-agents" element={<ProtectedPage role={['admin']}><AdminAIAgents /></ProtectedPage>} />
               <Route path="/admin/campaigns" element={<ProtectedPage role={['admin']}><AdminCampaigns /></ProtectedPage>} />
+              <Route path="/admin/settings" element={<ProtectedPage role={['admin']}><AdminSettings /></ProtectedPage>} />
+              <Route path="/admin/branding" element={<ProtectedPage role={['admin']}><AdminBranding /></ProtectedPage>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
