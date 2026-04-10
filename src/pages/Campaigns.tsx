@@ -313,6 +313,13 @@ export default function Campaigns() {
       {!featureBlocked && campaignLimit.data && (
         <LimitReachedBanner current={campaignLimit.data.current} max={campaignLimit.data.max} resourceLabel="campanhas" />
       )}
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível criar ou gerenciar campanhas.</AlertDescription>
+        </Alert>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Campanhas</h1>
