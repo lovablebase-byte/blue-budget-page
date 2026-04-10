@@ -75,7 +75,7 @@ const TIMEZONES = [
 
 export default function Instances() {
   const { company, hasPermission, isReadOnly } = useAuth();
-  const { allowedProviders: planProviders } = useCompany();
+  const { allowedProviders: planProviders, isSuspended } = useCompany();
   const instanceLimit = useResourceLimit('max_instances', 'instances');
   const navigate = useNavigate();
   const [instances, setInstances] = useState<Instance[]>([]);
@@ -592,6 +592,10 @@ export default function Instances() {
         r.tags?.length ? r.tags.map(t => <Badge key={t} variant="outline" className="mr-1 text-xs">{t}</Badge>) : '—'
     },
     {
+      key: 'created_at', label: 'Criada em', sortable: true, render: (r) =>
+        new Date(r.created_at).toLocaleDateString('pt-BR')
+    },
+    {
       key: 'last_connected_at', label: 'Última conexão', render: (r) =>
         r.last_connected_at ? new Date(r.last_connected_at).toLocaleString('pt-BR') : 'Nunca'
     },
@@ -606,8 +610,22 @@ export default function Instances() {
   const limitData = instanceLimit.data;
   const canCreateByPlan = !limitData || limitData.allowed;
 
+  // Filter active providers by what the plan allows
+  const effectiveProviders = planProviders.length > 0
+    ? activeProviders.filter(p => planProviders.includes(p.provider))
+    : activeProviders;
+
   return (
     <div className="space-y-6">
+      {isSuspended && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <AlertCircle className="h-5 w-5 text-destructive" />
+          <div>
+            <p className="font-medium">Assinatura suspensa</p>
+            <p className="text-sm text-muted-foreground">Não é possível criar ou gerenciar instâncias. Entre em contato com o administrador.</p>
+          </div>
+        </div>
+      )}
       {limitData && (
         <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="instâncias" />
       )}
@@ -625,7 +643,7 @@ export default function Instances() {
           <Button variant="outline" size="sm" onClick={fetchInstances}>
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
-          {canCreate && !isReadOnly && (
+          {canCreate && !isReadOnly && !isSuspended && (
             <GuardedButton
               allowed={canCreateByPlan}
               reason={`Limite de ${limitData?.max || 0} instâncias atingido`}
@@ -730,16 +748,18 @@ export default function Instances() {
             {/* Provider selector */}
             <div className="space-y-2">
               <Label>Provider *</Label>
-              {activeProviders.length === 0 ? (
+              {effectiveProviders.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4" />
-                  Nenhum provider ativo. Configure em Configurações.
+                  {activeProviders.length > 0 && planProviders.length > 0
+                    ? 'Nenhum provider disponível é permitido pelo seu plano.'
+                    : 'Nenhum provider ativo. Configure em Configurações.'}
                 </div>
               ) : (
                 <Select value={newProvider} onValueChange={setNewProvider}>
                   <SelectTrigger><SelectValue placeholder="Selecione o provider" /></SelectTrigger>
                   <SelectContent>
-                    {activeProviders.map(p => (
+                    {effectiveProviders.map(p => (
                       <SelectItem key={p.provider} value={p.provider}>
                         {providerLabels[p.provider] || p.provider}
                         {p.is_default ? ' (padrão)' : ''}
@@ -796,7 +816,7 @@ export default function Instances() {
             </div>
             <Button
               onClick={handleCreate}
-              disabled={creating || !newName.trim() || !newProvider || activeProviders.length === 0}
+              disabled={creating || !newName.trim() || !newProvider || effectiveProviders.length === 0 || isSuspended}
               className="w-full"
             >
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

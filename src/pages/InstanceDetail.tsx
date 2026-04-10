@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -55,7 +56,8 @@ const providerLabels: Record<string, string> = {
 export default function InstanceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { company } = useAuth();
+  const { company, isReadOnly } = useAuth();
+  const { isSuspended } = useCompany();
   const [instance, setInstance] = useState<InstanceDetail | null>(null);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -265,6 +267,16 @@ export default function InstanceDetail() {
         </Badge>
       </div>
 
+      {isSuspended && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <AlertCircle className="h-5 w-5 text-destructive" />
+          <div>
+            <p className="font-medium">Assinatura suspensa</p>
+            <p className="text-sm text-muted-foreground">Ações de gerenciamento estão temporariamente indisponíveis.</p>
+          </div>
+        </div>
+      )}
+
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
@@ -301,10 +313,10 @@ export default function InstanceDetail() {
                 </div>
                 <Separator />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handlePairQR} disabled={actionLoading === 'qr'}>
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handlePairQR} disabled={actionLoading === 'qr' || isSuspended || isReadOnly}>
                     {actionLoading === 'qr' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />} Parear QR
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handleReconnect} disabled={actionLoading === 'reconnect'}>
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handleReconnect} disabled={actionLoading === 'reconnect' || isSuspended || isReadOnly}>
                     {actionLoading === 'reconnect' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Reconectar
                   </Button>
                 </div>
