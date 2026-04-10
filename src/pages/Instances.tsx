@@ -639,7 +639,7 @@ export default function Instances() {
           <Button variant="outline" size="sm" onClick={fetchInstances}>
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
-          {canCreate && !isReadOnly && (
+          {canCreate && !isReadOnly && !isSuspended && (
             <GuardedButton
               allowed={canCreateByPlan}
               reason={`Limite de ${limitData?.max || 0} instâncias atingido`}
@@ -650,9 +650,6 @@ export default function Instances() {
           )}
         </div>
       </div>
-
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -812,7 +809,7 @@ export default function Instances() {
             </div>
             <Button
               onClick={handleCreate}
-              disabled={creating || !newName.trim() || !newProvider || activeProviders.length === 0}
+              disabled={creating || !newName.trim() || !newProvider || effectiveProviders.length === 0 || isSuspended}
               className="w-full"
             >
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
