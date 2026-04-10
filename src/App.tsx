@@ -53,6 +53,7 @@ import AdminBranding from "./pages/admin/Branding";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { BrandingProvider } from "@/contexts/BrandingContext";
+import { CompanyProvider } from "@/contexts/CompanyContext";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <BrandingProvider>
+            <CompanyProvider>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
