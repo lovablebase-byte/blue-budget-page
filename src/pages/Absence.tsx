@@ -205,7 +205,7 @@ export default function Absence() {
     },
     {
       key: 'is_active', label: 'Ativo', render: (r) =>
-        <Badge variant={r.is_active ? 'default' : 'secondary'}>{r.is_active ? 'Sim' : 'Não'}</Badge>
+        <Badge variant={r.is_active ? 'success' : 'secondary'}>{r.is_active ? 'Ativo' : 'Inativo'}</Badge>
     },
   ];
 
@@ -232,27 +232,27 @@ export default function Absence() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total de regras</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total de regras</CardTitle>
+            <div className="rounded-md p-1.5 bg-primary/10"><Clock className="h-4 w-4 text-primary" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{items.length}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold tracking-tight">{items.length}</div></CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Ativas</CardTitle>
-            <Clock className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Ativas</CardTitle>
+            <div className="rounded-md p-1.5 bg-success/10"><Clock className="h-4 w-4 text-success" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-primary">{activeCount}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold tracking-tight text-primary">{activeCount}</div></CardContent>
         </Card>
-        <Card>
+        <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Instâncias cobertas</CardTitle>
-            <Smartphone className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Instâncias cobertas</CardTitle>
+            <div className="rounded-md p-1.5 bg-accent/10"><Smartphone className="h-4 w-4 text-accent" /></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold tracking-tight">
               {new Set(items.map(i => i.schedule?.instance_id).filter(Boolean)).size}/{instances.length}
             </div>
           </CardContent>
@@ -333,7 +333,7 @@ export default function Absence() {
                 {WEEKDAY_KEYS.map(key => {
                   const day = daySchedules[key];
                   return (
-                    <div key={key} className="flex items-center gap-3 rounded-lg border p-2.5">
+                    <div key={key} className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 p-2.5 transition-colors hover:border-primary/20">
                       <Switch
                         checked={day?.enabled ?? false}
                         onCheckedChange={v => updateDay(key, 'enabled', v)}
