@@ -464,6 +464,79 @@ export type Database = {
           },
         ]
       }
+      company_overrides: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          override_key: string
+          override_value: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          override_key: string
+          override_value: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          override_key?: string
+          override_value?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_overrides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          setting_key: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_message_templates: {
         Row: {
           company_id: string
@@ -627,6 +700,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      global_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       greetings: {
         Row: {
@@ -1200,6 +1300,35 @@ export type Database = {
           },
         ]
       }
+      plan_allowed_providers: {
+        Row: {
+          created_at: string
+          id: string
+          plan_id: string
+          provider: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_id: string
+          provider: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_id?: string
+          provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_allowed_providers_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           ai_agents_enabled: boolean
@@ -1582,6 +1711,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_effective_limit: {
+        Args: { _company_id: string; _limit_key: string }
+        Returns: number
+      }
+      get_effective_setting: {
+        Args: { _company_id: string; _key: string }
+        Returns: string
+      }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: {
         Args: never
