@@ -200,6 +200,7 @@ export default function ChatbotKeys() {
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <DataTable
