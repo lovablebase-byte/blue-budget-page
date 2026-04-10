@@ -21,6 +21,7 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText, Loader2, Bot, Timer, Activity } from 'lucide-react';
 
 // ---- Spintax engine ----
@@ -52,6 +53,7 @@ function calcRiskLevel(ratePerMin: number, totalContacts: number, instanceCount:
 
 export default function Campaigns() {
   const { company } = useAuth();
+  const { isSuspended } = useCompany();
   const campaignFeature = useFeatureEnabled('campaigns_enabled');
   const campaignLimit = useResourceLimit('max_campaigns', 'campaigns');
   const queryClient = useQueryClient();
@@ -311,6 +313,13 @@ export default function Campaigns() {
       {featureBlocked && <FeatureLockedBanner featureLabel="Campanhas" />}
       {!featureBlocked && campaignLimit.data && (
         <LimitReachedBanner current={campaignLimit.data.current} max={campaignLimit.data.max} resourceLabel="campanhas" />
+      )}
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível criar ou gerenciar campanhas.</AlertDescription>
+        </Alert>
       )}
       <div className="flex items-center justify-between">
         <div>

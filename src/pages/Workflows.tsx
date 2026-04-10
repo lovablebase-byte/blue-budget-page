@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,11 +16,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FlowCanvas } from '@/components/workflow/FlowCanvas';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, GitBranch, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, GitBranch, ArrowLeft, AlertCircle } from 'lucide-react';
 import { type Node, type Edge } from '@xyflow/react';
 
 export default function Workflows() {
   const { company } = useAuth();
+  const { isSuspended } = useCompany();
   const wfFeature = useFeatureEnabled('workflows_enabled');
   const wfLimit = useResourceLimit('max_workflows', 'workflows');
   const queryClient = useQueryClient();
@@ -150,6 +153,13 @@ export default function Workflows() {
       {featureBlocked && <FeatureLockedBanner featureLabel="Workflows" />}
       {!featureBlocked && wfLimit.data && (
         <LimitReachedBanner current={wfLimit.data.current} max={wfLimit.data.max} resourceLabel="workflows" />
+      )}
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível criar ou editar workflows.</AlertDescription>
+        </Alert>
       )}
       <div className="flex items-center justify-between">
         <div>

@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
+import { useResourceLimit } from '@/hooks/use-plan-enforcement';
+import { LimitReachedBanner } from '@/components/PlanEnforcementGuard';
 import { DataTable, Column } from '@/components/DataTable';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
@@ -13,10 +16,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Edit, MoreHorizontal, Loader2,
-  MessageSquare, Smartphone, Image, Clock, Link2, Eye,
+  MessageSquare, Smartphone, Image, Clock, Link2, Eye, AlertTriangle,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -54,6 +58,8 @@ const AUDIENCE_TYPES = [
 
 export default function ChatbotKeywords() {
   const { company, hasPermission, isReadOnly } = useAuth();
+  const { isSuspended } = useCompany();
+  const chatbotLimit = useResourceLimit('max_chatbots', 'chatbot_keywords');
   const [items, setItems] = useState<ChatbotKeyword[]>([]);
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,14 +212,26 @@ export default function ChatbotKeywords() {
 
   const activeCount = items.filter(i => i.is_active).length;
 
+  const limitBlocked = chatbotLimit.data && !chatbotLimit.data.allowed;
+
   return (
     <div className="space-y-6">
+      {chatbotLimit.data && (
+        <LimitReachedBanner current={chatbotLimit.data.current} max={chatbotLimit.data.max} resourceLabel="chatbots" />
+      )}
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível criar ou editar chatbots.</AlertDescription>
+        </Alert>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Chatbot por Palavras-chave</h1>
           <p className="text-muted-foreground">Respostas automáticas baseadas em palavras detectadas nas mensagens</p>
         </div>
-        {hasPermission('chatbot_keys', 'create') && !isReadOnly && (
+        {hasPermission('chatbot_keys', 'create') && !isReadOnly && !isSuspended && !limitBlocked && (
           <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Novo chatbot</Button>
         )}
       </div>
