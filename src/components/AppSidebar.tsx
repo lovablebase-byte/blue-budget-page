@@ -38,6 +38,7 @@ const adminItems = [
 
 const systemAdminItems = [
   { title: 'Empresas', url: '/admin/companies', icon: Building2 },
+  { title: 'Instâncias Globais', url: '/admin/instances', icon: Smartphone },
   { title: 'Planos Globais', url: '/admin/plans', icon: CreditCard },
   { title: 'Usuários Globais', url: '/admin/users', icon: Shield },
   { title: 'Faturas Globais', url: '/admin/invoices', icon: Receipt },

@@ -27,6 +27,7 @@ import Subscription from "./pages/Subscription";
 import CompanyInvoices from "./pages/CompanyInvoices";
 import CompanyUsers from "./pages/CompanyUsers";
 import AdminCompanies from "./pages/admin/Companies";
+import AdminInstances from "./pages/admin/Instances";
 import AdminPlans from "./pages/admin/Plans";
 import AdminUsers from "./pages/admin/Users";
 import AdminInvoices from "./pages/admin/Invoices";
@@ -93,6 +94,7 @@ const App = () => (
 
               {/* Admin */}
               <Route path="/admin/companies" element={<ProtectedPage role={['admin']}><AdminCompanies /></ProtectedPage>} />
+              <Route path="/admin/instances" element={<ProtectedPage role={['admin']}><AdminInstances /></ProtectedPage>} />
               <Route path="/admin/plans" element={<ProtectedPage role={['admin']}><AdminPlans /></ProtectedPage>} />
               <Route path="/admin/users" element={<ProtectedPage role={['admin']}><AdminUsers /></ProtectedPage>} />
               <Route path="/admin/invoices" element={<ProtectedPage role={['admin']}><AdminInvoices /></ProtectedPage>} />
