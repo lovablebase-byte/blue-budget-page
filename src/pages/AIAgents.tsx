@@ -88,6 +88,7 @@ const defaultForm = (): AgentForm => ({
 
 export default function AIAgents() {
   const { company } = useAuth();
+  const { isSuspended } = useCompany();
   const aiFeature = useFeatureEnabled('ai_agents_enabled');
   const agentLimit = useResourceLimit('max_ai_agents', 'ai_agents');
   const queryClient = useQueryClient();
@@ -222,6 +223,13 @@ export default function AIAgents() {
       {featureBlocked && <FeatureLockedBanner featureLabel="Agentes IA" />}
       {!featureBlocked && agentLimit.data && (
         <LimitReachedBanner current={agentLimit.data.current} max={agentLimit.data.max} resourceLabel="agentes IA" />
+      )}
+      {isSuspended && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Conta suspensa</AlertTitle>
+          <AlertDescription>Sua conta está suspensa. Não é possível criar ou editar agentes.</AlertDescription>
+        </Alert>
       )}
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
