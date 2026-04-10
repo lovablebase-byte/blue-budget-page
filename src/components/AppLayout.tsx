@@ -14,9 +14,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between border-b px-4 bg-background shrink-0">
+          <header className="h-14 flex items-center justify-between border-b border-border/50 px-4 bg-background/80 backdrop-blur-sm shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <SidebarTrigger />
+              <SidebarTrigger className="text-muted-foreground hover:text-primary transition-colors" />
               <Breadcrumb />
             </div>
             <div className="flex items-center gap-2">

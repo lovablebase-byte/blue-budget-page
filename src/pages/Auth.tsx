@@ -65,13 +65,17 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 relative overflow-hidden">
+      {/* Ambient glow effects */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+
+      <Card className="w-full max-w-md border-primary/20 shadow-2xl shadow-primary/5">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <MessageSquare className="h-6 w-6 text-primary-foreground" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary glow-primary">
+            <MessageSquare className="h-7 w-7 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl">WhatsApp Manager</CardTitle>
+          <CardTitle className="text-2xl text-foreground">WhatsApp Manager</CardTitle>
           <CardDescription>
             {mode === 'login' && 'Entre na sua conta'}
             {mode === 'signup' && 'Crie uma nova conta'}
@@ -95,7 +99,7 @@ export default function Auth() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Senha</Label>
                   {mode === 'login' && (
-                    <button type="button" onClick={() => setMode('forgot')} className="text-xs text-primary hover:underline">
+                    <button type="button" onClick={() => setMode('forgot')} className="text-xs text-primary hover:text-primary-hover hover:underline transition-colors">
                       Esqueceu a senha?
                     </button>
                   )}
@@ -113,13 +117,13 @@ export default function Auth() {
 
           <div className="mt-4 text-center text-sm text-muted-foreground">
             {mode === 'forgot' ? (
-              <button type="button" onClick={() => setMode('login')} className="text-primary hover:underline font-medium inline-flex items-center gap-1">
+              <button type="button" onClick={() => setMode('login')} className="text-primary hover:text-primary-hover hover:underline font-medium inline-flex items-center gap-1 transition-colors">
                 <ArrowLeft className="h-3 w-3" /> Voltar ao login
               </button>
             ) : (
               <>
                 {mode === 'login' ? 'Não tem conta?' : 'Já tem conta?'}{' '}
-                <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="text-primary hover:underline font-medium">
+                <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="text-primary hover:text-primary-hover hover:underline font-medium transition-colors">
                   {mode === 'login' ? 'Criar conta' : 'Fazer login'}
                 </button>
               </>
