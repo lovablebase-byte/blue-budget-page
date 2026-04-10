@@ -300,11 +300,11 @@ export default function InstanceDetail() {
                 </div>
                 <Separator />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1 gap-1">
-                    <QrCode className="h-3.5 w-3.5" /> Parear QR
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handlePairQR} disabled={actionLoading === 'qr'}>
+                    {actionLoading === 'qr' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />} Parear QR
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1 gap-1">
-                    <RefreshCw className="h-3.5 w-3.5" /> Reconectar
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handleReconnect} disabled={actionLoading === 'reconnect'}>
+                    {actionLoading === 'reconnect' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Reconectar
                   </Button>
                 </div>
               </CardContent>
@@ -439,8 +439,8 @@ export default function InstanceDetail() {
                   ))}
                 </div>
               </div>
-              <Button variant="outline" size="sm">
-                <Send className="h-4 w-4 mr-1" /> Testar webhook
+              <Button variant="outline" size="sm" onClick={handleTestWebhook} disabled={actionLoading === 'webhook'}>
+                {actionLoading === 'webhook' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />} Testar webhook
               </Button>
             </CardContent>
           </Card>
