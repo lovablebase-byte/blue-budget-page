@@ -4,24 +4,24 @@
 
 @layer base {
   :root {
-    /* Base – #02050B, #07111B, #0B1623 */
+    /* Base – #02050B, #06101A, #0A1624 */
     --background: 220 69% 3%;
     --foreground: 210 40% 98%;
 
-    /* Card – #0B1623 */
-    --card: 211 53% 9%;
+    /* Card – #0A1624 */
+    --card: 211 56% 9%;
     --card-foreground: 210 40% 98%;
 
-    /* Popover – #07111B */
-    --popover: 213 60% 6%;
+    /* Popover – #06101A */
+    --popover: 210 63% 6%;
     --popover-foreground: 210 40% 98%;
 
     /* Primary – #25D366 green */
     --primary: 145 69% 49%;
     --primary-foreground: 220 69% 3%;
 
-    /* Secondary – #07111B */
-    --secondary: 213 60% 6%;
+    /* Secondary – #06101A */
+    --secondary: 210 63% 6%;
     --secondary-foreground: 210 40% 98%;
 
     /* Muted – #17324A */
@@ -56,7 +56,7 @@
     /* Status colors */
     --success: 150 100% 57%;
     --success-foreground: 220 69% 3%;
-    --warning: 51 100% 50%;
+    --warning: 48 96% 53%;
     --warning-foreground: 220 69% 3%;
     --info: 199 93% 60%;
     --info-foreground: 220 69% 3%;
@@ -67,10 +67,10 @@
     --purple: 258 90% 66%;
 
     /* Extra greens */
-    --primary-hover: 152 100% 62%;
+    --primary-hover: 140 100% 62%;
     --primary-dark: 152 100% 39%;
 
-    /* Card hover */
+    /* Card hover – #102033 */
     --card-hover: 213 53% 13%;
   }
 
@@ -78,16 +78,16 @@
     --background: 220 69% 3%;
     --foreground: 210 40% 98%;
 
-    --card: 211 53% 9%;
+    --card: 211 56% 9%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 213 60% 6%;
+    --popover: 210 63% 6%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 145 69% 49%;
     --primary-foreground: 220 69% 3%;
 
-    --secondary: 213 60% 6%;
+    --secondary: 210 63% 6%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 209 51% 19%;
@@ -114,7 +114,7 @@
 
     --success: 150 100% 57%;
     --success-foreground: 220 69% 3%;
-    --warning: 51 100% 50%;
+    --warning: 48 96% 53%;
     --warning-foreground: 220 69% 3%;
     --info: 199 93% 60%;
     --info-foreground: 220 69% 3%;
@@ -123,7 +123,7 @@
     --cyan: 186 100% 50%;
     --purple: 258 90% 66%;
 
-    --primary-hover: 152 100% 62%;
+    --primary-hover: 140 100% 62%;
     --primary-dark: 152 100% 39%;
     --card-hover: 213 53% 13%;
   }
