@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useCompany } from '@/contexts/CompanyContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +55,8 @@ const providerLabels: Record<string, string> = {
 export default function InstanceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { company } = useAuth();
+  const { company, isReadOnly } = useAuth();
+  const { isSuspended } = useCompany();
   const [instance, setInstance] = useState<InstanceDetail | null>(null);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
