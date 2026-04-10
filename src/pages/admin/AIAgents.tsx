@@ -90,10 +90,38 @@ export default function AdminAIAgents() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Bot className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{agents.length}</p><p className="text-sm text-muted-foreground">Total</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Zap className="h-8 w-8 text-green-500" /><div><p className="text-2xl font-bold">{activeCount}</p><p className="text-sm text-muted-foreground">Ativos</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-muted-foreground">{agents.length - activeCount}</p><p className="text-sm text-muted-foreground">Inativos</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Brain className="h-8 w-8 text-purple-500" /><div><p className="text-2xl font-bold">{providerCount}</p><p className="text-sm text-muted-foreground">Provedores</p></div></div></CardContent></Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple/10"><Bot className="h-6 w-6 text-purple" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{agents.length}</p><p className="text-sm text-muted-foreground">Total</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><Zap className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{activeCount}</p><p className="text-sm text-muted-foreground">Ativos</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-muted/30"><Bot className="h-6 w-6 text-muted-foreground" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-muted-foreground">{agents.length - activeCount}</p><p className="text-sm text-muted-foreground">Inativos</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple/10"><Brain className="h-6 w-6 text-purple" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{providerCount}</p><p className="text-sm text-muted-foreground">Provedores</p></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <DataTable data={agents} columns={columns} searchKey="name" searchPlaceholder="Buscar agente..." loading={isLoading} emptyMessage="Nenhum agente encontrado"

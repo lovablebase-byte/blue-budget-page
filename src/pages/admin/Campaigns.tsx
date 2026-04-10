@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Megaphone, Building2, Users, Send, CheckCircle } from 'lucide-react';
+import { Trash2, Megaphone, Building2, Users, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const statusLabel: Record<string, string> = { draft: 'Rascunho', sending: 'Enviando', completed: 'Concluída', paused: 'Pausada' };
 const statusVariant = (s: string) => {
@@ -91,10 +91,38 @@ export default function AdminCampaigns() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Megaphone className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{campaigns.length}</p><p className="text-sm text-muted-foreground">Total</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Send className="h-8 w-8 text-blue-500" /><div><p className="text-2xl font-bold">{totalStats.sent}</p><p className="text-sm text-muted-foreground">Enviadas</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CheckCircle className="h-8 w-8 text-green-500" /><div><p className="text-2xl font-bold">{totalStats.delivered}</p><p className="text-sm text-muted-foreground">Entregues</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-2xl font-bold text-destructive">{totalStats.failed}</p><p className="text-sm text-muted-foreground">Falhas</p></CardContent></Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10"><Megaphone className="h-6 w-6 text-primary" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{campaigns.length}</p><p className="text-sm text-muted-foreground">Total</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-warning/10"><Send className="h-6 w-6 text-warning" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{totalStats.sent}</p><p className="text-sm text-muted-foreground">Enviadas</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><CheckCircle className="h-6 w-6 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{totalStats.delivered}</p><p className="text-sm text-muted-foreground">Entregues</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10"><AlertTriangle className="h-6 w-6 text-destructive" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-destructive">{totalStats.failed}</p><p className="text-sm text-muted-foreground">Falhas</p></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <DataTable data={campaigns} columns={columns} searchKey="name" searchPlaceholder="Buscar campanha..." loading={isLoading} emptyMessage="Nenhuma campanha encontrada"

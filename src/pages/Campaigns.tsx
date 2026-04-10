@@ -662,10 +662,38 @@ export default function Campaigns() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4 text-center"><Send className="h-5 w-5 mx-auto mb-1 text-primary" /><p className="text-2xl font-bold">{totalStats.sent}</p><p className="text-xs text-muted-foreground">Enviados</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><MessageCircle className="h-5 w-5 mx-auto mb-1 text-green-500" /><p className="text-2xl font-bold">{totalStats.delivered}</p><p className="text-xs text-muted-foreground">Entregues</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><Users className="h-5 w-5 mx-auto mb-1 text-accent-foreground" /><p className="text-2xl font-bold">{totalStats.read}</p><p className="text-xs text-muted-foreground">Lidos</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><AlertTriangle className="h-5 w-5 mx-auto mb-1 text-destructive" /><p className="text-2xl font-bold">{totalStats.failed}</p><p className="text-xs text-muted-foreground">Falhas</p></CardContent></Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10"><Send className="h-5 w-5 text-primary" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{totalStats.sent}</p><p className="text-xs text-muted-foreground">Enviados</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10"><MessageCircle className="h-5 w-5 text-success" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-success">{totalStats.delivered}</p><p className="text-xs text-muted-foreground">Entregues</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-warning/10"><Users className="h-5 w-5 text-warning" /></div>
+              <div><p className="text-2xl font-bold tracking-tight">{totalStats.read}</p><p className="text-xs text-muted-foreground">Lidos</p></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10"><AlertTriangle className="h-5 w-5 text-destructive" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-destructive">{totalStats.failed}</p><p className="text-xs text-muted-foreground">Falhas</p></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Table */}
