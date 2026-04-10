@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Megaphone, Building2, Users, Send, CheckCircle } from 'lucide-react';
+import { Trash2, Megaphone, Building2, Users, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const statusLabel: Record<string, string> = { draft: 'Rascunho', sending: 'Enviando', completed: 'Concluída', paused: 'Pausada' };
 const statusVariant = (s: string) => {
