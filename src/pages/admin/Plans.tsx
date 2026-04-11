@@ -416,6 +416,9 @@ export default function AdminPlans() {
         actions={(row) => (
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>Editar</Button>
+            <Button variant="ghost" size="sm" onClick={() => duplicatePlan(row)} title="Duplicar plano">
+              <Copy className="h-4 w-4" />
+            </Button>
             <ConfirmDialog title="Excluir plano?" description="Assinaturas vinculadas podem ser afetadas." onConfirm={() => deleteMutation.mutate(row.id)}
               trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
           </div>
