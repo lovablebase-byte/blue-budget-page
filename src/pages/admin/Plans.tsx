@@ -15,9 +15,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, CreditCard, Package, Users } from 'lucide-react';
+import { Plus, Trash2, CreditCard, Package, Users, Star } from 'lucide-react';
 
-const CYCLES: { value: string; label: string }[] = [
+const CYCLES = [
   { value: 'monthly', label: 'Mensal' },
   { value: 'quarterly', label: 'Trimestral' },
   { value: 'semiannual', label: 'Semestral' },
@@ -30,15 +30,40 @@ const SUPPORT_LEVELS = [
   { value: 'premium', label: 'Premium' },
 ];
 
+const ALL_FEATURES = [
+  { key: 'instances_enabled', label: 'Instâncias', desc: 'Gerenciar conexões WhatsApp' },
+  { key: 'greetings_enabled', label: 'Saudações', desc: 'Mensagens automáticas de boas-vindas' },
+  { key: 'absence_enabled', label: 'Ausência', desc: 'Respostas automáticas de ausência' },
+  { key: 'status_enabled', label: 'Status', desc: 'Templates de status automático' },
+  { key: 'chatbot_keys_enabled', label: 'Chatbot Keys', desc: 'Chaves de API para chatbots' },
+  { key: 'chatbot_keywords_enabled', label: 'Chatbot Keywords', desc: 'Respostas por palavras-chave' },
+  { key: 'campaigns_enabled', label: 'Campanhas', desc: 'Disparo em massa de mensagens' },
+  { key: 'workflows_enabled', label: 'Workflows', desc: 'Construtor visual de fluxos' },
+  { key: 'ai_agents_enabled', label: 'Agentes IA', desc: 'Agentes inteligentes com IA' },
+  { key: 'invoices_enabled', label: 'Faturas', desc: 'Visualização de faturas e cobranças' },
+  { key: 'branding_enabled', label: 'Branding', desc: 'Personalização de marca e visual' },
+  { key: 'api_access', label: 'Acesso API', desc: 'API externa para integrações' },
+  { key: 'whitelabel_enabled', label: 'White Label', desc: 'Marca personalizada do cliente' },
+  { key: 'advanced_logs_enabled', label: 'Logs Avançados', desc: 'Logs detalhados de operações' },
+  { key: 'advanced_webhooks_enabled', label: 'Webhooks Avançados', desc: 'Webhooks com filtros avançados' },
+] as const;
+
+type FeatureKey = typeof ALL_FEATURES[number]['key'];
+
 const defaultForm = {
-  name: '', description: '', price_cents: 0, billing_cycle: 'monthly',
-  display_order: 0, notes: '',
+  name: '', slug: '', description: '', price_cents: 0, billing_cycle: 'monthly',
+  display_order: 0, notes: '', is_popular: false,
   max_instances: 1, max_messages_month: 1000, max_messages_day: 500,
   max_users: 3, max_campaigns: 5, max_ai_agents: 1,
   max_chatbots: 3, max_workflows: 3, max_contacts: 1000,
+  // All feature toggles
+  instances_enabled: true, greetings_enabled: true, absence_enabled: true,
+  status_enabled: true, chatbot_keys_enabled: true, chatbot_keywords_enabled: true,
   campaigns_enabled: false, workflows_enabled: false, ai_agents_enabled: false,
-  api_access: false, whitelabel_enabled: false, support_priority: 'standard',
-  is_active: true,
+  invoices_enabled: true, branding_enabled: false,
+  api_access: false, whitelabel_enabled: false,
+  advanced_logs_enabled: false, advanced_webhooks_enabled: false,
+  support_priority: 'standard', is_active: true,
 };
 
 type PlanForm = typeof defaultForm;
@@ -48,8 +73,6 @@ export default function AdminPlans() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<PlanForm>({ ...defaultForm });
-
-  // Providers per plan
   const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
 
   const { data: plans = [], isLoading } = useQuery({
@@ -90,6 +113,7 @@ export default function AdminPlans() {
         ...rest,
         description: rest.description || null,
         notes: notes || null,
+        slug: rest.slug || rest.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       };
 
       let planId = editId;
@@ -102,7 +126,6 @@ export default function AdminPlans() {
         planId = data.id;
       }
 
-      // Sync providers
       if (planId) {
         await supabase.from('plan_allowed_providers').delete().eq('plan_id', planId);
         if (selectedProviders.length > 0) {
@@ -148,20 +171,11 @@ export default function AdminPlans() {
 
   const openEdit = (p: any) => {
     setEditId(p.id);
-    setForm({
-      name: p.name, description: p.description || '', price_cents: p.price_cents,
-      billing_cycle: p.billing_cycle || 'monthly', display_order: p.display_order ?? 0,
-      notes: p.notes || '',
-      max_instances: p.max_instances, max_messages_month: p.max_messages_month,
-      max_messages_day: p.max_messages_day ?? 500, max_users: p.max_users,
-      max_campaigns: p.max_campaigns ?? 5, max_ai_agents: p.max_ai_agents ?? 1,
-      max_chatbots: p.max_chatbots ?? 3, max_workflows: p.max_workflows ?? 3,
-      max_contacts: p.max_contacts ?? 1000,
-      campaigns_enabled: p.campaigns_enabled, workflows_enabled: p.workflows_enabled,
-      ai_agents_enabled: p.ai_agents_enabled, api_access: p.api_access ?? false,
-      whitelabel_enabled: p.whitelabel_enabled ?? false,
-      support_priority: p.support_priority ?? 'standard', is_active: p.is_active,
-    });
+    const f: any = { ...defaultForm };
+    for (const key of Object.keys(defaultForm)) {
+      if (p[key] !== undefined && p[key] !== null) f[key] = p[key];
+    }
+    setForm(f);
     setSelectedProviders(
       planProviders.filter((pp: any) => pp.plan_id === p.id).map((pp: any) => pp.provider)
     );
@@ -171,29 +185,50 @@ export default function AdminPlans() {
   const set = (key: keyof PlanForm, val: any) => setForm(f => ({ ...f, [key]: val }));
 
   const cycleLabel = (c: string) => CYCLES.find(x => x.value === c)?.label || c;
-  const supportLabel = (s: string) => SUPPORT_LEVELS.find(x => x.value === s)?.label || s;
 
   const activePlans = plans.filter((p: any) => p.is_active).length;
   const totalSubs = Object.values(subscriptionCounts).reduce((a: number, b: any) => a + (b as number), 0);
 
+  const enabledFeaturesCount = (row: any) => ALL_FEATURES.filter(f => row[f.key]).length;
+
   const columns: Column<any>[] = [
     { key: 'display_order', label: '#', render: (row) => row.display_order },
-    { key: 'name', label: 'Nome', sortable: true },
-    { key: 'price_cents', label: 'Preço', render: (row) => `R$ ${(row.price_cents / 100).toFixed(2)}` },
-    { key: 'billing_cycle', label: 'Ciclo', render: (row) => <Badge variant="outline">{cycleLabel(row.billing_cycle || 'monthly')}</Badge> },
-    { key: 'max_instances', label: 'Inst.' },
-    { key: 'max_users', label: 'Usr.' },
     {
-      key: 'features', label: 'Recursos',
+      key: 'name', label: 'Nome', sortable: true,
       render: (row) => (
-        <div className="flex flex-wrap gap-1">
-          {row.campaigns_enabled && <Badge variant="secondary" className="text-[10px]">Camp</Badge>}
-          {row.workflows_enabled && <Badge variant="secondary" className="text-[10px]">WF</Badge>}
-          {row.ai_agents_enabled && <Badge variant="secondary" className="text-[10px]">IA</Badge>}
-          {row.api_access && <Badge variant="secondary" className="text-[10px]">API</Badge>}
-          {row.whitelabel_enabled && <Badge variant="secondary" className="text-[10px]">WL</Badge>}
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{row.name}</span>
+          {row.is_popular && <Star className="h-3.5 w-3.5 text-warning fill-warning" />}
         </div>
       ),
+    },
+    { key: 'slug', label: 'Slug', render: (row) => <span className="text-xs text-muted-foreground font-mono">{row.slug || '—'}</span> },
+    { key: 'price_cents', label: 'Preço', render: (row) => `R$ ${(row.price_cents / 100).toFixed(2)}` },
+    { key: 'billing_cycle', label: 'Ciclo', render: (row) => <Badge variant="outline">{cycleLabel(row.billing_cycle || 'monthly')}</Badge> },
+    {
+      key: 'features', label: 'Recursos',
+      render: (row) => {
+        const count = enabledFeaturesCount(row);
+        return (
+          <Badge variant="secondary" className="text-[10px]">
+            {count}/{ALL_FEATURES.length}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'providers', label: 'Providers',
+      render: (row) => {
+        const pp = planProviders.filter((p: any) => p.plan_id === row.id);
+        if (pp.length === 0) return <span className="text-xs text-muted-foreground">Todos</span>;
+        return (
+          <div className="flex gap-1">
+            {pp.map((p: any) => (
+              <Badge key={p.id} variant="outline" className="text-[10px] capitalize">{p.provider}</Badge>
+            ))}
+          </div>
+        );
+      },
     },
     {
       key: 'subs', label: 'Assinaturas',
@@ -210,27 +245,29 @@ export default function AdminPlans() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Planos</h1>
-          <p className="text-muted-foreground">Gerencie planos, limites e recursos disponíveis</p>
+          <p className="text-muted-foreground">Gerencie planos, limites, recursos e providers</p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); else setOpen(true); }}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Novo Plano</Button></DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{editId ? 'Editar Plano' : 'Novo Plano'}</DialogTitle></DialogHeader>
             <Tabs defaultValue="general">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="general">Geral</TabsTrigger>
-                <TabsTrigger value="limits">Limites</TabsTrigger>
                 <TabsTrigger value="features">Recursos</TabsTrigger>
+                <TabsTrigger value="limits">Limites</TabsTrigger>
                 <TabsTrigger value="providers">Providers</TabsTrigger>
+                <TabsTrigger value="notes">Notas</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div><Label>Nome</Label><Input value={form.name} onChange={e => set('name', e.target.value)} /></div>
-                  <div><Label>Preço (centavos)</Label><Input type="number" value={form.price_cents} onChange={e => set('price_cents', Number(e.target.value))} /></div>
+                  <div><Label>Slug interno</Label><Input value={form.slug} onChange={e => set('slug', e.target.value)} placeholder="auto-gerado se vazio" className="font-mono text-sm" /></div>
                 </div>
                 <div><Label>Descrição</Label><Input value={form.description} onChange={e => set('description', e.target.value)} /></div>
                 <div className="grid grid-cols-3 gap-4">
+                  <div><Label>Preço (centavos)</Label><Input type="number" value={form.price_cents} onChange={e => set('price_cents', Number(e.target.value))} /></div>
                   <div>
                     <Label>Ciclo de cobrança</Label>
                     <Select value={form.billing_cycle} onValueChange={v => set('billing_cycle', v)}>
@@ -249,20 +286,42 @@ export default function AdminPlans() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div><Label>Ordem de exibição</Label><Input type="number" value={form.display_order} onChange={e => set('display_order', Number(e.target.value))} /></div>
                 </div>
-                <div>
-                  <Label>Notas internas</Label>
-                  <Textarea rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Observações visíveis apenas para o admin..." />
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={form.is_active} onCheckedChange={v => set('is_active', v)} />
+                    <Label>Plano ativo</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={form.is_popular} onCheckedChange={v => set('is_popular', v)} />
+                    <Label className="flex items-center gap-1"><Star className="h-3.5 w-3.5 text-warning" /> Destaque / Popular</Label>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={form.is_active} onCheckedChange={v => set('is_active', v)} />
-                  <Label>Plano ativo</Label>
+              </TabsContent>
+
+              <TabsContent value="features" className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">Módulos e funcionalidades habilitados neste plano.</p>
+                <div className="space-y-2">
+                  {ALL_FEATURES.map(feat => (
+                    <div key={feat.key} className="flex items-center justify-between border border-border/30 rounded-md p-3 bg-muted/10">
+                      <div>
+                        <p className="text-sm font-medium">{feat.label}</p>
+                        <p className="text-xs text-muted-foreground">{feat.desc}</p>
+                      </div>
+                      <Switch
+                        checked={form[feat.key] as boolean}
+                        onCheckedChange={v => set(feat.key as keyof PlanForm, v)}
+                      />
+                    </div>
+                  ))}
                 </div>
               </TabsContent>
 
               <TabsContent value="limits" className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">Defina os limites quantitativos do plano. Estes limites podem ser sobrescritos por empresa via overrides.</p>
+                <p className="text-sm text-muted-foreground">Limites quantitativos do plano. Podem ser sobrescritos por empresa via overrides.</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div><Label>Max Instâncias</Label><Input type="number" min={0} value={form.max_instances} onChange={e => set('max_instances', Number(e.target.value))} /></div>
                   <div><Label>Max Usuários</Label><Input type="number" min={0} value={form.max_users} onChange={e => set('max_users', Number(e.target.value))} /></div>
@@ -276,29 +335,11 @@ export default function AdminPlans() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="features" className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">Módulos e funcionalidades habilitados neste plano.</p>
-                <div className="space-y-3">
-                  {[
-                    { key: 'campaigns_enabled' as const, label: 'Campanhas', desc: 'Disparo em massa de mensagens' },
-                    { key: 'workflows_enabled' as const, label: 'Workflows', desc: 'Construtor visual de fluxos' },
-                    { key: 'ai_agents_enabled' as const, label: 'Agentes IA', desc: 'Agentes inteligentes com IA' },
-                    { key: 'api_access' as const, label: 'Acesso API', desc: 'API externa para integrações' },
-                    { key: 'whitelabel_enabled' as const, label: 'White Label', desc: 'Marca personalizada do cliente' },
-                  ].map(feat => (
-                    <div key={feat.key} className="flex items-center justify-between border rounded-md p-3">
-                      <div><p className="text-sm font-medium">{feat.label}</p><p className="text-xs text-muted-foreground">{feat.desc}</p></div>
-                      <Switch checked={form[feat.key] as boolean} onCheckedChange={v => set(feat.key, v)} />
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-
               <TabsContent value="providers" className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">Selecione os providers de WhatsApp permitidos para este plano. Se nenhum for selecionado, todos serão permitidos.</p>
+                <p className="text-sm text-muted-foreground">Selecione os providers de WhatsApp permitidos. Se nenhum for selecionado, todos serão permitidos.</p>
                 <div className="space-y-3">
                   {['evolution', 'wuzapi'].map(provider => (
-                    <label key={provider} className="flex items-center gap-3 border rounded-md p-3 cursor-pointer">
+                    <label key={provider} className="flex items-center gap-3 border border-border/30 rounded-md p-3 cursor-pointer bg-muted/10 hover:bg-muted/20 transition-colors">
                       <Checkbox
                         checked={selectedProviders.includes(provider)}
                         onCheckedChange={(checked) => {
@@ -315,10 +356,15 @@ export default function AdminPlans() {
                   ))}
                 </div>
               </TabsContent>
+
+              <TabsContent value="notes" className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">Observações internas sobre este plano (visíveis apenas para administradores).</p>
+                <Textarea rows={5} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Observações internas..." />
+              </TabsContent>
             </Tabs>
 
             <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending} className="w-full mt-4">
-              {editId ? 'Salvar Alterações' : 'Criar Plano'}
+              {saveMutation.isPending ? 'Salvando...' : editId ? 'Salvar Alterações' : 'Criar Plano'}
             </Button>
           </DialogContent>
         </Dialog>

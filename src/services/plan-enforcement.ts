@@ -1,11 +1,6 @@
 /**
  * Plan enforcement service — checks limits and features against
  * the company's active subscription, with override support.
- *
- * Designed to be used by client-side pages to:
- * - Block creation when limits are reached
- * - Show locked features
- * - Display remaining quota
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -23,21 +18,35 @@ export interface PlanLimits {
 }
 
 export interface PlanFeatures {
+  instances_enabled: boolean;
+  greetings_enabled: boolean;
+  absence_enabled: boolean;
+  status_enabled: boolean;
+  chatbot_keys_enabled: boolean;
+  chatbot_keywords_enabled: boolean;
   campaigns_enabled: boolean;
   workflows_enabled: boolean;
   ai_agents_enabled: boolean;
+  invoices_enabled: boolean;
+  branding_enabled: boolean;
   api_access: boolean;
   whitelabel_enabled: boolean;
+  advanced_logs_enabled: boolean;
+  advanced_webhooks_enabled: boolean;
 }
 
 export interface EffectivePlan {
   plan_id: string;
   plan_name: string;
+  plan_slug: string | null;
+  plan_description: string | null;
   billing_cycle: string;
   status: string;
   limits: PlanLimits;
   features: PlanFeatures;
   support_priority: string;
+  is_popular: boolean;
+  price_cents: number;
   expires_at: string | null;
   renewal_date: string | null;
 }
@@ -67,9 +76,16 @@ export async function getEffectivePlan(companyId: string): Promise<EffectivePlan
     return overrideMap[key] ? parseInt(overrideMap[key], 10) : planVal;
   };
 
+  const getFeature = (key: string, planVal: boolean): boolean => {
+    if (overrideMap[key]) return overrideMap[key] === 'true';
+    return planVal;
+  };
+
   return {
     plan_id: plan.id,
     plan_name: plan.name,
+    plan_slug: plan.slug || null,
+    plan_description: plan.description || null,
     billing_cycle: plan.billing_cycle || 'monthly',
     status: sub.status,
     limits: {
@@ -84,13 +100,25 @@ export async function getEffectivePlan(companyId: string): Promise<EffectivePlan
       max_contacts: getLimit('max_contacts', plan.max_contacts),
     },
     features: {
-      campaigns_enabled: plan.campaigns_enabled,
-      workflows_enabled: plan.workflows_enabled,
-      ai_agents_enabled: plan.ai_agents_enabled,
-      api_access: plan.api_access,
-      whitelabel_enabled: plan.whitelabel_enabled,
+      instances_enabled: getFeature('instances_enabled', plan.instances_enabled ?? true),
+      greetings_enabled: getFeature('greetings_enabled', plan.greetings_enabled ?? true),
+      absence_enabled: getFeature('absence_enabled', plan.absence_enabled ?? true),
+      status_enabled: getFeature('status_enabled', plan.status_enabled ?? true),
+      chatbot_keys_enabled: getFeature('chatbot_keys_enabled', plan.chatbot_keys_enabled ?? true),
+      chatbot_keywords_enabled: getFeature('chatbot_keywords_enabled', plan.chatbot_keywords_enabled ?? true),
+      campaigns_enabled: getFeature('campaigns_enabled', plan.campaigns_enabled),
+      workflows_enabled: getFeature('workflows_enabled', plan.workflows_enabled),
+      ai_agents_enabled: getFeature('ai_agents_enabled', plan.ai_agents_enabled),
+      invoices_enabled: getFeature('invoices_enabled', plan.invoices_enabled ?? true),
+      branding_enabled: getFeature('branding_enabled', plan.branding_enabled ?? false),
+      api_access: getFeature('api_access', plan.api_access),
+      whitelabel_enabled: getFeature('whitelabel_enabled', plan.whitelabel_enabled),
+      advanced_logs_enabled: getFeature('advanced_logs_enabled', plan.advanced_logs_enabled ?? false),
+      advanced_webhooks_enabled: getFeature('advanced_webhooks_enabled', plan.advanced_webhooks_enabled ?? false),
     },
     support_priority: plan.support_priority,
+    is_popular: plan.is_popular ?? false,
+    price_cents: plan.price_cents ?? 0,
     expires_at: sub.expires_at,
     renewal_date: sub.renewal_date,
   };
@@ -135,7 +163,6 @@ export async function getAllowedProviders(companyId: string): Promise<string[]> 
     .select('provider')
     .eq('plan_id', plan.plan_id);
 
-  // If no providers configured, all are allowed
   if (!data || data.length === 0) return ['evolution', 'wuzapi'];
   return data.map((p: any) => p.provider);
 }

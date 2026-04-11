@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
@@ -51,7 +50,7 @@ function formatDate(d: string | null | undefined) {
 
 export default function Subscription() {
   const { company } = useAuth();
-  const { plan, isSuspended, isActive: subActive, isTrialing, allowedProviders } = useCompany();
+  const { plan, isSuspended, isActive: subActive, isTrialing, allowedProviders, hasFeature } = useCompany();
 
   const { data: subscription } = useQuery({
     queryKey: ['subscription-detail', company?.id],
@@ -92,79 +91,66 @@ export default function Subscription() {
     enabled: !!company?.id,
   });
 
-  const planData = (subscription?.plans ?? plan) as any;
   const subStatus = subscription?.status ?? plan?.status ?? 'unknown';
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Plano e Assinatura</h1>
 
-      {/* Banners de alerta */}
       {isSuspended && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Assinatura Suspensa</AlertTitle>
-          <AlertDescription>
-            Sua assinatura está suspensa. Algumas funcionalidades podem estar bloqueadas.
-            Entre em contato com o suporte para regularizar.
-          </AlertDescription>
+          <AlertDescription>Sua assinatura está suspensa. Algumas funcionalidades podem estar bloqueadas.</AlertDescription>
         </Alert>
       )}
       {subStatus === 'past_due' && (
         <Alert className="border-warning/50 bg-warning/10">
           <AlertTriangle className="h-4 w-4 text-warning" />
           <AlertTitle className="text-warning">Pagamento Pendente</AlertTitle>
-          <AlertDescription>
-            Existe um pagamento pendente. Regularize para evitar a suspensão dos serviços.
-          </AlertDescription>
+          <AlertDescription>Existe um pagamento pendente. Regularize para evitar a suspensão.</AlertDescription>
         </Alert>
       )}
       {subStatus === 'canceled' && (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertTitle>Assinatura Cancelada</AlertTitle>
-          <AlertDescription>
-            Sua assinatura foi cancelada. Entre em contato para reativação.
-          </AlertDescription>
+          <AlertDescription>Sua assinatura foi cancelada. Entre em contato para reativação.</AlertDescription>
         </Alert>
       )}
       {isTrialing && (
         <Alert className="border-accent/50 bg-accent/10">
           <Info className="h-4 w-4 text-accent" />
           <AlertTitle className="text-accent">Período de Teste</AlertTitle>
-          <AlertDescription>
-            Você está no período de avaliação. Após o encerramento será necessário assinar um plano.
-          </AlertDescription>
+          <AlertDescription>Você está no período de avaliação.</AlertDescription>
         </Alert>
       )}
 
-      {planData ? (
+      {plan ? (
         <>
-          {/* Plano Atual */}
           <Card className="border-primary/30 bg-gradient-to-br from-card to-card/80">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-primary/10"><Sparkles className="h-5 w-5 text-primary" /></div>
-                  <span className="tracking-tight">{planData.name}</span>
+                  <span className="tracking-tight">{plan.plan_name}</span>
                 </span>
                 <Badge variant={statusVariant(subStatus)}>
                   {statusLabel[subStatus] || subStatus}
                 </Badge>
               </CardTitle>
-              {planData.description && (
-                <p className="text-sm text-muted-foreground mt-1">{planData.description}</p>
+              {plan.plan_description && (
+                <p className="text-sm text-muted-foreground mt-1">{plan.plan_description}</p>
               )}
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Informações gerais */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Preço</p>
                     <p className="font-semibold text-sm">
-                      R$ {(planData.price_cents / 100).toFixed(2)}/{planData.billing_cycle === 'yearly' ? 'ano' : 'mês'}
+                      R$ {(plan.price_cents / 100).toFixed(2)}/{plan.billing_cycle === 'yearly' ? 'ano' : 'mês'}
                     </p>
                   </div>
                 </div>
@@ -180,7 +166,7 @@ export default function Subscription() {
                   <div>
                     <p className="text-xs text-muted-foreground">Renovação</p>
                     <p className="font-semibold text-sm">
-                      {formatDate(subscription?.renewal_date || subscription?.expires_at)}
+                      {formatDate(plan.renewal_date || plan.expires_at)}
                     </p>
                   </div>
                 </div>
@@ -189,7 +175,7 @@ export default function Subscription() {
                   <div>
                     <p className="text-xs text-muted-foreground">Suporte</p>
                     <p className="font-semibold text-sm capitalize">
-                      {planData.support_priority === 'standard' ? 'Padrão' : planData.support_priority === 'priority' ? 'Prioritário' : 'Premium'}
+                      {plan.support_priority === 'standard' ? 'Padrão' : plan.support_priority === 'priority' ? 'Prioritário' : 'Premium'}
                     </p>
                   </div>
                 </div>
@@ -207,7 +193,6 @@ export default function Subscription() {
 
               <Separator />
 
-              {/* Datas relevantes da assinatura */}
               {(subscription?.suspended_at || subscription?.canceled_at || subscription?.expires_at) && (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
@@ -234,21 +219,30 @@ export default function Subscription() {
                 </>
               )}
 
-              {/* Recursos */}
+              {/* All features */}
               <div>
                 <h3 className="text-sm font-semibold mb-3">Recursos do Plano</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  <FeatureItem label="Campanhas" enabled={planData.campaigns_enabled} />
-                  <FeatureItem label="Workflows" enabled={planData.workflows_enabled} />
-                  <FeatureItem label="Agentes IA" enabled={planData.ai_agents_enabled} />
-                  <FeatureItem label="API Externa" enabled={planData.api_access} />
-                  <FeatureItem label="White Label" enabled={planData.whitelabel_enabled} />
+                  <FeatureItem label="Instâncias" enabled={hasFeature('instances_enabled')} />
+                  <FeatureItem label="Saudações" enabled={hasFeature('greetings_enabled')} />
+                  <FeatureItem label="Ausência" enabled={hasFeature('absence_enabled')} />
+                  <FeatureItem label="Status" enabled={hasFeature('status_enabled')} />
+                  <FeatureItem label="Chatbot Keys" enabled={hasFeature('chatbot_keys_enabled')} />
+                  <FeatureItem label="Chatbot Keywords" enabled={hasFeature('chatbot_keywords_enabled')} />
+                  <FeatureItem label="Campanhas" enabled={hasFeature('campaigns_enabled')} />
+                  <FeatureItem label="Workflows" enabled={hasFeature('workflows_enabled')} />
+                  <FeatureItem label="Agentes IA" enabled={hasFeature('ai_agents_enabled')} />
+                  <FeatureItem label="Faturas" enabled={hasFeature('invoices_enabled')} />
+                  <FeatureItem label="Branding" enabled={hasFeature('branding_enabled')} />
+                  <FeatureItem label="API Externa" enabled={hasFeature('api_access')} />
+                  <FeatureItem label="White Label" enabled={hasFeature('whitelabel_enabled')} />
+                  <FeatureItem label="Logs Avançados" enabled={hasFeature('advanced_logs_enabled')} />
+                  <FeatureItem label="Webhooks Avançados" enabled={hasFeature('advanced_webhooks_enabled')} />
                 </div>
               </div>
 
               <Separator />
 
-              {/* Providers permitidos */}
               <div>
                 <h3 className="text-sm font-semibold mb-2">Providers Permitidos</h3>
                 <div className="flex gap-2">
@@ -262,17 +256,16 @@ export default function Subscription() {
             </CardContent>
           </Card>
 
-          {/* Uso do Plano */}
           <Card>
             <CardHeader><CardTitle className="text-lg tracking-tight">Consumo Atual</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <UsageBar label="Instâncias" used={usage?.instances ?? 0} max={plan?.limits.max_instances ?? planData.max_instances} icon={Package} />
-              <UsageBar label="Campanhas" used={usage?.campaigns ?? 0} max={plan?.limits.max_campaigns ?? planData.max_campaigns ?? 5} icon={MessageSquare} />
-              <UsageBar label="Agentes IA" used={usage?.ai_agents ?? 0} max={plan?.limits.max_ai_agents ?? planData.max_ai_agents ?? 1} icon={Bot} />
-              <UsageBar label="Workflows" used={usage?.workflows ?? 0} max={plan?.limits.max_workflows ?? planData.max_workflows ?? 3} icon={Workflow} />
-              <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan?.limits.max_users ?? planData.max_users} icon={Users} />
+              <UsageBar label="Instâncias" used={usage?.instances ?? 0} max={plan.limits.max_instances} icon={Package} />
+              <UsageBar label="Campanhas" used={usage?.campaigns ?? 0} max={plan.limits.max_campaigns} icon={MessageSquare} />
+              <UsageBar label="Agentes IA" used={usage?.ai_agents ?? 0} max={plan.limits.max_ai_agents} icon={Bot} />
+              <UsageBar label="Workflows" used={usage?.workflows ?? 0} max={plan.limits.max_workflows} icon={Workflow} />
+              <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan.limits.max_users} icon={Users} />
               <div className="text-xs text-muted-foreground pt-2">
-                Msgs/dia: {plan?.limits.max_messages_day ?? planData.max_messages_day ?? 0} · Msgs/mês: {(plan?.limits.max_messages_month ?? planData.max_messages_month ?? 0).toLocaleString()}
+                Msgs/dia: {plan.limits.max_messages_day} · Msgs/mês: {plan.limits.max_messages_month.toLocaleString()}
               </div>
             </CardContent>
           </Card>
