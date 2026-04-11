@@ -10,12 +10,11 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DataTable, Column } from '@/components/DataTable';
 import { toast } from 'sonner';
-import { Save, Settings2, Globe, Webhook, Plug, Plus, Pencil, Trash2, Copy } from 'lucide-react';
+import { Save, Settings2, Globe, Webhook, Plus, Trash2, Copy } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-// ── Default settings definitions ──
 const DEFAULT_SETTINGS = [
   { key: 'default_provider', label: 'Provider padrão', description: 'Provider utilizado ao criar novas instâncias', defaultValue: 'evolution' },
   { key: 'default_timezone', label: 'Fuso horário padrão', description: 'Timezone padrão para novas instâncias', defaultValue: 'America/Sao_Paulo' },
@@ -28,7 +27,6 @@ const DEFAULT_SETTINGS = [
 export default function AdminSettings() {
   const queryClient = useQueryClient();
 
-  // ── Global settings ──
   const { data: globalSettings = [], isLoading: loadingGlobal } = useQuery({
     queryKey: ['global-settings'],
     queryFn: getGlobalSettings,
@@ -81,32 +79,35 @@ export default function AdminSettings() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Custom settings (non-default)
   const customSettings = globalSettings.filter((s: any) => !DEFAULT_SETTINGS.find(d => d.key === s.setting_key));
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Ajustes do Sistema</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Ajustes do Sistema</h1>
         <p className="text-muted-foreground">Configurações globais herdáveis por todas as empresas</p>
       </div>
 
-      {/* Default settings */}
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Padrões Globais</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <Settings2 className="h-5 w-5 text-primary" />
+            </div>
+            Padrões Globais
+          </CardTitle>
           <CardDescription>Valores padrão que serão herdados por todas as empresas (sobrescritos individualmente quando necessário)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {DEFAULT_SETTINGS.map(def => (
-            <div key={def.key}>
-              <Label>{def.label}</Label>
+            <div key={def.key} className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">{def.label}</Label>
               <Input
                 value={settingsForm[def.key] || ''}
                 onChange={e => setSettingsForm(prev => ({ ...prev, [def.key]: e.target.value }))}
                 placeholder={def.defaultValue}
               />
-              <p className="text-xs text-muted-foreground mt-1">{def.description}</p>
+              <p className="text-xs text-muted-foreground">{def.description}</p>
             </div>
           ))}
           <Button onClick={() => saveSettings.mutate()} disabled={saveSettings.isPending}>
@@ -115,10 +116,14 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
 
-      {/* Webhook info */}
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Webhook className="h-5 w-5" /> Webhooks</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-accent/10">
+              <Webhook className="h-5 w-5 text-accent" />
+            </div>
+            Webhooks
+          </CardTitle>
           <CardDescription>Endpoint centralizado para receber eventos</CardDescription>
         </CardHeader>
         <CardContent>
@@ -126,12 +131,12 @@ export default function AdminSettings() {
             <Input
               value={`${SUPABASE_URL}/functions/v1/webhook-receiver`}
               readOnly
-              className="font-mono text-xs"
+              className="font-mono text-xs bg-muted/30 border-border/30"
             />
             <Button variant="outline" size="icon" onClick={() => {
               navigator.clipboard.writeText(`${SUPABASE_URL}/functions/v1/webhook-receiver`);
               toast.success('URL copiada');
-            }}>
+            }} className="border-accent/40 text-accent hover:bg-accent/10">
               <Copy className="h-4 w-4" />
             </Button>
           </div>
@@ -139,15 +144,19 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
 
-      {/* Custom settings */}
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> Configurações Customizadas</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-accent/10">
+                  <Globe className="h-5 w-5 text-accent" />
+                </div>
+                Configurações Customizadas
+              </CardTitle>
               <CardDescription>Chaves de configuração adicionais</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setNewSettingOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setNewSettingOpen(true)} className="border-primary/40 text-primary hover:bg-primary/10">
               <Plus className="h-4 w-4 mr-1" /> Nova
             </Button>
           </div>
@@ -156,20 +165,20 @@ export default function AdminSettings() {
           {customSettings.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma configuração customizada.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {customSettings.map((s: any) => (
-                <div key={s.id} className="flex items-center justify-between border rounded-md p-3">
+                <div key={s.id} className="flex items-center justify-between border border-border/30 rounded-lg p-3 bg-muted/10 hover:bg-muted/20 transition-colors">
                   <div>
-                    <p className="text-sm font-medium font-mono">{s.setting_key}</p>
+                    <p className="text-sm font-medium font-mono text-foreground">{s.setting_key}</p>
                     <p className="text-xs text-muted-foreground">{s.description || s.setting_value}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{s.setting_value}</span>
+                    <span className="text-sm font-mono text-muted-foreground">{s.setting_value}</span>
                     <ConfirmDialog
                       title="Remover configuração?"
                       description={`A chave "${s.setting_key}" será removida.`}
                       onConfirm={() => deleteGlobalSetting.mutate(s.setting_key)}
-                      trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                      trigger={<Button variant="ghost" size="icon" className="hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                     />
                   </div>
                 </div>
@@ -179,24 +188,25 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
 
-      {/* New setting dialog */}
       <Dialog open={newSettingOpen} onOpenChange={setNewSettingOpen}>
-        <DialogContent>
+        <DialogContent className="border-border/40">
           <DialogHeader>
-            <DialogTitle>Nova Configuração</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" /> Nova Configuração
+            </DialogTitle>
             <DialogDescription>Adicione uma chave de configuração global</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Chave *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Chave *</Label>
               <Input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder="minha_config" />
             </div>
-            <div>
-              <Label>Valor</Label>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Valor</Label>
               <Input value={newValue} onChange={e => setNewValue(e.target.value)} placeholder="valor" />
             </div>
-            <div>
-              <Label>Descrição</Label>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Descrição</Label>
               <Input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Descrição opcional" />
             </div>
           </div>

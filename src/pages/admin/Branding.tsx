@@ -18,7 +18,6 @@ function getPublicUrl(path: string) {
 export default function AdminBranding() {
   const queryClient = useQueryClient();
 
-  // Company selector
   const { data: companies = [] } = useQuery({
     queryKey: ['admin-companies-list'],
     queryFn: async () => {
@@ -150,21 +149,22 @@ export default function AdminBranding() {
 
   const FileUploadField = ({ label, field, preview }: { label: string; field: 'logo_light_url' | 'logo_dark_url' | 'favicon_url'; preview: string }) => (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label className="text-muted-foreground text-xs uppercase tracking-wider">{label}</Label>
       <div className="flex items-center gap-4">
         {preview ? (
-          <div className="relative w-20 h-20 border rounded-md overflow-hidden bg-accent/30 flex items-center justify-center">
+          <div className="relative w-24 h-24 border border-border/40 rounded-lg overflow-hidden bg-muted/20 flex items-center justify-center group">
             <img src={preview} alt={label} className="max-w-full max-h-full object-contain" />
-            <button onClick={() => setForm(f => ({ ...f, [field]: '' }))} className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5">
+            <button onClick={() => setForm(f => ({ ...f, [field]: '' }))} className="absolute top-1 right-1 bg-destructive/90 text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <X className="h-3 w-3" />
             </button>
           </div>
         ) : (
-          <div className="w-20 h-20 border rounded-md border-dashed flex items-center justify-center text-muted-foreground">
+          <div className="w-24 h-24 border-2 border-dashed border-border/40 rounded-lg flex flex-col items-center justify-center text-muted-foreground gap-1 hover:border-primary/40 transition-colors">
             <Image className="h-6 w-6" />
+            <span className="text-[10px]">Sem imagem</span>
           </div>
         )}
-        <Button variant="outline" size="sm" disabled={uploading === field} asChild>
+        <Button variant="outline" size="sm" disabled={uploading === field} asChild className="border-primary/40 text-primary hover:bg-primary/10">
           <label className="cursor-pointer">
             <Upload className="h-4 w-4 mr-1" />
             {uploading === field ? 'Enviando...' : 'Upload'}
@@ -178,13 +178,18 @@ export default function AdminBranding() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Marca / White-Label</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Marca / White-Label</h1>
         <p className="text-muted-foreground">Gerencie a identidade visual de cada empresa</p>
       </div>
 
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Selecionar Empresa</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <Building2 className="h-5 w-5 text-primary" />
+            </div>
+            Selecionar Empresa
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
@@ -201,9 +206,14 @@ export default function AdminBranding() {
       {selectedCompanyId && (
         <>
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card className="border-border/40 bg-card/80">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Image className="h-5 w-5" /> Logotipos</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Image className="h-5 w-5 text-primary" />
+                  </div>
+                  Logotipos
+                </CardTitle>
                 <CardDescription>Logos para os modos claro e escuro</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -212,41 +222,52 @@ export default function AdminBranding() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/40 bg-card/80">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> Site</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-accent/10">
+                    <Globe className="h-5 w-5 text-accent" />
+                  </div>
+                  Site
+                </CardTitle>
                 <CardDescription>Favicon, título e domínio</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <FileUploadField label="Favicon" field="favicon_url" preview={form.favicon_url} />
-                <div>
-                  <Label>Título do site</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Título do site</Label>
                   <Input value={form.site_title} onChange={e => setForm(f => ({ ...f, site_title: e.target.value }))} placeholder="Nome na aba do navegador" />
                 </div>
-                <div>
-                  <Label>Domínio personalizado</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Domínio personalizado</Label>
                   <Input value={form.custom_domain} onChange={e => setForm(f => ({ ...f, custom_domain: e.target.value }))} placeholder="painel.empresa.com" />
                   <p className="text-xs text-muted-foreground mt-1">DNS deve apontar para este painel</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2">
+            <Card className="lg:col-span-2 border-border/40 bg-card/80">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" /> Cor Primária</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Palette className="h-5 w-5 text-primary" />
+                  </div>
+                  Cor Primária
+                </CardTitle>
                 <CardDescription>Define a cor principal do painel da empresa</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4">
-                  <input type="color" value={form.primary_color} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} className="w-12 h-12 rounded-md border cursor-pointer" />
+                <div className="flex items-center gap-6 p-4 rounded-lg bg-muted/20 border border-border/30">
+                  <input type="color" value={form.primary_color} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} className="w-14 h-14 rounded-lg border-2 border-border/40 cursor-pointer hover:border-primary/40 transition-colors" />
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">{form.primary_color.toUpperCase()}</p>
-                    <p className="text-xs text-muted-foreground">HSL: {hexToHsl(form.primary_color)}</p>
+                    <p className="text-sm font-semibold font-mono text-foreground">{form.primary_color.toUpperCase()}</p>
+                    <p className="text-xs text-muted-foreground font-mono">HSL: {hexToHsl(form.primary_color)}</p>
                   </div>
                   <div className="flex gap-2 ml-4">
-                    <div className="w-10 h-10 rounded-md" style={{ backgroundColor: form.primary_color }} />
-                    <div className="w-10 h-10 rounded-md" style={{ backgroundColor: form.primary_color, opacity: 0.7 }} />
-                    <div className="w-10 h-10 rounded-md" style={{ backgroundColor: form.primary_color, opacity: 0.4 }} />
+                    <div className="w-12 h-12 rounded-lg shadow-lg" style={{ backgroundColor: form.primary_color }} />
+                    <div className="w-12 h-12 rounded-lg" style={{ backgroundColor: form.primary_color, opacity: 0.7 }} />
+                    <div className="w-12 h-12 rounded-lg" style={{ backgroundColor: form.primary_color, opacity: 0.4 }} />
+                    <div className="w-12 h-12 rounded-lg" style={{ backgroundColor: form.primary_color, opacity: 0.15 }} />
                   </div>
                 </div>
               </CardContent>

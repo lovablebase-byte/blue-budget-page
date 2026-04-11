@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from '@/hooks/use-toast';
 import { Save, User } from 'lucide-react';
@@ -47,35 +47,40 @@ export default function Profile() {
   const initials = fullName ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold">Perfil</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Perfil</h1>
         <p className="text-muted-foreground">Suas informações pessoais</p>
       </div>
 
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Informações</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            Informações
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="text-lg bg-primary text-primary-foreground">{initials}</AvatarFallback>
+          <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/20 border border-border/30">
+            <Avatar className="h-16 w-16 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+              <AvatarFallback className="text-lg bg-primary/20 text-primary font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-semibold">{fullName || 'Sem nome'}</p>
+              <p className="font-semibold text-foreground">{fullName || 'Sem nome'}</p>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>
 
-          <div>
-            <Label>Nome completo</Label>
+          <div className="space-y-2">
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome completo</Label>
             <Input value={fullName} onChange={e => setFullName(e.target.value)} />
           </div>
 
-          <div>
-            <Label>E-mail</Label>
-            <Input value={user?.email || ''} disabled className="bg-muted" />
+          <div className="space-y-2">
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">E-mail</Label>
+            <Input value={user?.email || ''} disabled className="bg-muted/30 border-border/30" />
           </div>
 
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
