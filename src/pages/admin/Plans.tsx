@@ -169,6 +169,21 @@ export default function AdminPlans() {
     setSelectedProviders([]);
   };
 
+  const duplicatePlan = (p: any) => {
+    setEditId(null);
+    const f: any = { ...defaultForm };
+    for (const key of Object.keys(defaultForm)) {
+      if (p[key] !== undefined && p[key] !== null) f[key] = p[key];
+    }
+    f.name = `${p.name} (cópia)`;
+    f.slug = '';
+    setForm(f);
+    setSelectedProviders(
+      planProviders.filter((pp: any) => pp.plan_id === p.id).map((pp: any) => pp.provider)
+    );
+    setOpen(true);
+  };
+
   const openEdit = (p: any) => {
     setEditId(p.id);
     const f: any = { ...defaultForm };
