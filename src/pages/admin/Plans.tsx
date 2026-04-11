@@ -15,7 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, CreditCard, Package, Users, Star } from 'lucide-react';
+import { Plus, Trash2, CreditCard, Package, Users, Star, Copy } from 'lucide-react';
 
 const CYCLES = [
   { value: 'monthly', label: 'Mensal' },
