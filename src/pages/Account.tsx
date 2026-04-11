@@ -102,22 +102,27 @@ export default function Account() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Minha Conta</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Minha Conta</h1>
         <p className="text-muted-foreground">Gerencie suas informações pessoais e preferências</p>
       </div>
 
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Perfil</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            Perfil
+          </CardTitle>
           <CardDescription>Suas informações básicas</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>E-mail</Label>
-            <Input value={user?.email || ''} disabled />
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">E-mail</Label>
+            <Input value={user?.email || ''} disabled className="bg-muted/30 border-border/30" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="name">Nome completo</Label>
+            <Label htmlFor="name" className="text-muted-foreground text-xs uppercase tracking-wider">Nome completo</Label>
             <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
           </div>
           <Button onClick={handleSaveName} disabled={saving}>
@@ -127,9 +132,14 @@ export default function Account() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5" /> Fuso Horário</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-accent/10">
+              <Clock className="h-5 w-5 text-accent" />
+            </div>
+            Fuso Horário
+          </CardTitle>
           <CardDescription>Define o horário exibido em todo o sistema</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -150,14 +160,19 @@ export default function Account() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/40 bg-card/80">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Segurança</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-warning/10">
+              <Shield className="h-5 w-5 text-warning" />
+            </div>
+            Segurança
+          </CardTitle>
           <CardDescription>Alterar senha e gerenciar sessões</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="new-pw">Nova senha</Label>
+            <Label htmlFor="new-pw" className="text-muted-foreground text-xs uppercase tracking-wider">Nova senha</Label>
             <Input id="new-pw" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
           </div>
           <Button onClick={handleChangePassword} disabled={changingPw || !newPassword}>
@@ -165,14 +180,14 @@ export default function Account() {
             Alterar senha
           </Button>
 
-          <Separator />
+          <Separator className="bg-border/30" />
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <div>
               <p className="text-sm font-medium">Sessões ativas</p>
               <p className="text-xs text-muted-foreground">Encerrar todas as sessões em todos os dispositivos</p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleSignOutAll} className="gap-1">
+            <Button variant="outline" size="sm" onClick={handleSignOutAll} className="gap-1 border-destructive/40 text-destructive hover:bg-destructive/10">
               <LogOut className="h-3.5 w-3.5" />
               Sair de todos
             </Button>

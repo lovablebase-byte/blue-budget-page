@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from '@/components/ui/separator';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { UserPlus, Trash2, Pencil, Eye } from 'lucide-react';
+import { UserPlus, Trash2, Eye, Users } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = { admin: 'Admin', user: 'Usuário' };
 
@@ -23,7 +23,6 @@ export default function AdminUsers() {
   const [detailUser, setDetailUser] = useState<any | null>(null);
   const [editUser, setEditUser] = useState<any | null>(null);
 
-  // Form state for create
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<string>('user');
@@ -79,7 +78,6 @@ export default function AdminUsers() {
   const createUser = useMutation({
     mutationFn: async () => {
       if (!newEmail || !newCompanyId) throw new Error('Email e empresa são obrigatórios');
-      // Create user via edge function
       const { data, error } = await supabase.functions.invoke('seed-users', {
         body: { email: newEmail, full_name: newName || newEmail, role: newRole, company_id: newCompanyId },
       });
@@ -102,8 +100,16 @@ export default function AdminUsers() {
   });
 
   const columns: Column<any>[] = [
-    { key: 'profiles', label: 'Nome', render: (row) => (row.profiles as any)?.full_name || '—', sortable: true },
-    { key: 'companies', label: 'Empresa', render: (row) => (row.companies as any)?.name || 'Sem empresa', sortable: true },
+    {
+      key: 'profiles', label: 'Nome',
+      render: (row) => <span className="font-medium text-foreground">{(row.profiles as any)?.full_name || '—'}</span>,
+      sortable: true,
+    },
+    {
+      key: 'companies', label: 'Empresa',
+      render: (row) => <span className="text-muted-foreground">{(row.companies as any)?.name || 'Sem empresa'}</span>,
+      sortable: true,
+    },
     {
       key: 'role', label: 'Papel',
       render: (row) => (
@@ -116,13 +122,21 @@ export default function AdminUsers() {
         </Select>
       ),
     },
-    { key: 'created_at', label: 'Criado em', render: (row) => new Date(row.created_at).toLocaleDateString('pt-BR') },
+    {
+      key: 'created_at', label: 'Criado em',
+      render: (row) => <span className="text-muted-foreground text-sm">{new Date(row.created_at).toLocaleDateString('pt-BR')}</span>,
+    },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Usuários</h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <div className="p-1.5 rounded-md bg-primary/10">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          Usuários
+        </h1>
         <Button onClick={() => setDialogOpen(true)}>
           <UserPlus className="h-4 w-4 mr-2" /> Novo Usuário
         </Button>
@@ -157,14 +171,14 @@ export default function AdminUsers() {
         emptyMessage="Nenhum usuário"
         actions={(row) => (
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setDetailUser(row)}>
-              <Eye className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => setDetailUser(row)} className="hover:bg-accent/10">
+              <Eye className="h-4 w-4 text-accent" />
             </Button>
             <ConfirmDialog
               title="Remover usuário?"
               description="O vínculo será removido permanentemente."
               onConfirm={() => deleteMutation.mutate(row.id)}
-              trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+              trigger={<Button variant="ghost" size="icon" className="hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
             />
           </div>
         )}
@@ -172,22 +186,24 @@ export default function AdminUsers() {
 
       {/* Create dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="border-border/40">
           <DialogHeader>
-            <DialogTitle>Novo Usuário</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Novo Usuário
+            </DialogTitle>
             <DialogDescription>Crie um novo usuário e vincule a uma empresa</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Email *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Email *</Label>
               <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="email@exemplo.com" />
             </div>
-            <div>
-              <Label>Nome</Label>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome</Label>
               <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome completo" />
             </div>
-            <div>
-              <Label>Papel</Label>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Papel</Label>
               <Select value={newRole} onValueChange={setNewRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -196,8 +212,8 @@ export default function AdminUsers() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Empresa *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Empresa *</Label>
               <Select value={newCompanyId} onValueChange={setNewCompanyId}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
@@ -219,23 +235,25 @@ export default function AdminUsers() {
 
       {/* Detail dialog */}
       <Dialog open={!!detailUser} onOpenChange={() => setDetailUser(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md border-border/40">
           <DialogHeader>
-            <DialogTitle>Detalhes do Usuário</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-accent" /> Detalhes do Usuário
+            </DialogTitle>
             <DialogDescription>Informações e vínculo</DialogDescription>
           </DialogHeader>
           {detailUser && (
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Nome</span>
-                <span className="font-medium">{(detailUser.profiles as any)?.full_name || '—'}</span>
+                <span className="font-medium text-foreground">{(detailUser.profiles as any)?.full_name || '—'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Papel</span>
-                <Badge variant="outline">{ROLE_LABELS[detailUser.role] || detailUser.role}</Badge>
+                <Badge variant="outline" className="bg-primary/10 border-primary/30 text-primary">{ROLE_LABELS[detailUser.role] || detailUser.role}</Badge>
               </div>
-              <Separator />
-              <div className="flex justify-between items-center">
+              <Separator className="bg-border/30" />
+              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Empresa</span>
                 <Select
                   value={detailUser.company_id || ''}
@@ -252,9 +270,9 @@ export default function AdminUsers() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Criado em</span>
-                <span>{new Date(detailUser.created_at).toLocaleDateString('pt-BR')}</span>
+                <span className="text-foreground">{new Date(detailUser.created_at).toLocaleDateString('pt-BR')}</span>
               </div>
             </div>
           )}

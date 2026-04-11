@@ -68,19 +68,6 @@ export default function CompanyUsers() {
   const inviteMutation = useMutation({
     mutationFn: async () => {
       if (!company?.id || !user?.id) throw new Error('Empresa não encontrada');
-      // Look up user by email via profiles (we need the auth user id)
-      // Since we can't query auth.users, we create the role entry
-      // The admin should provide the user_id or the user must already exist
-      // For now, we search profiles by email match — but profiles don't store email.
-      // Realistic approach: use supabase admin to invite, or user signs up and admin assigns.
-      // Simple approach: admin enters user UUID directly or email is matched via auth metadata.
-      
-      // Try to find user via auth — we can use supabase.auth.admin only server-side.
-      // Workaround: ask for the user_id or use an edge function.
-      // For MVP: we'll add a user_role entry expecting the user already signed up.
-      // The invite flow should ideally use an edge function. 
-      // Let's create a simple "add by email" that searches profiles.
-      
       throw new Error('Para convidar usuários, eles devem primeiro criar uma conta. Após o cadastro, adicione-os manualmente informando o ID do usuário.');
     },
     onError: (e: any) => toast({ title: 'Info', description: e.message }),
@@ -92,7 +79,9 @@ export default function CompanyUsers() {
     {
       key: 'profiles',
       label: 'Nome',
-      render: (row) => (row.profiles as any)?.full_name || '—',
+      render: (row) => (
+        <span className="font-medium text-foreground">{(row.profiles as any)?.full_name || '—'}</span>
+      ),
       sortable: true,
     },
     {
@@ -101,7 +90,12 @@ export default function CompanyUsers() {
       render: (row) => {
         if (!isAdmin || row.user_id === user?.id || isSuspended) {
           return (
-            <Badge variant={row.role === 'admin' ? 'default' : 'secondary'}>
+            <Badge
+              variant="outline"
+              className={row.role === 'admin'
+                ? 'bg-primary/10 text-primary border-primary/30'
+                : 'bg-muted/30 text-muted-foreground border-border/40'}
+            >
               {row.role === 'admin' ? 'Admin' : 'Usuário'}
             </Badge>
           );
@@ -123,7 +117,9 @@ export default function CompanyUsers() {
     {
       key: 'created_at',
       label: 'Desde',
-      render: (row) => new Date(row.created_at).toLocaleDateString('pt-BR'),
+      render: (row) => (
+        <span className="text-muted-foreground text-sm">{new Date(row.created_at).toLocaleDateString('pt-BR')}</span>
+      ),
     },
   ];
 
@@ -131,19 +127,22 @@ export default function CompanyUsers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6" /> Usuários da Empresa
+          <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            Usuários da Empresa
           </h1>
           {limitData && (
             <p className="text-sm text-muted-foreground mt-1">
-              {limitData.current} / {limitData.max} usuários utilizados
+              <span className="text-foreground font-semibold">{limitData.current}</span> / {limitData.max} usuários utilizados
             </p>
           )}
         </div>
       </div>
 
       {isSuspended && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="bg-destructive/10 border-destructive/30">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Assinatura suspensa</AlertTitle>
           <AlertDescription>
@@ -166,7 +165,7 @@ export default function CompanyUsers() {
               description="O usuário perderá acesso à empresa."
               onConfirm={() => deleteMutation.mutate(row.id)}
               trigger={
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className="hover:bg-destructive/10">
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               }
