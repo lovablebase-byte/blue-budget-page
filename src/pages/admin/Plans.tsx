@@ -15,7 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, CreditCard, Package, Users, Star } from 'lucide-react';
+import { Plus, Trash2, CreditCard, Package, Users, Star, Copy } from 'lucide-react';
 
 const CYCLES = [
   { value: 'monthly', label: 'Mensal' },
@@ -167,6 +167,21 @@ export default function AdminPlans() {
     setOpen(false); setEditId(null);
     setForm({ ...defaultForm });
     setSelectedProviders([]);
+  };
+
+  const duplicatePlan = (p: any) => {
+    setEditId(null);
+    const f: any = { ...defaultForm };
+    for (const key of Object.keys(defaultForm)) {
+      if (p[key] !== undefined && p[key] !== null) f[key] = p[key];
+    }
+    f.name = `${p.name} (cópia)`;
+    f.slug = '';
+    setForm(f);
+    setSelectedProviders(
+      planProviders.filter((pp: any) => pp.plan_id === p.id).map((pp: any) => pp.provider)
+    );
+    setOpen(true);
   };
 
   const openEdit = (p: any) => {
@@ -401,6 +416,9 @@ export default function AdminPlans() {
         actions={(row) => (
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>Editar</Button>
+            <Button variant="ghost" size="sm" onClick={() => duplicatePlan(row)} title="Duplicar plano">
+              <Copy className="h-4 w-4" />
+            </Button>
             <ConfirmDialog title="Excluir plano?" description="Assinaturas vinculadas podem ser afetadas." onConfirm={() => deleteMutation.mutate(row.id)}
               trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
           </div>
