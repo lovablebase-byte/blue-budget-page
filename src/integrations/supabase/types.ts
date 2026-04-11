@@ -1340,15 +1340,25 @@ export type Database = {
       }
       plans: {
         Row: {
+          absence_enabled: boolean
+          advanced_logs_enabled: boolean
+          advanced_webhooks_enabled: boolean
           ai_agents_enabled: boolean
           api_access: boolean
           billing_cycle: string
+          branding_enabled: boolean
           campaigns_enabled: boolean
+          chatbot_keys_enabled: boolean
+          chatbot_keywords_enabled: boolean
           created_at: string
           description: string | null
           display_order: number
+          greetings_enabled: boolean
           id: string
+          instances_enabled: boolean
+          invoices_enabled: boolean
           is_active: boolean
+          is_popular: boolean
           max_ai_agents: number
           max_campaigns: number
           max_chatbots: number
@@ -1361,21 +1371,33 @@ export type Database = {
           name: string
           notes: string | null
           price_cents: number
+          slug: string | null
+          status_enabled: boolean
           support_priority: string
           updated_at: string
           whitelabel_enabled: boolean
           workflows_enabled: boolean
         }
         Insert: {
+          absence_enabled?: boolean
+          advanced_logs_enabled?: boolean
+          advanced_webhooks_enabled?: boolean
           ai_agents_enabled?: boolean
           api_access?: boolean
           billing_cycle?: string
+          branding_enabled?: boolean
           campaigns_enabled?: boolean
+          chatbot_keys_enabled?: boolean
+          chatbot_keywords_enabled?: boolean
           created_at?: string
           description?: string | null
           display_order?: number
+          greetings_enabled?: boolean
           id?: string
+          instances_enabled?: boolean
+          invoices_enabled?: boolean
           is_active?: boolean
+          is_popular?: boolean
           max_ai_agents?: number
           max_campaigns?: number
           max_chatbots?: number
@@ -1388,21 +1410,33 @@ export type Database = {
           name: string
           notes?: string | null
           price_cents?: number
+          slug?: string | null
+          status_enabled?: boolean
           support_priority?: string
           updated_at?: string
           whitelabel_enabled?: boolean
           workflows_enabled?: boolean
         }
         Update: {
+          absence_enabled?: boolean
+          advanced_logs_enabled?: boolean
+          advanced_webhooks_enabled?: boolean
           ai_agents_enabled?: boolean
           api_access?: boolean
           billing_cycle?: string
+          branding_enabled?: boolean
           campaigns_enabled?: boolean
+          chatbot_keys_enabled?: boolean
+          chatbot_keywords_enabled?: boolean
           created_at?: string
           description?: string | null
           display_order?: number
+          greetings_enabled?: boolean
           id?: string
+          instances_enabled?: boolean
+          invoices_enabled?: boolean
           is_active?: boolean
+          is_popular?: boolean
           max_ai_agents?: number
           max_campaigns?: number
           max_chatbots?: number
@@ -1415,6 +1449,8 @@ export type Database = {
           name?: string
           notes?: string | null
           price_cents?: number
+          slug?: string | null
+          status_enabled?: boolean
           support_priority?: string
           updated_at?: string
           whitelabel_enabled?: boolean
