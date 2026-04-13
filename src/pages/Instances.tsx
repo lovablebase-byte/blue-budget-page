@@ -395,8 +395,9 @@ export default function Instances() {
           events: getProviderEvents(instance.provider),
         });
 
-        const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
-        if (qr) {
+        const rawQr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+        if (rawQr) {
+          const qr = normalizeQrBase64(rawQr);
           await supabase.from('instances').update({ status: 'pairing' }).eq('id', instance.id);
           setSelectedInstance(instance);
           setQrCodeBase64(qr);
