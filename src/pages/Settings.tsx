@@ -114,7 +114,9 @@ export default function Settings() {
   });
 
   const saveProvider = async (provider: 'evolution' | 'wuzapi', state: ProviderState) => {
-    if (!company?.id) return;
+    if (!company?.id) throw new Error('Empresa não identificada');
+    if (!state.baseUrl) throw new Error('URL da API é obrigatória');
+
     const payload = {
       company_id: company.id,
       provider,
@@ -123,17 +125,17 @@ export default function Settings() {
       is_active: state.isActive,
       is_default: state.isDefault,
     };
+
     if (state.isDefault) {
       await supabase.from('whatsapp_api_configs').update({ is_default: false }).eq('company_id', company.id).neq('provider', provider);
     }
-    const existing = waConfigs?.find((c: any) => c.provider === provider);
-    if (existing) {
-      const { error } = await supabase.from('whatsapp_api_configs').update(payload).eq('id', existing.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase.from('whatsapp_api_configs').insert(payload);
-      if (error) throw error;
-    }
+
+    // Use upsert with the unique constraint on (company_id, provider)
+    const { error } = await supabase
+      .from('whatsapp_api_configs')
+      .upsert(payload, { onConflict: 'company_id,provider' });
+    if (error) throw error;
+
     if (provider === 'evolution') {
       const legacyPayload = { company_id: company.id, base_url: payload.base_url, api_key: payload.api_key || '', is_active: payload.is_active };
       if (legacyEvoConfig) {
@@ -142,8 +144,10 @@ export default function Settings() {
         await supabase.from('evolution_api_config').insert(legacyPayload);
       }
     }
-    queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
-    queryClient.invalidateQueries({ queryKey: ['evolution-config'] });
+
+    // Wait for cache to refresh before proceeding (important for test connection)
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
+    await queryClient.invalidateQueries({ queryKey: ['evolution-config'] });
   };
 
   const handleSaveProvider = async (provider: 'evolution' | 'wuzapi') => {
