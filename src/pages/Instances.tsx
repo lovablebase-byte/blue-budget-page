@@ -9,18 +9,16 @@ import { DataTable, Column } from '@/components/DataTable';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   Plus, RefreshCw, Trash2, QrCode, Send, Power, PowerOff,
-  MoreHorizontal, Eye, Loader2, Smartphone, Wifi, WifiOff, AlertCircle,
+  MoreHorizontal, Eye, Loader2, AlertCircle,
   Copy, RotateCcw, Link, Key, CheckCircle2,
 } from 'lucide-react';
 import {
@@ -29,6 +27,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
+
+import { ProviderBadge } from '@/components/instances/ProviderBadge';
+import { StatusBadge } from '@/components/instances/StatusBadge';
+import { InstanceStatsCards } from '@/components/instances/InstanceStatsCards';
+import { InstanceFilters } from '@/components/instances/InstanceFilters';
+import { callProviderProxy } from '@/components/instances/useProviderProxy';
+import { providerLabels, TIMEZONES, getProviderEvents } from '@/components/instances/constants';
 
 interface Instance {
   id: string;
@@ -54,24 +59,9 @@ interface ActiveProvider {
   is_default: boolean;
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info'; icon: typeof Wifi }> = {
-  online: { label: 'Online', variant: 'success', icon: Wifi },
-  offline: { label: 'Offline', variant: 'secondary', icon: WifiOff },
-  connecting: { label: 'Conectando', variant: 'info', icon: RefreshCw },
-  pairing: { label: 'Pareando', variant: 'warning', icon: QrCode },
-  error: { label: 'Erro', variant: 'destructive', icon: AlertCircle },
+const getProviderInstanceName = (instance: Instance): string => {
+  return instance.provider_instance_id || instance.evolution_instance_id || instance.name;
 };
-
-const providerLabels: Record<string, string> = {
-  evolution: 'Evolution',
-  wuzapi: 'Wuzapi',
-};
-
-const TIMEZONES = [
-  'America/Sao_Paulo', 'America/Manaus', 'America/Fortaleza',
-  'America/Cuiaba', 'America/Belem', 'America/Recife',
-  'America/Bahia', 'America/Porto_Velho', 'America/Rio_Branco',
-];
 
 export default function Instances() {
   const { company, hasPermission, isReadOnly } = useAuth();
@@ -89,6 +79,11 @@ export default function Instances() {
   const [createdInstance, setCreatedInstance] = useState<Instance | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Filters
+  const [filterProvider, setFilterProvider] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchText, setSearchText] = useState('');
 
   // Active providers
   const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
@@ -111,7 +106,6 @@ export default function Instances() {
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
-  // Fetch active providers
   const fetchActiveProviders = async () => {
     if (!company) return;
     const { data } = await supabase
@@ -122,7 +116,6 @@ export default function Instances() {
 
     const providers = (data || []) as ActiveProvider[];
 
-    // If no providers in new table, check legacy
     if (providers.length === 0) {
       const { data: legacy } = await supabase
         .from('evolution_api_config')
@@ -136,8 +129,6 @@ export default function Instances() {
     }
 
     setActiveProviders(providers);
-
-    // Auto-select provider
     if (providers.length === 1) {
       setNewProvider(providers[0].provider);
     } else {
@@ -146,52 +137,9 @@ export default function Instances() {
     }
   };
 
-  // Helper to get instance identifier for provider calls
-  const getProviderInstanceName = (instance: Instance): string => {
-    return instance.provider_instance_id || instance.evolution_instance_id || instance.name;
-  };
-
-  const callProviderProxy = async (action: string, provider?: string, instanceName?: string, payload?: any) => {
-    const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
-      body: { action, provider, instanceName, payload },
-    });
-
-    if (res.error) {
-      const invokeError: any = res.error;
-      const errorContext = invokeError?.context;
-      let errorDetails: any = null;
-      if (errorContext) {
-        errorDetails = await errorContext.clone().json().catch(async () => {
-          const rawText = await errorContext.text().catch(() => '');
-          return rawText ? { raw: rawText } : null;
-        });
-      }
-      throw new Error(errorDetails?.error || invokeError.message || 'Erro ao chamar proxy');
-    }
-
-    if (res.data?.error) {
-      throw new Error(res.data.error);
-    }
-
-    return res.data;
-  };
-
-  const writeDeleteAuditLog = async (instanceId: string, payload: Record<string, any>) => {
-    try {
-      await supabase.rpc('log_audit', {
-        _action: 'instance_delete_sync',
-        _entity_type: 'instance',
-        _entity_id: instanceId,
-        _payload: payload,
-      });
-    } catch {
-      // Do not block main flow
-    }
-  };
-
   const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
     const providerName = getProviderInstanceName(instance);
-    if (!providerName || providerName === instance.name && !instance.evolution_instance_id && !instance.provider_instance_id) {
+    if (!providerName || (providerName === instance.name && !instance.evolution_instance_id && !instance.provider_instance_id)) {
       return instance;
     }
     try {
@@ -233,7 +181,6 @@ export default function Instances() {
     setInstances(dbInstances);
     setLoading(false);
 
-    // Sync status in background
     const synced = await Promise.all(dbInstances.map(syncInstanceStatus));
     const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
     if (changed) setInstances(synced);
@@ -295,7 +242,6 @@ export default function Instances() {
   const resetForm = () => {
     setNewName(''); setNewTags(''); setNewTimezone('America/Sao_Paulo');
     setNewReconnect('auto'); setCopyFromInstance('');
-    // Re-select default provider
     if (activeProviders.length === 1) {
       setNewProvider(activeProviders[0].provider);
     } else {
@@ -309,21 +255,19 @@ export default function Instances() {
     setCreating(true);
     try {
       const instanceName = newName.trim();
-      // Generate a webhook secret for this instance
       const webhookSecret = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
 
       let providerInstanceId: string | null = null;
       let evolutionInstanceId: string | null = null;
       let providerActive = false;
 
-      // We'll insert the DB record first to get the instance ID for the webhook URL
       const { data: dbRecord, error: insertErr } = await supabase.from('instances').insert({
         company_id: company.id,
         name: instanceName,
         provider: newProvider,
         provider_instance_id: null,
         evolution_instance_id: null,
-        webhook_url: '', // will be updated after we have the ID
+        webhook_url: '',
         webhook_secret: webhookSecret,
         tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
         timezone: newTimezone,
@@ -333,19 +277,13 @@ export default function Instances() {
       if (insertErr) throw insertErr;
 
       const instanceRecord = dbRecord as Instance;
-
-      // Build real webhook URL pointing to the edge function
       const webhookUrl = getWebhookEndpoint(instanceRecord.id, webhookSecret, newProvider);
 
-      // Create via provider proxy
-      const providerEvents = newProvider === 'wuzapi'
-        ? ['Message']
-        : ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'];
       try {
         const createData = await callProviderProxy('create', newProvider, instanceName, {
           webhook: webhookUrl,
           webhookByEvents: newProvider !== 'wuzapi',
-          events: providerEvents,
+          events: getProviderEvents(newProvider),
         });
 
         if (newProvider === 'evolution') {
@@ -360,13 +298,11 @@ export default function Instances() {
         if (err.message?.includes('não configurad') || err.message?.includes('desativad')) {
           toast.info('Provider não configurado. Instância criada apenas no painel.');
         } else {
-          // Clean up DB record on provider failure
           await supabase.from('instances').delete().eq('id', instanceRecord.id);
           throw err;
         }
       }
 
-      // Update DB record with provider IDs and real webhook URL
       const { data, error } = await supabase.from('instances').update({
         provider_instance_id: providerInstanceId,
         evolution_instance_id: evolutionInstanceId,
@@ -394,19 +330,13 @@ export default function Instances() {
   const handleDelete = async () => {
     if (!selectedInstance) return;
     setDeleting(true);
-
     try {
       const { data: freshInstance, error: freshError } = await supabase
-        .from('instances')
-        .select('*')
-        .eq('id', selectedInstance.id)
-        .single();
+        .from('instances').select('*').eq('id', selectedInstance.id).single();
       if (freshError) throw freshError;
       const instance = freshInstance as Instance;
-
       const providerName = getProviderInstanceName(instance);
 
-      // Delete in provider first
       if (providerName) {
         try {
           await callProviderProxy('delete', instance.provider, providerName);
@@ -419,16 +349,17 @@ export default function Instances() {
         }
       }
 
-      // Delete locally
       const { error: localErr } = await supabase.from('instances').delete().eq('id', instance.id);
       if (localErr) throw localErr;
 
-      await writeDeleteAuditLog(instance.id, {
-        provider: instance.provider,
-        provider_instance_id: instance.provider_instance_id,
-        name: instance.name,
-        deleted_at: new Date().toISOString(),
-      });
+      try {
+        await supabase.rpc('log_audit', {
+          _action: 'instance_delete_sync',
+          _entity_type: 'instance',
+          _entity_id: instance.id,
+          _payload: { provider: instance.provider, name: instance.name, deleted_at: new Date().toISOString() },
+        });
+      } catch {}
 
       toast.success('Instância excluída com sucesso');
       setShowDelete(false);
@@ -443,7 +374,6 @@ export default function Instances() {
 
   const handleStatusChange = async (instance: Instance, newStatus: string) => {
     if (newStatus === 'offline') {
-      // Logout via provider
       try {
         await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
       } catch {}
@@ -454,7 +384,6 @@ export default function Instances() {
     }
 
     if (newStatus === 'connecting') {
-      // Actually call provider connect instead of just changing DB status
       toast.info('Conectando ao provider...');
       try {
         const providerName = getProviderInstanceName(instance);
@@ -463,12 +392,11 @@ export default function Instances() {
           : instance.webhook_url;
         const data = await callProviderProxy('connect', instance.provider, providerName, {
           webhook: webhookUrl || undefined,
-          events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+          events: getProviderEvents(instance.provider),
         });
 
         const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
         if (qr) {
-          // Provider returned QR - open QR modal
           await supabase.from('instances').update({ status: 'pairing' }).eq('id', instance.id);
           setSelectedInstance(instance);
           setQrCodeBase64(qr);
@@ -476,12 +404,10 @@ export default function Instances() {
           setConnectionSuccess(false);
           setShowQR(true);
         } else if (data?.connected || data?.jid) {
-          // Already connected
           await supabase.from('instances').update({ status: 'online', last_connected_at: new Date().toISOString() }).eq('id', instance.id);
           toast.success('Instância conectada!');
         } else {
           await supabase.from('instances').update({ status: 'connecting' }).eq('id', instance.id);
-          // Open QR modal to let user generate QR
           setSelectedInstance(instance);
           setQrCodeBase64(null);
           setQrError(null);
@@ -496,22 +422,20 @@ export default function Instances() {
       return;
     }
 
-    // Generic status change
     const { error } = await supabase.from('instances').update({ status: newStatus }).eq('id', instance.id);
     if (error) toast.error(error.message);
-    else { toast.success(`Status alterado para ${statusConfig[newStatus]?.label || newStatus}`); fetchInstances(); }
+    else { toast.success('Status atualizado'); fetchInstances(); }
   };
 
   const handleRestart = async (instance: Instance) => {
     await handleStatusChange(instance, 'connecting');
     try {
-      // Re-send webhook URL on reconnect to ensure provider has it
       const webhookUrl = instance.webhook_secret
         ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
         : instance.webhook_url;
       await callProviderProxy('connect', instance.provider, getProviderInstanceName(instance), {
         webhook: webhookUrl || undefined,
-        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+        events: getProviderEvents(instance.provider),
       });
     } catch {}
     setTimeout(() => fetchInstances(), 3000);
@@ -569,26 +493,33 @@ export default function Instances() {
     }
   };
 
+  // ── Filtering ──
+  const filtered = instances.filter(inst => {
+    if (filterProvider !== 'all' && inst.provider !== filterProvider) return false;
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'online' && inst.status !== 'online' && inst.status !== 'connected') return false;
+      if (filterStatus === 'offline' && inst.status !== 'offline') return false;
+      if (filterStatus === 'connecting' && inst.status !== 'connecting' && inst.status !== 'pairing') return false;
+      if (filterStatus === 'error' && inst.status !== 'error') return false;
+    }
+    if (searchText) {
+      const s = searchText.toLowerCase();
+      return inst.name.toLowerCase().includes(s) || (inst.phone_number || '').includes(s);
+    }
+    return true;
+  });
+
+  const hasFilters = filterProvider !== 'all' || filterStatus !== 'all' || searchText !== '';
+  const clearFilters = () => { setFilterProvider('all'); setFilterStatus('all'); setSearchText(''); };
+
   const columns: Column<Instance>[] = [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'phone_number', label: 'Número', render: (r) => r.phone_number || '—' },
     {
-      key: 'provider', label: 'Provider', render: (r) => (
-        <Badge variant="outline" className="text-xs font-mono border-accent/30 text-accent/80">
-          {providerLabels[r.provider] || r.provider}
-        </Badge>
-      )
+      key: 'provider', label: 'Provider', render: (r) => <ProviderBadge provider={r.provider} />
     },
     {
-      key: 'status', label: 'Status', render: (r) => {
-        const cfg = statusConfig[r.status] || statusConfig.offline;
-        const Icon = cfg.icon;
-        return (
-          <Badge variant={cfg.variant} className="gap-1">
-            <Icon className={`h-3 w-3 ${r.status === 'connecting' ? 'animate-spin' : ''}`} /> {cfg.label}
-          </Badge>
-        );
-      }
+      key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} />
     },
     {
       key: 'tags', label: 'Tags', render: (r) =>
@@ -607,13 +538,19 @@ export default function Instances() {
   const canCreate = hasPermission('instances', 'create');
   const canDelete = hasPermission('instances', 'delete');
 
-  const onlineCount = instances.filter(i => i.status === 'online').length;
-  const offlineCount = instances.filter(i => i.status !== 'online').length;
+  const onlineCount = filtered.filter(i => i.status === 'online' || i.status === 'connected').length;
+  const offlineCount = filtered.filter(i => i.status === 'offline').length;
+  const connectingCount = filtered.filter(i => i.status === 'connecting' || i.status === 'pairing').length;
+
+  const providerBreakdown: Record<string, number> = {};
+  filtered.forEach(i => {
+    const label = providerLabels[i.provider] || i.provider;
+    providerBreakdown[label] = (providerBreakdown[label] || 0) + 1;
+  });
 
   const limitData = instanceLimit.data;
   const canCreateByPlan = !limitData || limitData.allowed;
 
-  // Filter active providers by what the plan allows
   const effectiveProviders = planProviders.length > 0
     ? activeProviders.filter(p => planProviders.includes(p.provider))
     : activeProviders;
@@ -636,7 +573,7 @@ export default function Instances() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Instâncias WhatsApp</h1>
           <p className="text-muted-foreground">
-            Gerencie suas conexões do WhatsApp
+            Gerencie suas conexões — Evolution API e WuzAPI em um único painel
             {limitData && limitData.max > 0 && (
               <span className="ml-2 text-xs">({limitData.current}/{limitData.max} do plano)</span>
             )}
@@ -658,45 +595,32 @@ export default function Instances() {
         </div>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="group">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
-            <div className="rounded-md p-1.5 bg-primary/10"><Smartphone className="h-4 w-4 text-primary" /></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight">{instances.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="group">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Online</CardTitle>
-            <div className="rounded-md p-1.5 bg-success/10"><Wifi className="h-4 w-4 text-success" /></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight text-primary">{onlineCount}</div>
-          </CardContent>
-        </Card>
-        <Card className="group">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Offline</CardTitle>
-            <div className="rounded-md p-1.5 bg-muted/50"><WifiOff className="h-4 w-4 text-muted-foreground" /></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight">{offlineCount}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <InstanceStatsCards
+        total={filtered.length}
+        online={onlineCount}
+        offline={offlineCount}
+        connecting={connectingCount}
+        providerBreakdown={providerBreakdown}
+      />
 
-      {/* Data table */}
+      <InstanceFilters
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        filterProvider={filterProvider}
+        onProviderChange={setFilterProvider}
+        filterStatus={filterStatus}
+        onStatusChange={setFilterStatus}
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+      />
+
       <DataTable
-        data={instances}
+        data={filtered}
         columns={columns}
         searchKey="name"
         searchPlaceholder="Buscar instância..."
         loading={loading}
-        emptyMessage="Nenhuma instância criada ainda."
+        emptyMessage="Nenhuma instância encontrada."
         actions={(row) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -705,14 +629,14 @@ export default function Instances() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`/instances/${row.id}`)}>
+                <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowQR(true); }}>
                 <QrCode className="mr-2 h-4 w-4" /> Parear QR Code
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowTestMsg(true); }}>
-                <Send className="mr-2 h-4 w-4" /> Enviar teste
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {row.status === 'online' ? (
+              {row.status === 'online' || row.status === 'connected' ? (
                 <DropdownMenuItem onClick={() => handleStatusChange(row, 'offline')}>
                   <PowerOff className="mr-2 h-4 w-4" /> Desconectar
                 </DropdownMenuItem>
@@ -724,8 +648,8 @@ export default function Instances() {
               <DropdownMenuItem onClick={() => handleRestart(row)}>
                 <RotateCcw className="mr-2 h-4 w-4" /> Reiniciar sessão
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/instances/${row.id}`)}>
-                <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+              <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowTestMsg(true); }}>
+                <Send className="mr-2 h-4 w-4" /> Enviar teste
               </DropdownMenuItem>
               {canDelete && !isReadOnly && (
                 <>
@@ -748,7 +672,6 @@ export default function Instances() {
             <DialogDescription>Crie uma nova conexão WhatsApp</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Provider selector */}
             <div className="space-y-2">
               <Label>Provider *</Label>
               {effectiveProviders.length === 0 ? (
@@ -834,10 +757,10 @@ export default function Instances() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-primary">
-              <Smartphone className="h-5 w-5" /> Instância criada!
+              Instância criada!
             </DialogTitle>
-            <DialogDescription>
-              Escaneie o QR Code para conectar • Provider: {providerLabels[createdInstance?.provider || ''] || createdInstance?.provider}
+            <DialogDescription className="flex items-center gap-2">
+              Escaneie o QR Code para conectar • <ProviderBadge provider={createdInstance?.provider || ''} />
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -849,13 +772,12 @@ export default function Instances() {
                 <div className="text-center space-y-1">
                   <p className="text-lg font-semibold text-primary">WhatsApp conectado com sucesso!</p>
                   <p className="text-sm text-muted-foreground">
-                    Fechando automaticamente em {autoCloseCountdown ?? 0} segundo{autoCloseCountdown !== 1 ? 's' : ''}...
+                    Fechando automaticamente em {autoCloseCountdown ?? 0}s...
                   </p>
                 </div>
               </div>
             ) : (
               <>
-                {/* QR Code */}
                 <div className="flex flex-col items-center gap-3 py-3">
                   <div className="w-52 h-52 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
                     {qrLoading ? (
@@ -884,7 +806,6 @@ export default function Instances() {
 
                 <Separator />
 
-                {/* API endpoint */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Endpoint de Produção (Delivery)</Label>
                   <div className="flex gap-2">
@@ -900,7 +821,6 @@ export default function Instances() {
                   <p className="text-xs text-muted-foreground">Cole esta URL no seu sistema de delivery.</p>
                 </div>
 
-                {/* Session token */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1.5"><Key className="h-3.5 w-3.5" /> Token da sessão</Label>
                   <div className="flex gap-2">
@@ -930,8 +850,8 @@ export default function Instances() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
-            <DialogDescription>
-              Escaneie o QR Code • Provider: {providerLabels[selectedInstance?.provider || ''] || selectedInstance?.provider}
+            <DialogDescription className="flex items-center gap-2">
+              Escaneie o QR Code • <ProviderBadge provider={selectedInstance?.provider || ''} />
             </DialogDescription>
           </DialogHeader>
           {connectionSuccess ? (
@@ -942,7 +862,7 @@ export default function Instances() {
               <div className="text-center space-y-1">
                 <p className="text-lg font-semibold text-primary">WhatsApp conectado com sucesso!</p>
                 <p className="text-sm text-muted-foreground">
-                  Fechando automaticamente em {autoCloseCountdown ?? 0} segundo{autoCloseCountdown !== 1 ? 's' : ''}...
+                  Fechando automaticamente em {autoCloseCountdown ?? 0}s...
                 </p>
               </div>
             </div>
@@ -979,8 +899,8 @@ export default function Instances() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Enviar mensagem teste</DialogTitle>
-            <DialogDescription>
-              Envie uma mensagem de teste via {selectedInstance?.name} ({providerLabels[selectedInstance?.provider || ''] || selectedInstance?.provider})
+            <DialogDescription className="flex items-center gap-2">
+              Envie uma mensagem de teste via {selectedInstance?.name} • <ProviderBadge provider={selectedInstance?.provider || ''} />
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

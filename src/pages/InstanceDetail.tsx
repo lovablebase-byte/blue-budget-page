@@ -14,12 +14,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, Column } from '@/components/DataTable';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, QrCode, Wifi, WifiOff, RefreshCw, Copy,
-  Send, Loader2, AlertCircle, Clock, Webhook, ScrollText,
+  ArrowLeft, QrCode, RefreshCw, Copy,
+  Send, Loader2, AlertCircle, Webhook, ScrollText,
   Key, Globe, Eye, EyeOff,
 } from 'lucide-react';
 import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
+
+import { ProviderBadge } from '@/components/instances/ProviderBadge';
+import { StatusBadge } from '@/components/instances/StatusBadge';
+import { callProviderProxy } from '@/components/instances/useProviderProxy';
+import { getProviderEvents } from '@/components/instances/constants';
 
 interface InstanceDetail {
   id: string;
@@ -33,6 +38,7 @@ interface InstanceDetail {
   reconnect_policy: string;
   last_connected_at: string | null;
   created_at: string;
+  updated_at?: string;
   evolution_instance_id: string | null;
   access_token: string;
   provider: string;
@@ -48,12 +54,11 @@ interface WebhookEvent {
   payload: any;
 }
 
-const providerLabels: Record<string, string> = {
-  evolution: 'Evolution API',
-  wuzapi: 'Wuzapi',
+const getProviderInstanceName = (inst: InstanceDetail): string => {
+  return inst.provider_instance_id || inst.evolution_instance_id || inst.name;
 };
 
-export default function InstanceDetail() {
+export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company, isReadOnly } = useAuth();
@@ -67,30 +72,6 @@ export default function InstanceDetail() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [showQrDialog, setShowQrDialog] = useState(false);
 
-  const getProviderInstanceName = (inst: InstanceDetail): string => {
-    return inst.provider_instance_id || inst.evolution_instance_id || inst.name;
-  };
-
-  const callProviderProxy = async (action: string, provider?: string, instanceName?: string, payload?: any) => {
-    const res = await supabase.functions.invoke('whatsapp-provider-proxy', {
-      body: { action, provider, instanceName, payload },
-    });
-    if (res.error) {
-      const invokeError: any = res.error;
-      const ctx = invokeError?.context;
-      let details: any = null;
-      if (ctx) {
-        details = await ctx.clone().json().catch(async () => {
-          const raw = await ctx.text().catch(() => '');
-          return raw ? { raw } : null;
-        });
-      }
-      throw new Error(details?.error || invokeError.message || 'Erro ao chamar proxy');
-    }
-    if (res.data?.error) throw new Error(res.data.error);
-    return res.data;
-  };
-
   const handlePairQR = async () => {
     if (!instance) return;
     setActionLoading('qr');
@@ -102,7 +83,7 @@ export default function InstanceDetail() {
         : instance.webhook_url;
       const data = await callProviderProxy('connect', instance.provider, providerName, {
         webhook: webhookUrl || undefined,
-        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+        events: getProviderEvents(instance.provider),
       });
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
       if (qr) {
@@ -132,12 +113,27 @@ export default function InstanceDetail() {
         : instance.webhook_url;
       await callProviderProxy('connect', instance.provider, providerName, {
         webhook: webhookUrl || undefined,
-        events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+        events: getProviderEvents(instance.provider),
       });
       toast.success('Reconexão solicitada ao provider');
       setTimeout(refreshInstance, 2000);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao reconectar');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (!instance) return;
+    setActionLoading('logout');
+    try {
+      await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
+      await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
+      toast.success('Instância desconectada');
+      refreshInstance();
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao desconectar');
     } finally {
       setActionLoading(null);
     }
@@ -154,7 +150,6 @@ export default function InstanceDetail() {
         toast.error('Webhook não configurado para esta instância');
         return;
       }
-      // Send a test event to the webhook-receiver edge function
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,11 +157,7 @@ export default function InstanceDetail() {
           event: instance.provider === 'wuzapi' ? 'Connected' : 'connection.update',
           type: instance.provider === 'wuzapi' ? 'Connected' : undefined,
           instance: instance.name,
-          data: {
-            state: 'open',
-            statusReason: 200,
-            _test: true,
-          },
+          data: { state: 'open', statusReason: 200, _test: true },
         }),
       });
       if (res.ok) {
@@ -193,11 +184,7 @@ export default function InstanceDetail() {
     if (!id) return;
     const fetchData = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('instances')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data, error } = await supabase.from('instances').select('*').eq('id', id).single();
       if (error) { toast.error(error.message); navigate('/instances'); return; }
       setInstance(data as InstanceDetail);
       setLoading(false);
@@ -233,9 +220,6 @@ export default function InstanceDetail() {
     );
   }
 
-  const statusIcon = instance.status === 'online' ? <Wifi className="h-4 w-4" /> : instance.status === 'connecting' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <WifiOff className="h-4 w-4" />;
-  const statusColor = instance.status === 'online' ? 'success' as const : instance.status === 'error' ? 'destructive' as const : instance.status === 'connecting' ? 'info' as const : 'secondary' as const;
-
   const eventColumns: Column<WebhookEvent>[] = [
     { key: 'event_type', label: 'Evento', sortable: true },
     {
@@ -249,8 +233,11 @@ export default function InstanceDetail() {
     },
   ];
 
+  const isOnline = instance.status === 'online' || instance.status === 'connected';
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/instances')}>
           <ArrowLeft className="h-4 w-4" />
@@ -259,12 +246,8 @@ export default function InstanceDetail() {
           <h1 className="text-2xl font-bold">{instance.name}</h1>
           <p className="text-muted-foreground text-sm">{instance.phone_number || 'Número não registrado'}</p>
         </div>
-        <Badge variant="outline" className="text-xs font-mono mr-2 border-accent/30 text-accent/80">
-          {providerLabels[instance.provider] || instance.provider}
-        </Badge>
-        <Badge variant={statusColor} className="gap-1">
-          {statusIcon} {instance.status}
-        </Badge>
+        <ProviderBadge provider={instance.provider} className="mr-2" />
+        <StatusBadge status={instance.status} />
       </div>
 
       {isSuspended && (
@@ -286,6 +269,7 @@ export default function InstanceDetail() {
 
         <TabsContent value="overview" className="space-y-4 mt-4">
           <div className="grid gap-4 md:grid-cols-2">
+            {/* Live status card */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Status ao vivo</CardTitle>
@@ -293,13 +277,11 @@ export default function InstanceDetail() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Conexão</span>
-                  <Badge variant={statusColor}>{instance.status}</Badge>
+                  <StatusBadge status={instance.status} />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Provider</span>
-                  <Badge variant="outline" className="font-mono text-xs">
-                    {providerLabels[instance.provider] || instance.provider}
-                  </Badge>
+                  <ProviderBadge provider={instance.provider} />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Reconexão</span>
@@ -320,14 +302,24 @@ export default function InstanceDetail() {
                     {actionLoading === 'reconnect' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Reconectar
                   </Button>
                 </div>
+                {isOnline && (
+                  <Button size="sm" variant="secondary" className="w-full gap-1" onClick={handleLogout} disabled={actionLoading === 'logout' || isSuspended || isReadOnly}>
+                    {actionLoading === 'logout' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Desconectar
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
+            {/* Info card */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Informações</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">ID</span>
+                  <span className="text-xs font-mono text-muted-foreground">{instance.id.slice(0, 8)}...</span>
+                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Fuso horário</span>
                   <span className="text-sm">{instance.timezone}</span>
@@ -344,11 +336,17 @@ export default function InstanceDetail() {
                   <span className="text-sm text-muted-foreground">Criada em</span>
                   <span className="text-sm">{new Date(instance.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Provider Instance ID</span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {instance.provider_instance_id || instance.evolution_instance_id || '—'}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* API Endpoint & Session Token */}
+          {/* API Endpoint */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -367,16 +365,12 @@ export default function InstanceDetail() {
                     readOnly
                     className="font-mono text-xs"
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyToClipboard(getDeliveryEndpoint(instance.id, instance.access_token))}
-                  >
+                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(getDeliveryEndpoint(instance.id, instance.access_token))}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Este é o <strong>endpoint público de produção</strong> que processa os envios automáticos de mensagens do WhatsApp. Cole esta URL no campo de integração do seu sistema de delivery. Aceita <code className="bg-muted px-1 rounded">multipart/form-data</code>, <code className="bg-muted px-1 rounded">JSON</code> e <code className="bg-muted px-1 rounded">form-urlencoded</code>. Campos aceitos: <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code>.
+                  Aceita <code className="bg-muted px-1 rounded">multipart/form-data</code>, <code className="bg-muted px-1 rounded">JSON</code> e <code className="bg-muted px-1 rounded">form-urlencoded</code>. Campos aceitos: <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code>.
                 </p>
               </div>
               <div className="space-y-2">
@@ -447,7 +441,7 @@ export default function InstanceDetail() {
               <div className="space-y-2">
                 <Label>Eventos assinados</Label>
                 <div className="flex flex-wrap gap-1">
-                  {['message.received', 'message.sent', 'instance.connected', 'instance.disconnected', 'qr.updated', 'delivery.status'].map(ev => (
+                  {getProviderEvents(instance.provider).map(ev => (
                     <Badge key={ev} variant="outline" className="text-xs">{ev}</Badge>
                   ))}
                 </div>
@@ -485,12 +479,12 @@ export default function InstanceDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
-            <DialogDescription>
-              Escaneie o QR Code com o WhatsApp • Provider: {providerLabels[instance.provider] || instance.provider}
+            <DialogDescription className="flex items-center gap-2">
+              Escaneie o QR Code • <ProviderBadge provider={instance.provider} />
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
-            <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border overflow-hidden">
+            <div className="w-64 h-64 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
               {qrCode ? (
                 <img src={qrCode} alt="QR Code" className="w-full h-full object-contain" />
               ) : (
