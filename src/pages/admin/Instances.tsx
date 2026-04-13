@@ -5,19 +5,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { DataTable, Column } from '@/components/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Smartphone, Wifi, WifiOff, Signal, RefreshCw, Eye, MoreHorizontal,
-  QrCode, Power, PowerOff, Trash2, Search, Filter, X,
-} from 'lucide-react';
+import { RefreshCw, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
+
+import { ProviderBadge } from '@/components/instances/ProviderBadge';
+import { StatusBadge } from '@/components/instances/StatusBadge';
+import { InstanceStatsCards } from '@/components/instances/InstanceStatsCards';
+import { InstanceFilters } from '@/components/instances/InstanceFilters';
+import { providerLabels } from '@/components/instances/constants';
 
 interface AdminInstance {
   id: string;
@@ -32,20 +32,6 @@ interface AdminInstance {
   plan_name: string | null;
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  online: { label: 'Online', variant: 'default' },
-  connected: { label: 'Online', variant: 'default' },
-  offline: { label: 'Offline', variant: 'secondary' },
-  connecting: { label: 'Conectando', variant: 'outline' },
-  pairing: { label: 'Pareando', variant: 'outline' },
-  error: { label: 'Erro', variant: 'destructive' },
-};
-
-const providerLabels: Record<string, string> = {
-  evolution: 'Evolution',
-  wuzapi: 'Wuzapi',
-};
-
 export default function AdminInstances() {
   const navigate = useNavigate();
   const [filterCompany, setFilterCompany] = useState('all');
@@ -55,7 +41,6 @@ export default function AdminInstances() {
   const [deleteTarget, setDeleteTarget] = useState<AdminInstance | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Fetch all instances with company info
   const { data: instances = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-instances'],
     queryFn: async () => {
@@ -65,7 +50,6 @@ export default function AdminInstances() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      // Fetch subscriptions with plans for company mapping
       const { data: subs } = await supabase
         .from('subscriptions')
         .select('company_id, plans(name)')
@@ -92,7 +76,6 @@ export default function AdminInstances() {
     refetchInterval: 30000,
   });
 
-  // Get unique companies for filter
   const { data: companies = [] } = useQuery({
     queryKey: ['admin-companies-filter'],
     queryFn: async () => {
@@ -101,7 +84,6 @@ export default function AdminInstances() {
     },
   });
 
-  // Apply filters
   const filtered = instances.filter((inst) => {
     if (filterCompany !== 'all' && inst.company_id !== filterCompany) return false;
     if (filterProvider !== 'all' && inst.provider !== filterProvider) return false;
@@ -121,19 +103,14 @@ export default function AdminInstances() {
   });
 
   const hasFilters = filterCompany !== 'all' || filterProvider !== 'all' || filterStatus !== 'all' || searchText !== '';
-
   const clearFilters = () => {
-    setFilterCompany('all');
-    setFilterProvider('all');
-    setFilterStatus('all');
-    setSearchText('');
+    setFilterCompany('all'); setFilterProvider('all'); setFilterStatus('all'); setSearchText('');
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      // Try provider delete first
       try {
         await supabase.functions.invoke('whatsapp-provider-proxy', {
           body: { action: 'delete', provider: deleteTarget.provider, instanceName: deleteTarget.name },
@@ -151,25 +128,27 @@ export default function AdminInstances() {
     }
   };
 
-  // Stats
   const total = filtered.length;
   const online = filtered.filter(i => i.status === 'online' || i.status === 'connected').length;
   const offline = filtered.filter(i => i.status === 'offline').length;
   const connecting = filtered.filter(i => i.status === 'connecting' || i.status === 'pairing').length;
+
+  const providerBreakdown: Record<string, number> = {};
+  filtered.forEach(i => {
+    const label = providerLabels[i.provider] || i.provider;
+    providerBreakdown[label] = (providerBreakdown[label] || 0) + 1;
+  });
 
   const columns: Column<AdminInstance>[] = [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'company_name', label: 'Empresa', sortable: true },
     {
       key: 'provider', label: 'Provider',
-      render: (r) => <Badge variant="outline" className="text-xs font-mono">{providerLabels[r.provider] || r.provider}</Badge>,
+      render: (r) => <ProviderBadge provider={r.provider} />,
     },
     {
       key: 'status', label: 'Status',
-      render: (r) => {
-        const cfg = statusConfig[r.status] || statusConfig.offline;
-        return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
-      },
+      render: (r) => <StatusBadge status={r.status} />,
     },
     { key: 'phone_number', label: 'Número', render: (r) => r.phone_number || '—' },
     {
@@ -191,103 +170,35 @@ export default function AdminInstances() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Instâncias — Admin</h1>
-          <p className="text-muted-foreground text-sm">Visão gerencial de todas as instâncias do sistema</p>
+          <p className="text-muted-foreground text-sm">Visão gerencial de todas as instâncias — Evolution API e WuzAPI</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Total</CardTitle>
-            <Smartphone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{total}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Online</CardTitle>
-            <Wifi className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-green-600">{online}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Offline</CardTitle>
-            <WifiOff className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{offline}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Conectando</CardTitle>
-            <Signal className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{connecting}</div></CardContent>
-        </Card>
-      </div>
+      <InstanceStatsCards
+        total={total}
+        online={online}
+        offline={offline}
+        connecting={connecting}
+        providerBreakdown={providerBreakdown}
+      />
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome, empresa ou número..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <Select value={filterCompany} onValueChange={setFilterCompany}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas empresas</SelectItem>
-                {companies.map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterProvider} onValueChange={setFilterProvider}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="evolution">Evolution</SelectItem>
-                <SelectItem value="wuzapi">Wuzapi</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="online">Online</SelectItem>
-                <SelectItem value="offline">Offline</SelectItem>
-                <SelectItem value="connecting">Conectando</SelectItem>
-                <SelectItem value="error">Erro</SelectItem>
-              </SelectContent>
-            </Select>
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="h-4 w-4 mr-1" /> Limpar
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <InstanceFilters
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        filterProvider={filterProvider}
+        onProviderChange={setFilterProvider}
+        filterStatus={filterStatus}
+        onStatusChange={setFilterStatus}
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+        filterCompany={filterCompany}
+        onCompanyChange={setFilterCompany}
+        companies={companies}
+      />
 
-      {/* Table */}
       <DataTable
         data={filtered}
         columns={columns}
