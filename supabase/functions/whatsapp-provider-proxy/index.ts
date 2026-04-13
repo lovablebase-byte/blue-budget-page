@@ -222,10 +222,12 @@ async function handleWuzapi(
         connectBody.Webhook = payload.webhook;
       }
       const cr = await wuzFetch(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+      console.log(`[wuzapi/connect] POST /session/connect => status=${cr.status}`, JSON.stringify(cr.data));
       if (cr.data?.data?.jid) {
         return { ok: true, status: 200, body: { connected: true, jid: cr.data.data.jid } };
       }
       const qrR = await wuzFetch(baseUrl, instanceName, "GET", "/session/qr");
+      console.log(`[wuzapi/connect] GET /session/qr => status=${qrR.status}`, JSON.stringify(qrR.data));
       return {
         ok: true,
         status: 200,
