@@ -395,8 +395,9 @@ export default function Instances() {
           events: getProviderEvents(instance.provider),
         });
 
-        const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
-        if (qr) {
+        const rawQr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+        if (rawQr) {
+          const qr = normalizeQrBase64(rawQr);
           await supabase.from('instances').update({ status: 'pairing' }).eq('id', instance.id);
           setSelectedInstance(instance);
           setQrCodeBase64(qr);
@@ -464,6 +465,11 @@ export default function Instances() {
     toast.success(`${label || 'Valor'} copiado!`);
   };
 
+  const normalizeQrBase64 = (qr: string): string => {
+    if (qr.startsWith('data:')) return qr;
+    return `data:image/png;base64,${qr}`;
+  };
+
   const fetchQRCode = async (instanceOrName: Instance | string) => {
     if (!company) return;
     const instance = typeof instanceOrName === 'string'
@@ -476,18 +482,38 @@ export default function Instances() {
     setQrLoading(true);
     try {
       const providerName = getProviderInstanceName(instance);
-      const data = await callProviderProxy('connect', instance.provider, providerName);
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+
+      const data = await callProviderProxy('connect', instance.provider, providerName, {
+        webhook: webhookUrl || undefined,
+        events: getProviderEvents(instance.provider),
+      });
 
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
       if (qr) {
-        setQrCodeBase64(qr);
+        setQrCodeBase64(normalizeQrBase64(qr));
       } else if (data?.connected || data?.jid) {
         setConnectionSuccess(true);
       } else {
-        setQrError('A instância pode já estar conectada.');
+        // Instead of generic message, check actual status from provider
+        try {
+          const statusData = await callProviderProxy('status', instance.provider, providerName);
+          const state = statusData?.instance?.state || '';
+          if (state === 'open' || state === 'connected') {
+            setConnectionSuccess(true);
+          } else {
+            setQrError(`Nenhum QR retornado. Status atual: ${state || 'desconhecido'}. Tente novamente.`);
+          }
+        } catch {
+          setQrError('Nenhum QR retornado pelo provider. Tente novamente em alguns segundos.');
+        }
       }
     } catch (err: any) {
-      setQrError(err.message || 'Falha ao gerar QR Code');
+      const msg = err.message || 'Falha ao gerar QR Code';
+      console.error('[fetchQRCode]', instance.provider, msg);
+      setQrError(msg);
     } finally {
       setQrLoading(false);
     }
