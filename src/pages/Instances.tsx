@@ -338,11 +338,14 @@ export default function Instances() {
       const webhookUrl = getWebhookEndpoint(instanceRecord.id, webhookSecret, newProvider);
 
       // Create via provider proxy
+      const providerEvents = newProvider === 'wuzapi'
+        ? ['Message']
+        : ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'];
       try {
         const createData = await callProviderProxy('create', newProvider, instanceName, {
           webhook: webhookUrl,
-          webhookByEvents: true,
-          events: ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'],
+          webhookByEvents: newProvider !== 'wuzapi',
+          events: providerEvents,
         });
 
         if (newProvider === 'evolution') {
