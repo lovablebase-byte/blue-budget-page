@@ -290,7 +290,10 @@ export default function Instances() {
           providerInstanceId = createData?.instanceId || createData?.instanceName || instanceName;
           evolutionInstanceId = providerInstanceId;
         } else if (newProvider === 'wuzapi') {
-          providerInstanceId = createData?.instanceToken || createData?.instanceId || instanceName;
+          if (!createData?.instanceToken) {
+            throw new Error('Wuzapi não retornou o token da instância. Verifique a configuração.');
+          }
+          providerInstanceId = createData.instanceToken;
         }
         providerActive = true;
         toast.success('Instância criada no provider!');
