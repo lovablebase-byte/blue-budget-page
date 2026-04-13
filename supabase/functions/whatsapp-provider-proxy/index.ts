@@ -28,23 +28,59 @@ async function evoFetch(
   return { ok: res.ok, status: res.status, data };
 }
 
-async function wuzFetch(
+// Admin endpoints use "Authorization" header, session endpoints use "Token" header
+async function wuzFetchAdmin(
   baseUrl: string,
-  token: string,
+  adminToken: string,
   method: string,
   path: string,
   body?: Record<string, any>
 ) {
   const url = `${baseUrl}${path}`;
+  console.log(`[wuzapi] ${method} ${path} (admin)`);
   const res = await fetch(url, {
     method,
-    headers: { "Content-Type": "application/json", Authorization: token },
+    headers: { "Content-Type": "application/json", Authorization: adminToken },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res
     .json()
     .catch(async () => ({ raw: await res.text().catch(() => "") }));
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
   return { ok: res.ok, status: res.status, data };
+}
+
+// Session/instance endpoints use "Token" header
+async function wuzFetchSession(
+  baseUrl: string,
+  userToken: string,
+  method: string,
+  path: string,
+  body?: Record<string, any>
+) {
+  const url = `${baseUrl}${path}`;
+  console.log(`[wuzapi] ${method} ${path} (session)`);
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json", Token: userToken },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res
+    .json()
+    .catch(async () => ({ raw: await res.text().catch(() => "") }));
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
+  return { ok: res.ok, status: res.status, data };
+}
+
+// Helper: poll for QR with retries
+async function wuzPollQR(baseUrl: string, userToken: string, maxAttempts = 4, delayMs = 1500): Promise<string | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, delayMs));
+    const qrR = await wuzFetchSession(baseUrl, userToken, "GET", "/session/qr");
+    const qrCode = qrR?.data?.data?.QRCode;
+    if (qrCode) return qrCode;
+  }
+  return null;
 }
 
 // ---------- Evolution action handlers ----------
