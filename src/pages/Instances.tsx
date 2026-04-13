@@ -60,7 +60,12 @@ interface ActiveProvider {
 }
 
 const getProviderInstanceName = (instance: Instance): string => {
-  return instance.provider_instance_id || instance.evolution_instance_id || instance.name;
+  // Evolution API uses the human-readable instance name, not the UUID
+  if (instance.provider === 'evolution') {
+    return instance.name;
+  }
+  // Wuzapi uses the token stored in provider_instance_id
+  return instance.provider_instance_id || instance.name;
 };
 
 export default function Instances() {
