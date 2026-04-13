@@ -28,23 +28,59 @@ async function evoFetch(
   return { ok: res.ok, status: res.status, data };
 }
 
-async function wuzFetch(
+// Admin endpoints use "Authorization" header, session endpoints use "Token" header
+async function wuzFetchAdmin(
   baseUrl: string,
-  token: string,
+  adminToken: string,
   method: string,
   path: string,
   body?: Record<string, any>
 ) {
   const url = `${baseUrl}${path}`;
+  console.log(`[wuzapi] ${method} ${path} (admin)`);
   const res = await fetch(url, {
     method,
-    headers: { "Content-Type": "application/json", Authorization: token },
+    headers: { "Content-Type": "application/json", Authorization: adminToken },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res
     .json()
     .catch(async () => ({ raw: await res.text().catch(() => "") }));
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
   return { ok: res.ok, status: res.status, data };
+}
+
+// Session/instance endpoints use "Token" header
+async function wuzFetchSession(
+  baseUrl: string,
+  userToken: string,
+  method: string,
+  path: string,
+  body?: Record<string, any>
+) {
+  const url = `${baseUrl}${path}`;
+  console.log(`[wuzapi] ${method} ${path} (session)`);
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json", Token: userToken },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res
+    .json()
+    .catch(async () => ({ raw: await res.text().catch(() => "") }));
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
+  return { ok: res.ok, status: res.status, data };
+}
+
+// Helper: poll for QR with retries
+async function wuzPollQR(baseUrl: string, userToken: string, maxAttempts = 4, delayMs = 1500): Promise<string | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, delayMs));
+    const qrR = await wuzFetchSession(baseUrl, userToken, "GET", "/session/qr");
+    const qrCode = qrR?.data?.data?.QRCode;
+    if (qrCode) return qrCode;
+  }
+  return null;
 }
 
 // ---------- Evolution action handlers ----------
@@ -171,14 +207,14 @@ async function handleEvolution(
 
 async function handleWuzapi(
   baseUrl: string,
-  apiKey: string, // admin token
+  apiKey: string, // admin token (uses Authorization header)
   action: string,
-  instanceName: string | undefined, // user token
+  instanceName: string | undefined, // user token (uses Token header)
   payload: any
 ) {
   switch (action) {
     case "testConnection": {
-      const r = await wuzFetch(baseUrl, apiKey, "GET", "/admin/users");
+      const r = await wuzFetchAdmin(baseUrl, apiKey, "GET", "/admin/users");
       return { ok: r.ok, status: r.status, body: r.data };
     }
     case "create": {
@@ -188,27 +224,39 @@ async function handleWuzapi(
         b.webhook = payload.webhook;
         b.events = payload.events?.join?.(",") || "Message";
       }
-      const r = await wuzFetch(baseUrl, apiKey, "POST", "/admin/users", b);
+      const r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
 
-      // Connect to start QR generation
-      await wuzFetch(baseUrl, userToken, "POST", "/session/connect", {
+      // Connect session to start QR generation (uses Token header)
+      const cr = await wuzFetchSession(baseUrl, userToken, "POST", "/session/connect", {
         Subscribe: ["Message"],
         Immediate: true,
-      }).catch(() => {});
+      }).catch((e: any) => ({ ok: false, status: 0, data: { error: e.message } }));
 
-      const qrR = await wuzFetch(baseUrl, userToken, "GET", "/session/qr").catch(() => null);
+      // If already connected with JID, no QR needed
+      if (cr.data?.data?.jid) {
+        return {
+          ok: true, status: 200,
+          body: {
+            instanceId: String(r.data?.data?.id || r.data?.id || ""),
+            instanceName, instanceToken: userToken,
+            qrCode: null, connected: true, jid: cr.data.data.jid,
+            status: "connected", raw: { create: r.data, connect: cr.data },
+          },
+        };
+      }
+
+      // Poll for QR
+      const qrCode = await wuzPollQR(baseUrl, userToken, 3, 1000);
 
       return {
-        ok: true,
-        status: 200,
+        ok: true, status: 200,
         body: {
-          instanceId: String(r.data?.id || ""),
-          instanceName: instanceName,
-          instanceToken: userToken,
-          qrCode: qrR?.data?.data?.QRCode || null,
+          instanceId: String(r.data?.data?.id || r.data?.id || ""),
+          instanceName, instanceToken: userToken,
+          qrCode: qrCode || null,
           status: "created",
-          raw: r.data,
+          raw: { create: r.data, connect: cr.data },
         },
       };
     }
@@ -221,22 +269,46 @@ async function handleWuzapi(
       if (payload?.webhook) {
         connectBody.Webhook = payload.webhook;
       }
-      const cr = await wuzFetch(baseUrl, instanceName, "POST", "/session/connect", connectBody);
-      console.log(`[wuzapi/connect] POST /session/connect => status=${cr.status}`, JSON.stringify(cr.data));
-      if (cr.data?.data?.jid) {
-        return { ok: true, status: 200, body: { connected: true, jid: cr.data.data.jid } };
+      // Session endpoints use Token header
+      const cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+
+      // If connect failed with 401, token is invalid
+      if (!cr.ok && cr.status === 401) {
+        return { ok: false, status: 401, body: { error: "Token da instância inválido ou expirado", raw: cr.data } };
       }
-      const qrR = await wuzFetch(baseUrl, instanceName, "GET", "/session/qr");
-      console.log(`[wuzapi/connect] GET /session/qr => status=${qrR.status}`, JSON.stringify(qrR.data));
+
+      // If already logged in with JID
+      if (cr.data?.data?.jid) {
+        return { ok: true, status: 200, body: { connected: true, jid: cr.data.data.jid, raw: cr.data } };
+      }
+
+      // Poll for QR with retries
+      const qrCode = await wuzPollQR(baseUrl, instanceName, 4, 1500);
+
+      if (qrCode) {
+        return { ok: true, status: 200, body: { qrCode, raw: { connect: cr.data } } };
+      }
+
+      // No QR returned - check status
+      const sr = await wuzFetchSession(baseUrl, instanceName, "GET", "/session/status");
+      const connected = sr.data?.data?.Connected === true;
+      const loggedIn = sr.data?.data?.LoggedIn === true;
+      if (connected && loggedIn) {
+        return { ok: true, status: 200, body: { connected: true, raw: { connect: cr.data, status: sr.data } } };
+      }
+
       return {
-        ok: true,
-        status: 200,
-        body: { qrCode: qrR?.data?.data?.QRCode || null, raw: { connect: cr.data, qr: qrR?.data } },
+        ok: true, status: 200,
+        body: {
+          qrCode: null,
+          error: "QR não disponível. A sessão pode estar inicializando.",
+          raw: { connect: cr.data, status: sr.data },
+        },
       };
     }
     case "status": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token obrigatório" } };
-      const r = await wuzFetch(baseUrl, instanceName, "GET", "/session/status");
+      const r = await wuzFetchSession(baseUrl, instanceName, "GET", "/session/status");
       if (!r.ok) {
         if (r.status === 404 || r.status === 401) {
           return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
@@ -248,33 +320,31 @@ async function handleWuzapi(
       let state = "close";
       if (connected && loggedIn) state = "open";
       else if (connected) state = "connecting";
-      return { ok: true, status: 200, body: { instance: { state, instanceName } } };
+      return { ok: true, status: 200, body: { instance: { state, instanceName }, raw: r.data } };
     }
     case "delete": {
-      // Find user by token/name and delete via admin API
-      const listR = await wuzFetch(baseUrl, apiKey, "GET", "/admin/users");
-      if (listR.ok && Array.isArray(listR.data)) {
-        const user = listR.data.find(
-          (u: any) => u.token === instanceName || u.name === instanceName
-        );
-        if (user?.id) {
-          await wuzFetch(baseUrl, user.token || instanceName!, "POST", "/session/logout").catch(() => {});
-          const delR = await wuzFetch(baseUrl, apiKey, "DELETE", `/admin/users/${user.id}`);
-          if (!delR.ok && delR.status !== 404) return { ok: false, status: delR.status, body: delR.data };
-        }
+      const listR = await wuzFetchAdmin(baseUrl, apiKey, "GET", "/admin/users");
+      const users = listR.ok && Array.isArray(listR.data?.data) ? listR.data.data : (listR.ok && Array.isArray(listR.data) ? listR.data : []);
+      const user = users.find(
+        (u: any) => u.token === instanceName || u.name === instanceName
+      );
+      if (user?.id) {
+        await wuzFetchSession(baseUrl, user.token || instanceName!, "POST", "/session/logout").catch(() => {});
+        const delR = await wuzFetchAdmin(baseUrl, apiKey, "DELETE", `/admin/users/${user.id}`);
+        if (!delR.ok && delR.status !== 404) return { ok: false, status: delR.status, body: delR.data };
       }
       return { ok: true, status: 200, body: { status: "deleted" } };
     }
     case "logout": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token obrigatório" } };
-      const r = await wuzFetch(baseUrl, instanceName, "POST", "/session/logout");
+      const r = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/logout");
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
       return { ok: true, status: 200, body: r.data };
     }
     case "fetchInstances": {
-      const r = await wuzFetch(baseUrl, apiKey, "GET", "/admin/users");
+      const r = await wuzFetchAdmin(baseUrl, apiKey, "GET", "/admin/users");
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
-      const list = Array.isArray(r.data) ? r.data : [];
+      const list = Array.isArray(r.data?.data) ? r.data.data : (Array.isArray(r.data) ? r.data : []);
       const items = list.map((u: any) => ({
         instanceName: u.name || u.token,
         instanceId: String(u.id || ""),
@@ -288,7 +358,7 @@ async function handleWuzapi(
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token obrigatório" } };
       const phone = (payload?.number || payload?.phone || "").replace(/\D/g, "");
       const text = payload?.text || payload?.body || "";
-      const r = await wuzFetch(baseUrl, instanceName, "POST", "/chat/send/text", {
+      const r = await wuzFetchSession(baseUrl, instanceName, "POST", "/chat/send/text", {
         Phone: phone,
         Body: text,
       });
@@ -297,7 +367,7 @@ async function handleWuzapi(
     }
     case "sendPresence": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token obrigatório" } };
-      const r = await wuzFetch(baseUrl, instanceName, "POST", "/chat/presence", {
+      const r = await wuzFetchSession(baseUrl, instanceName, "POST", "/chat/presence", {
         Phone: (payload?.number || "").replace(/\D/g, ""),
         State: payload?.presence || "composing",
         Media: payload?.media || "",
