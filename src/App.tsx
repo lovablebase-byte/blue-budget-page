@@ -21,18 +21,17 @@ const Instances = lazy(() => import("./pages/Instances"));
 const InstanceDetail = lazy(() => import("./pages/InstanceDetail"));
 const AIAgents = lazy(() => import("./pages/AIAgents"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
-const Subscription = lazy(() => import("./pages/Subscription"));
-const CompanyInvoices = lazy(() => import("./pages/CompanyInvoices"));
 const CompanyUsers = lazy(() => import("./pages/CompanyUsers"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Branding = lazy(() => import("./pages/Branding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Admin-only pages
+const AdminPlans = lazy(() => import("./pages/admin/Plans"));
+const AdminSubscriptions = lazy(() => import("./pages/admin/Subscriptions"));
 const AdminGateways = lazy(() => import("./pages/admin/Gateways"));
 const AdminReports = lazy(() => import("./pages/admin/Reports"));
 const AdminHealth = lazy(() => import("./pages/admin/Health"));
-const AdminWebhooks = lazy(() => import("./pages/admin/Webhooks"));
 const AdminLogs = lazy(() => import("./pages/admin/Logs"));
 
 import { BrandingProvider } from "@/contexts/BrandingContext";
@@ -79,16 +78,15 @@ const App = () => (
               <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Campaigns /></ProtectedPage>} />
 
               {/* Administração (admin only) */}
-              <Route path="/subscription" element={<ProtectedPage role={['admin']}><Subscription /></ProtectedPage>} />
-              <Route path="/invoices" element={<ProtectedPage role={['admin']}><CompanyInvoices /></ProtectedPage>} />
               <Route path="/users" element={<ProtectedPage role={['admin']}><CompanyUsers /></ProtectedPage>} />
-              <Route path="/settings" element={<ProtectedPage role={['admin']}><Settings /></ProtectedPage>} />
-              <Route path="/branding" element={<ProtectedPage role={['admin']}><Branding /></ProtectedPage>} />
-              <Route path="/admin/gateways" element={<ProtectedPage role={['admin']}><AdminGateways /></ProtectedPage>} />
+              <Route path="/admin/plans" element={<ProtectedPage role={['admin']}><AdminPlans /></ProtectedPage>} />
+              <Route path="/admin/subscriptions" element={<ProtectedPage role={['admin']}><AdminSubscriptions /></ProtectedPage>} />
               <Route path="/admin/reports" element={<ProtectedPage role={['admin']}><AdminReports /></ProtectedPage>} />
-              <Route path="/admin/health" element={<ProtectedPage role={['admin']}><AdminHealth /></ProtectedPage>} />
-              <Route path="/admin/webhooks" element={<ProtectedPage role={['admin']}><AdminWebhooks /></ProtectedPage>} />
+              <Route path="/admin/gateways" element={<ProtectedPage role={['admin']}><AdminGateways /></ProtectedPage>} />
               <Route path="/admin/logs" element={<ProtectedPage role={['admin']}><AdminLogs /></ProtectedPage>} />
+              <Route path="/branding" element={<ProtectedPage role={['admin']}><Branding /></ProtectedPage>} />
+              <Route path="/settings" element={<ProtectedPage role={['admin']}><Settings /></ProtectedPage>} />
+              <Route path="/admin/health" element={<ProtectedPage role={['admin']}><AdminHealth /></ProtectedPage>} />
 
               {/* Pessoal */}
               <Route path="/account" element={<ProtectedPage><Account /></ProtectedPage>} />

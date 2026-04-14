@@ -6,7 +6,7 @@
 import {
   LayoutDashboard, Smartphone, Bot, Megaphone, Settings,
   CreditCard, Receipt, Users, User, Palette,
-  Globe, BarChart3, Heart, Webhook, FileText,
+  Globe, BarChart3, Heart, FileText, Package,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -30,15 +30,14 @@ export const operationalRoutes: RouteDefinition[] = [
 // ── Administração (admin only) ───────────────────────────────────
 export const adminRoutes: RouteDefinition[] = [
   { path: '/users', label: 'Usuários', icon: Users, adminOnly: true },
-  { path: '/settings', label: 'Ajustes', icon: Settings, module: 'settings', adminOnly: true },
-  { path: '/branding', label: 'Marca', icon: Palette, adminOnly: true },
-  { path: '/subscription', label: 'Plano e Assinatura', icon: CreditCard, adminOnly: true },
-  { path: '/invoices', label: 'Faturas', icon: Receipt, adminOnly: true },
-  { path: '/admin/gateways', label: 'Gateways', icon: Globe, adminOnly: true },
+  { path: '/admin/plans', label: 'Planos', icon: Package, adminOnly: true },
+  { path: '/admin/subscriptions', label: 'Assinaturas', icon: CreditCard, adminOnly: true },
   { path: '/admin/reports', label: 'Relatórios', icon: BarChart3, adminOnly: true },
-  { path: '/admin/health', label: 'Saúde do Sistema', icon: Heart, adminOnly: true },
-  { path: '/admin/webhooks', label: 'Webhooks', icon: Webhook, adminOnly: true },
+  { path: '/admin/gateways', label: 'Gateways', icon: Globe, adminOnly: true },
   { path: '/admin/logs', label: 'Logs de Mensagens', icon: FileText, adminOnly: true },
+  { path: '/branding', label: 'Marca', icon: Palette, adminOnly: true },
+  { path: '/settings', label: 'Configurações', icon: Settings, module: 'settings', adminOnly: true },
+  { path: '/admin/health', label: 'Saúde do Sistema', icon: Heart, adminOnly: true },
 ];
 
 // ── Pessoal ──────────────────────────────────────────────────────
@@ -74,6 +73,8 @@ export const legacyRedirects: string[] = [
   '/workflow',
   '/chatbot-keywords',
   '/profile',
+  '/invoices',
+  '/subscription',
   '/admin/greetings',
   '/admin/absence',
   '/admin/status',
@@ -81,15 +82,14 @@ export const legacyRedirects: string[] = [
   '/admin/workflows',
   '/admin/chatbot-keywords',
   '/admin/companies',
-  '/admin/subscriptions',
   '/admin/instances',
   '/admin/ai-agents',
   '/admin/campaigns',
-  '/admin/plans',
   '/admin/users',
   '/admin/invoices',
   '/admin/settings',
   '/admin/branding',
+  '/admin/webhooks',
 ];
 
 // ── Route order for initial redirect (user role) ─────────────────
