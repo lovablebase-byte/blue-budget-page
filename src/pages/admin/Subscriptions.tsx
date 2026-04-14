@@ -415,6 +415,9 @@ export default function AdminSubscriptions() {
                             <XCircle className="h-4 w-4 mr-2" />Cancelar
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem onClick={() => { setPixRow(row); setPixResult(null); }}>
+                          <QrCode className="h-4 w-4 mr-2" />Gerar Cobrança PIX
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
