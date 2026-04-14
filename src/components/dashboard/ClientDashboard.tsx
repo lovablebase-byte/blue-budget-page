@@ -14,7 +14,7 @@ import {
   Copy, Eye, EyeOff, RefreshCw, Loader2, Calendar,
   Send, CheckCircle2, XCircle, Wifi, WifiOff, Ban, Signal,
   TrendingUp, BarChart3, Contact, Shield, Lock, CreditCard,
-  FileText, Zap, Bot, Megaphone, GitBranch, Globe,
+  FileText, Zap, Bot, Megaphone, Globe,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { toast } from 'sonner';
