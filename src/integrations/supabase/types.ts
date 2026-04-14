@@ -1201,6 +1201,110 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_charges: {
+        Row: {
+          amount_cents: number
+          company_id: string
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          external_id: string | null
+          id: string
+          paid_at: string | null
+          pix_copy_paste: string | null
+          qr_code: string | null
+          status: string
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          company_id: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          external_id?: string | null
+          id?: string
+          paid_at?: string | null
+          pix_copy_paste?: string | null
+          qr_code?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          external_id?: string | null
+          id?: string
+          paid_at?: string | null
+          pix_copy_paste?: string | null
+          qr_code?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_charges_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_events: {
+        Row: {
+          charge_id: string | null
+          event_type: string
+          external_id: string | null
+          id: string
+          payload: Json | null
+          processed_at: string | null
+          received_at: string
+          result: string | null
+        }
+        Insert: {
+          charge_id?: string | null
+          event_type: string
+          external_id?: string | null
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          received_at?: string
+          result?: string | null
+        }
+        Update: {
+          charge_id?: string | null
+          event_type?: string
+          external_id?: string | null
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          received_at?: string
+          result?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "payment_charges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_gateways: {
         Row: {
           config: Json | null
