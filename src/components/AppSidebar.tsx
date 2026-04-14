@@ -1,5 +1,5 @@
 import { 
-  MessageCircle, Settings, User, LogOut, ChevronDown, Lock
+  MessageCircle, LogOut, ChevronDown, Lock
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { PlanFeatures } from '@/services/plan-enforcement';
 import {
   operationalRoutes, commercialRoutes, companyAdminRoutes,
-  systemAdminRoutes, type RouteDefinition,
+  systemAdminRoutes, personalRoutes, type RouteDefinition,
 } from '@/lib/routes';
 
 /** Map module names to plan feature flags for enforcement */
@@ -176,34 +176,15 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Pessoal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {role === 'user' && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/profile')}>
-                    <NavLink
-                      to="/profile"
-                      end
-                      className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
-                      activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
-                    >
-                      <Settings className={`h-4 w-4 transition-all ${isActive('/profile') ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
-                      {!collapsed && <span>Meu Perfil</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/account')}>
-                  <NavLink
-                    to="/account"
-                    end
-                    className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
-                    activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
-                  >
-                    <User className={`h-4 w-4 transition-all ${isActive('/account') ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
-                    {!collapsed && <span>Minha Conta</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {personalRoutes
+                .filter(item => {
+                  // Non-admin users only see /profile
+                  if (role === 'user' && item.path === '/account') return false;
+                  // Admins see /account but not /profile (handled by companyAdminRoutes)
+                  if (isAdmin && item.path === '/profile') return false;
+                  return true;
+                })
+                .map(renderMenuItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
