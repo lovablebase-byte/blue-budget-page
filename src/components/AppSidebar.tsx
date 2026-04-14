@@ -1,5 +1,5 @@
 import { 
-  MessageCircle, Settings, User, LogOut, ChevronDown, Lock
+  MessageCircle, LogOut, ChevronDown, Lock
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
