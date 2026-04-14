@@ -106,12 +106,9 @@ export default function AdminGateways() {
   /* ── Save config ── */
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const existing = gateway ? (gateway.config as Record<string, any> || {}) : {};
       const configPayload = {
-        base_url: form.base_url,
-        api_key: form.api_key,
-        webhook_secret: form.webhook_secret,
-        environment: form.environment,
-        ...(gateway ? (gateway.config as Record<string, any> || {}) : {}),
+        ...existing,
         base_url: form.base_url,
         api_key: form.api_key,
         webhook_secret: form.webhook_secret,
