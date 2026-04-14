@@ -88,7 +88,7 @@ const defaultForm = (): AgentForm => ({
 });
 
 export default function AIAgents() {
-  const { company } = useAuth();
+  const { company, isAdmin } = useAuth();
   const { isSuspended } = useCompany();
   const aiFeature = useFeatureEnabled('ai_agents_enabled');
   const agentLimit = useResourceLimit('max_ai_agents', 'ai_agents');
@@ -216,8 +216,8 @@ export default function AIAgents() {
     },
   ];
 
-  const featureBlocked = aiFeature.data === false;
-  const limitBlocked = agentLimit.data && !agentLimit.data.allowed;
+  const featureBlocked = !isAdmin && aiFeature.data === false;
+  const limitBlocked = !isAdmin && agentLimit.data && !agentLimit.data.allowed;
 
   return (
     <div className="space-y-6">

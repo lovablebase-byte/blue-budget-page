@@ -52,7 +52,7 @@ function calcRiskLevel(ratePerMin: number, totalContacts: number, instanceCount:
 }
 
 export default function Campaigns() {
-  const { company } = useAuth();
+  const { company, isAdmin } = useAuth();
   const { isSuspended } = useCompany();
   const campaignFeature = useFeatureEnabled('campaigns_enabled');
   const campaignLimit = useResourceLimit('max_campaigns', 'campaigns');
@@ -305,8 +305,8 @@ export default function Campaigns() {
     },
   ];
 
-  const featureBlocked = campaignFeature.data === false;
-  const limitBlocked = campaignLimit.data && !campaignLimit.data.allowed;
+  const featureBlocked = !isAdmin && campaignFeature.data === false;
+  const limitBlocked = !isAdmin && campaignLimit.data && !campaignLimit.data.allowed;
 
   return (
     <div className="space-y-6">
