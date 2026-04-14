@@ -393,7 +393,6 @@ export default function ClientDashboard() {
                 <div className="space-y-1.5">
                   {[
                     { key: 'campaigns_enabled' as const, label: 'Campanhas', icon: Megaphone },
-                    { key: 'workflows_enabled' as const, label: 'Workflows', icon: GitBranch },
                     { key: 'ai_agents_enabled' as const, label: 'Agentes IA', icon: Bot },
                     { key: 'api_access' as const, label: 'Acesso API', icon: Globe },
                     { key: 'whitelabel_enabled' as const, label: 'White-label', icon: Shield },

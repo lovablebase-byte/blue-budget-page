@@ -73,18 +73,16 @@ export default function Subscription() {
     queryKey: ['usage', company?.id],
     queryFn: async () => {
       if (!company?.id) return null;
-      const [instances, campaigns, agents, workflows, users] = await Promise.all([
+      const [instances, campaigns, agents, users] = await Promise.all([
         supabase.from('instances').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
         supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
         supabase.from('ai_agents').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
-        supabase.from('workflows').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
         supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
       ]);
       return {
         instances: instances.count ?? 0,
         campaigns: campaigns.count ?? 0,
         ai_agents: agents.count ?? 0,
-        workflows: workflows.count ?? 0,
         users: users.count ?? 0,
       };
     },
@@ -256,7 +254,6 @@ export default function Subscription() {
               <UsageBar label="Instâncias" used={usage?.instances ?? 0} max={plan.limits.max_instances} icon={Package} />
               <UsageBar label="Campanhas" used={usage?.campaigns ?? 0} max={plan.limits.max_campaigns} icon={MessageSquare} />
               <UsageBar label="Agentes IA" used={usage?.ai_agents ?? 0} max={plan.limits.max_ai_agents} icon={Bot} />
-              <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan.limits.max_users} icon={Users} />
               <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan.limits.max_users} icon={Users} />
               <div className="text-xs text-muted-foreground pt-2">
                 Msgs/dia: {plan.limits.max_messages_day} · Msgs/mês: {plan.limits.max_messages_month.toLocaleString()}

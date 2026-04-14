@@ -270,12 +270,19 @@ async function handleWuzapi(
         connectBody.Webhook = payload.webhook;
       }
       // Session endpoints use Token header
+      console.log(`[wuzapi:connect] Calling /session/connect for token=${instanceName?.slice(0,6)}...`);
       const cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
 
-      // If connect failed with 401, token is invalid
-      if (!cr.ok && cr.status === 401) {
-        return { ok: false, status: 401, body: { error: "Token da instância inválido ou expirado", raw: cr.data } };
+      // If connect failed, return real error — do NOT proceed to QR polling
+      if (!cr.ok) {
+        console.error(`[wuzapi:connect] /session/connect failed: status=${cr.status}`, cr.data);
+        const errMsg = cr.status === 401
+          ? "Token da instância inválido ou expirado"
+          : `Falha ao conectar sessão Wuzapi (status ${cr.status})`;
+        return { ok: false, status: cr.status || 500, body: { error: errMsg, raw: cr.data } };
       }
+
+      console.log(`[wuzapi:connect] /session/connect OK`, JSON.stringify(cr.data).slice(0, 200));
 
       // If already logged in with JID
       if (cr.data?.data?.jid) {
@@ -283,25 +290,30 @@ async function handleWuzapi(
       }
 
       // Poll for QR with retries
+      console.log(`[wuzapi:connect] Polling QR...`);
       const qrCode = await wuzPollQR(baseUrl, instanceName, 4, 1500);
 
       if (qrCode) {
+        console.log(`[wuzapi:connect] QR obtained successfully`);
         return { ok: true, status: 200, body: { qrCode, raw: { connect: cr.data } } };
       }
 
-      // No QR returned - check status
+      // No QR returned - check status to see if already connected
+      console.log(`[wuzapi:connect] No QR, checking /session/status...`);
       const sr = await wuzFetchSession(baseUrl, instanceName, "GET", "/session/status");
       const connected = sr.data?.data?.Connected === true;
       const loggedIn = sr.data?.data?.LoggedIn === true;
       if (connected && loggedIn) {
+        console.log(`[wuzapi:connect] Already connected & logged in`);
         return { ok: true, status: 200, body: { connected: true, raw: { connect: cr.data, status: sr.data } } };
       }
 
+      // Return error — not success with null QR
+      console.warn(`[wuzapi:connect] No QR and not connected`, sr.data);
       return {
-        ok: true, status: 200,
+        ok: false, status: 502,
         body: {
-          qrCode: null,
-          error: "QR não disponível. A sessão pode estar inicializando.",
+          error: "QR não disponível e sessão não conectada. Tente novamente em alguns segundos.",
           raw: { connect: cr.data, status: sr.data },
         },
       };
