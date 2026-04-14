@@ -224,13 +224,7 @@ export default function Subscription() {
                 <h3 className="text-sm font-semibold mb-3">Recursos do Plano</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   <FeatureItem label="Instâncias" enabled={hasFeature('instances_enabled')} />
-                  <FeatureItem label="Saudações" enabled={hasFeature('greetings_enabled')} />
-                  <FeatureItem label="Ausência" enabled={hasFeature('absence_enabled')} />
-                  <FeatureItem label="Status" enabled={hasFeature('status_enabled')} />
-                  <FeatureItem label="Chatbot Keys" enabled={hasFeature('chatbot_keys_enabled')} />
-                  <FeatureItem label="Chatbot Keywords" enabled={hasFeature('chatbot_keywords_enabled')} />
                   <FeatureItem label="Campanhas" enabled={hasFeature('campaigns_enabled')} />
-                  <FeatureItem label="Workflows" enabled={hasFeature('workflows_enabled')} />
                   <FeatureItem label="Agentes IA" enabled={hasFeature('ai_agents_enabled')} />
                   <FeatureItem label="Faturas" enabled={hasFeature('invoices_enabled')} />
                   <FeatureItem label="Branding" enabled={hasFeature('branding_enabled')} />

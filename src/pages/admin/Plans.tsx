@@ -32,13 +32,7 @@ const SUPPORT_LEVELS = [
 
 const ALL_FEATURES = [
   { key: 'instances_enabled', label: 'Instâncias', desc: 'Gerenciar conexões WhatsApp' },
-  { key: 'greetings_enabled', label: 'Saudações', desc: 'Mensagens automáticas de boas-vindas' },
-  { key: 'absence_enabled', label: 'Ausência', desc: 'Respostas automáticas de ausência' },
-  { key: 'status_enabled', label: 'Status', desc: 'Templates de status automático' },
-  { key: 'chatbot_keys_enabled', label: 'Chatbot Keys', desc: 'Chaves de API para chatbots' },
-  { key: 'chatbot_keywords_enabled', label: 'Chatbot Keywords', desc: 'Respostas por palavras-chave' },
   { key: 'campaigns_enabled', label: 'Campanhas', desc: 'Disparo em massa de mensagens' },
-  { key: 'workflows_enabled', label: 'Workflows', desc: 'Construtor visual de fluxos' },
   { key: 'ai_agents_enabled', label: 'Agentes IA', desc: 'Agentes inteligentes com IA' },
   { key: 'invoices_enabled', label: 'Faturas', desc: 'Visualização de faturas e cobranças' },
   { key: 'branding_enabled', label: 'Branding', desc: 'Personalização de marca e visual' },

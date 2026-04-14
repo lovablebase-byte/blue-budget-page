@@ -55,7 +55,12 @@ interface WebhookEvent {
 }
 
 const getProviderInstanceName = (inst: InstanceDetail): string => {
-  return inst.provider_instance_id || inst.evolution_instance_id || inst.name;
+  // Evolution API uses the human-readable instance name
+  if (inst.provider === 'evolution') {
+    return inst.name;
+  }
+  // Wuzapi uses the token stored in provider_instance_id
+  return inst.provider_instance_id || inst.name;
 };
 
 export default function InstanceDetailPage() {

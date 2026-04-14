@@ -8,48 +8,61 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { legacyRedirects } from "@/lib/routes";
+import { lazy, Suspense } from "react";
+
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 
-import Dashboard from "./pages/Dashboard";
-import Account from "./pages/Account";
-import Instances from "./pages/Instances";
-import InstanceDetail from "./pages/InstanceDetail";
-import AIAgents from "./pages/AIAgents";
-import Campaigns from "./pages/Campaigns";
-import Subscription from "./pages/Subscription";
-import CompanyInvoices from "./pages/CompanyInvoices";
-import CompanyUsers from "./pages/CompanyUsers";
-import AdminCompanies from "./pages/admin/Companies";
-import AdminSubscriptions from "./pages/admin/Subscriptions";
-import AdminInstances from "./pages/admin/Instances";
-import AdminPlans from "./pages/admin/Plans";
-import AdminUsers from "./pages/admin/Users";
-import AdminInvoices from "./pages/admin/Invoices";
-import AdminGateways from "./pages/admin/Gateways";
-import AdminReports from "./pages/admin/Reports";
-import AdminHealth from "./pages/admin/Health";
-import AdminWebhooks from "./pages/admin/Webhooks";
-import AdminLogs from "./pages/admin/Logs";
-import AdminAIAgents from "./pages/admin/AIAgents";
-import AdminCampaigns from "./pages/admin/Campaigns";
-import Settings from "./pages/Settings";
-import Branding from "./pages/Branding";
-import AdminSettings from "./pages/admin/Settings";
-import AdminBranding from "./pages/admin/Branding";
+// Lazy-loaded pages
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Account = lazy(() => import("./pages/Account"));
+const Instances = lazy(() => import("./pages/Instances"));
+const InstanceDetail = lazy(() => import("./pages/InstanceDetail"));
+const AIAgents = lazy(() => import("./pages/AIAgents"));
+const Campaigns = lazy(() => import("./pages/Campaigns"));
+const Subscription = lazy(() => import("./pages/Subscription"));
+const CompanyInvoices = lazy(() => import("./pages/CompanyInvoices"));
+const CompanyUsers = lazy(() => import("./pages/CompanyUsers"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Branding = lazy(() => import("./pages/Branding"));
+const Profile = lazy(() => import("./pages/Profile"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
+// Admin pages
+const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
+const AdminSubscriptions = lazy(() => import("./pages/admin/Subscriptions"));
+const AdminInstances = lazy(() => import("./pages/admin/Instances"));
+const AdminPlans = lazy(() => import("./pages/admin/Plans"));
+const AdminUsers = lazy(() => import("./pages/admin/Users"));
+const AdminInvoices = lazy(() => import("./pages/admin/Invoices"));
+const AdminGateways = lazy(() => import("./pages/admin/Gateways"));
+const AdminReports = lazy(() => import("./pages/admin/Reports"));
+const AdminHealth = lazy(() => import("./pages/admin/Health"));
+const AdminWebhooks = lazy(() => import("./pages/admin/Webhooks"));
+const AdminLogs = lazy(() => import("./pages/admin/Logs"));
+const AdminAIAgents = lazy(() => import("./pages/admin/AIAgents"));
+const AdminCampaigns = lazy(() => import("./pages/admin/Campaigns"));
+const AdminSettings = lazy(() => import("./pages/admin/Settings"));
+const AdminBranding = lazy(() => import("./pages/admin/Branding"));
+
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 
 const queryClient = new QueryClient();
 
+const PageLoader = () => (
+  <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+  </div>
+);
+
 function ProtectedPage({ children, module, role }: { children: React.ReactNode; module?: string; role?: ('admin' | 'user')[] }) {
   return (
     <ProtectedRoute requiredModule={module} requiredRole={role}>
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>
+        <Suspense fallback={<PageLoader />}>{children}</Suspense>
+      </AppLayout>
     </ProtectedRoute>
   );
 }
@@ -68,7 +81,6 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              
 
               {/* Operational */}
               <Route path="/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
@@ -110,7 +122,7 @@ const App = () => (
                 <Route key={path} path={path} element={<Navigate to="/dashboard" replace />} />
               ))}
 
-              <Route path="*" element={<NotFound />} />
+              <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
             </Routes>
             </CompanyProvider>
             </BrandingProvider>

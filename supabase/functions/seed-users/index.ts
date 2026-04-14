@@ -7,18 +7,13 @@ const corsHeaders = {
 };
 
 // ── Fonte única de verdade: permissões padrão por papel ──
+// Alinhado com src/lib/rbac-defaults.ts — apenas módulos ativos do produto
 const ADMIN_DEFAULT_PERMISSIONS = [
   { module: 'dashboard', can_view: true, can_create: false, can_edit: false, can_delete: false, extra: {} },
   { module: 'instances', can_view: true, can_create: true, can_edit: true, can_delete: true,
     extra: { pair: true, reconnect: true, disconnect: true, test_message: true } },
-  { module: 'greetings', can_view: true, can_create: true, can_edit: true, can_delete: true, extra: { test: true } },
-  { module: 'absence', can_view: true, can_create: true, can_edit: true, can_delete: true, extra: {} },
-  { module: 'status', can_view: true, can_create: true, can_edit: true, can_delete: true, extra: { apply: true } },
-  { module: 'chatbot_keys', can_view: true, can_create: true, can_edit: true, can_delete: true,
-    extra: { revoke: true, edit_scopes: true } },
-  { module: 'workflow', can_view: true, can_create: true, can_edit: true, can_delete: true,
-    extra: { publish: true, test: true } },
-  { module: 'ai_agents', can_view: true, can_create: true, can_edit: true, can_delete: true, extra: { test: true } },
+  { module: 'ai_agents', can_view: true, can_create: true, can_edit: true, can_delete: true,
+    extra: { test: true } },
   { module: 'campaigns', can_view: true, can_create: true, can_edit: true, can_delete: true,
     extra: { send: true, pause: true, reports: true } },
   { module: 'settings', can_view: true, can_create: false, can_edit: true, can_delete: false, extra: {} },
@@ -86,14 +81,12 @@ serve(async (req) => {
     ];
 
     for (const u of users) {
-      // Find or create auth user
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
       const existing = existingUsers?.users?.find((eu: any) => eu.email === u.email);
 
       let userId: string;
       if (existing) {
         userId = existing.id;
-        // Update password to ensure it matches
         await supabase.auth.admin.updateUserById(userId, { password: u.password });
         results.push(`${u.email} já existe (senha atualizada)`);
       } else {
@@ -129,7 +122,6 @@ serve(async (req) => {
         results.push(`Role ${u.role} atribuído a ${u.email}`);
       } else {
         userRoleId = existingRole.id;
-        // Update role if it was super_admin
         if (existingRole.role === 'super_admin') {
           await supabase.from("user_roles").update({ role: 'admin' }).eq("id", userRoleId);
           results.push(`Role de ${u.email} atualizado de super_admin para admin`);
