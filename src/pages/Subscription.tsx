@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import {
   CreditCard, Calendar, Package, Users, MessageSquare, Bot,
-  Workflow, Shield, Sparkles, Lock, CheckCircle2, XCircle,
+  Shield, Sparkles, CheckCircle2, XCircle,
   AlertTriangle, Info
 } from 'lucide-react';
 
@@ -224,13 +224,7 @@ export default function Subscription() {
                 <h3 className="text-sm font-semibold mb-3">Recursos do Plano</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   <FeatureItem label="Instâncias" enabled={hasFeature('instances_enabled')} />
-                  <FeatureItem label="Saudações" enabled={hasFeature('greetings_enabled')} />
-                  <FeatureItem label="Ausência" enabled={hasFeature('absence_enabled')} />
-                  <FeatureItem label="Status" enabled={hasFeature('status_enabled')} />
-                  <FeatureItem label="Chatbot Keys" enabled={hasFeature('chatbot_keys_enabled')} />
-                  <FeatureItem label="Chatbot Keywords" enabled={hasFeature('chatbot_keywords_enabled')} />
                   <FeatureItem label="Campanhas" enabled={hasFeature('campaigns_enabled')} />
-                  <FeatureItem label="Workflows" enabled={hasFeature('workflows_enabled')} />
                   <FeatureItem label="Agentes IA" enabled={hasFeature('ai_agents_enabled')} />
                   <FeatureItem label="Faturas" enabled={hasFeature('invoices_enabled')} />
                   <FeatureItem label="Branding" enabled={hasFeature('branding_enabled')} />
@@ -262,7 +256,7 @@ export default function Subscription() {
               <UsageBar label="Instâncias" used={usage?.instances ?? 0} max={plan.limits.max_instances} icon={Package} />
               <UsageBar label="Campanhas" used={usage?.campaigns ?? 0} max={plan.limits.max_campaigns} icon={MessageSquare} />
               <UsageBar label="Agentes IA" used={usage?.ai_agents ?? 0} max={plan.limits.max_ai_agents} icon={Bot} />
-              <UsageBar label="Workflows" used={usage?.workflows ?? 0} max={plan.limits.max_workflows} icon={Workflow} />
+              <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan.limits.max_users} icon={Users} />
               <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan.limits.max_users} icon={Users} />
               <div className="text-xs text-muted-foreground pt-2">
                 Msgs/dia: {plan.limits.max_messages_day} · Msgs/mês: {plan.limits.max_messages_month.toLocaleString()}

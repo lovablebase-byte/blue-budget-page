@@ -32,13 +32,7 @@ const SUPPORT_LEVELS = [
 
 const ALL_FEATURES = [
   { key: 'instances_enabled', label: 'Instâncias', desc: 'Gerenciar conexões WhatsApp' },
-  { key: 'greetings_enabled', label: 'Saudações', desc: 'Mensagens automáticas de boas-vindas' },
-  { key: 'absence_enabled', label: 'Ausência', desc: 'Respostas automáticas de ausência' },
-  { key: 'status_enabled', label: 'Status', desc: 'Templates de status automático' },
-  { key: 'chatbot_keys_enabled', label: 'Chatbot Keys', desc: 'Chaves de API para chatbots' },
-  { key: 'chatbot_keywords_enabled', label: 'Chatbot Keywords', desc: 'Respostas por palavras-chave' },
   { key: 'campaigns_enabled', label: 'Campanhas', desc: 'Disparo em massa de mensagens' },
-  { key: 'workflows_enabled', label: 'Workflows', desc: 'Construtor visual de fluxos' },
   { key: 'ai_agents_enabled', label: 'Agentes IA', desc: 'Agentes inteligentes com IA' },
   { key: 'invoices_enabled', label: 'Faturas', desc: 'Visualização de faturas e cobranças' },
   { key: 'branding_enabled', label: 'Branding', desc: 'Personalização de marca e visual' },
@@ -56,13 +50,16 @@ const defaultForm = {
   max_instances: 1, max_messages_month: 1000, max_messages_day: 500,
   max_users: 3, max_campaigns: 5, max_ai_agents: 1,
   max_chatbots: 3, max_workflows: 3, max_contacts: 1000,
-  // All feature toggles
-  instances_enabled: true, greetings_enabled: true, absence_enabled: true,
-  status_enabled: true, chatbot_keys_enabled: true, chatbot_keywords_enabled: true,
-  campaigns_enabled: false, workflows_enabled: false, ai_agents_enabled: false,
+  // Active feature toggles
+  instances_enabled: true,
+  campaigns_enabled: false, ai_agents_enabled: false,
   invoices_enabled: true, branding_enabled: false,
   api_access: false, whitelabel_enabled: false,
   advanced_logs_enabled: false, advanced_webhooks_enabled: false,
+  // Legacy features kept for DB compat but hidden from UI
+  greetings_enabled: true, absence_enabled: true,
+  status_enabled: true, chatbot_keys_enabled: true,
+  chatbot_keywords_enabled: true, workflows_enabled: false,
   support_priority: 'standard', is_active: true,
 };
 
