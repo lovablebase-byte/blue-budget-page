@@ -503,7 +503,7 @@ export default function AdminSubscriptions() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Gateway">
-                <Input value={form.gateway} onChange={(e) => setForm({ ...form, gateway: e.target.value })} placeholder="Ex: stripe, abacatepay" />
+                <Input value={form.gateway} onChange={(e) => setForm({ ...form, gateway: e.target.value })} placeholder="amplopay" disabled />
               </Field>
               <Field label="ID externo da assinatura">
                 <Input value={form.gateway_reference} onChange={(e) => setForm({ ...form, gateway_reference: e.target.value })} placeholder="sub_xxx" />
