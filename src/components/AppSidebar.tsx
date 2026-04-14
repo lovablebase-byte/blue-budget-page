@@ -126,7 +126,7 @@ export function AppSidebar() {
             <SidebarSeparator className="border-border/30" />
             <Collapsible defaultOpen={
               location.pathname.startsWith('/admin') ||
-              ['/users', '/settings', '/branding', '/subscription', '/invoices'].includes(location.pathname)
+              ['/users', '/settings', '/branding'].includes(location.pathname)
             }>
               <SidebarGroup>
                 <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-bold text-accent/70 uppercase tracking-widest hover:text-accent transition-colors">
