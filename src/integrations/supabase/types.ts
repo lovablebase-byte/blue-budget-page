@@ -1537,10 +1537,13 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          auto_renew: boolean
           canceled_at: string | null
           company_id: string
           created_at: string
           expires_at: string | null
+          gateway: string | null
+          gateway_reference: string | null
           id: string
           notes: string | null
           plan_id: string
@@ -1551,10 +1554,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_renew?: boolean
           canceled_at?: string | null
           company_id: string
           created_at?: string
           expires_at?: string | null
+          gateway?: string | null
+          gateway_reference?: string | null
           id?: string
           notes?: string | null
           plan_id: string
@@ -1565,10 +1571,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_renew?: boolean
           canceled_at?: string | null
           company_id?: string
           created_at?: string
           expires_at?: string | null
+          gateway?: string | null
+          gateway_reference?: string | null
           id?: string
           notes?: string | null
           plan_id?: string
