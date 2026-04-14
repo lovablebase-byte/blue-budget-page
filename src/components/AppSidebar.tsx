@@ -15,8 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { PlanFeatures } from '@/services/plan-enforcement';
 import {
-  operationalRoutes, commercialRoutes, companyAdminRoutes,
-  systemAdminRoutes, personalRoutes, type RouteDefinition,
+  operationalRoutes, adminRoutes, personalRoutes, type RouteDefinition,
 } from '@/lib/routes';
 
 /** Map module names to plan feature flags for enforcement */
@@ -103,7 +102,6 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-bold text-foreground tracking-tight">WA Manager</span>
-              <span className="text-[11px] text-primary/80 font-medium">{company?.name || 'Sistema'}</span>
             </div>
           )}
         </div>
@@ -112,7 +110,7 @@ export function AppSidebar() {
       <SidebarSeparator className="border-border/30" />
 
       <SidebarContent>
-        {/* Operational */}
+        {/* Operacional */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Operacional</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -122,22 +120,14 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Comercial */}
-        <SidebarSeparator className="border-border/30" />
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Comercial</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {commercialRoutes.map(renderMenuItem)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
         {/* Administração (admin only) */}
         {isAdmin && (
           <>
             <SidebarSeparator className="border-border/30" />
-            <Collapsible defaultOpen={location.pathname.startsWith('/admin') || ['/users', '/settings', '/branding'].includes(location.pathname)}>
+            <Collapsible defaultOpen={
+              location.pathname.startsWith('/admin') ||
+              ['/users', '/settings', '/branding', '/subscription', '/invoices'].includes(location.pathname)
+            }>
               <SidebarGroup>
                 <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-bold text-accent/70 uppercase tracking-widest hover:text-accent transition-colors">
                   Administração
@@ -146,8 +136,7 @@ export function AppSidebar() {
                 <CollapsibleContent>
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {companyAdminRoutes.map(renderMenuItem)}
-                      {systemAdminRoutes.map(renderMenuItem)}
+                      {adminRoutes.map(renderMenuItem)}
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </CollapsibleContent>
@@ -156,21 +145,13 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Personal */}
+        {/* Pessoal */}
         <SidebarSeparator className="border-border/30" />
         <SidebarGroup>
           <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Pessoal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {personalRoutes
-                .filter(item => {
-                  // Non-admin users only see /profile
-                  if (role === 'user' && item.path === '/account') return false;
-                  // Admins see /account but not /profile (handled by companyAdminRoutes)
-                  if (isAdmin && item.path === '/profile') return false;
-                  return true;
-                })
-                .map(renderMenuItem)}
+              {personalRoutes.map(renderMenuItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
