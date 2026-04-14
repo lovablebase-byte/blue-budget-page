@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from 'sonner';
 import {
   Plus, MoreHorizontal, Pencil, Eye, RefreshCw, Ban, XCircle, PlayCircle, Search,
-  Users, TestTube, AlertTriangle, Clock,
+  Users, TestTube, AlertTriangle, Clock, QrCode, Copy, Loader2,
 } from 'lucide-react';
 
 /* ── types ── */
