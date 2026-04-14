@@ -2,11 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { legacyRedirects } from "@/lib/routes";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -15,12 +16,6 @@ import Dashboard from "./pages/Dashboard";
 import Account from "./pages/Account";
 import Instances from "./pages/Instances";
 import InstanceDetail from "./pages/InstanceDetail";
-import Greetings from "./pages/Greetings";
-import Absence from "./pages/Absence";
-import StatusPage from "./pages/Status";
-import ChatbotKeys from "./pages/ChatbotKeys";
-import Workflows from "./pages/Workflows";
-import ChatbotKeywords from "./pages/ChatbotKeywords";
 import AIAgents from "./pages/AIAgents";
 import Campaigns from "./pages/Campaigns";
 import Subscription from "./pages/Subscription";
@@ -37,12 +32,6 @@ import AdminReports from "./pages/admin/Reports";
 import AdminHealth from "./pages/admin/Health";
 import AdminWebhooks from "./pages/admin/Webhooks";
 import AdminLogs from "./pages/admin/Logs";
-import AdminGreetings from "./pages/admin/Greetings";
-import AdminAbsence from "./pages/admin/Absence";
-import AdminStatus from "./pages/admin/Status";
-import AdminChatbotKeys from "./pages/admin/ChatbotKeys";
-import AdminWorkflows from "./pages/admin/Workflows";
-import AdminChatbotKeywords from "./pages/admin/ChatbotKeywords";
 import AdminAIAgents from "./pages/admin/AIAgents";
 import AdminCampaigns from "./pages/admin/Campaigns";
 import Settings from "./pages/Settings";
@@ -85,12 +74,6 @@ const App = () => (
               <Route path="/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
               <Route path="/instances" element={<ProtectedPage module="instances"><Instances /></ProtectedPage>} />
               <Route path="/instances/:id" element={<ProtectedPage module="instances"><InstanceDetail /></ProtectedPage>} />
-              <Route path="/greetings" element={<ProtectedPage module="greetings"><Greetings /></ProtectedPage>} />
-              <Route path="/absence" element={<ProtectedPage module="absence"><Absence /></ProtectedPage>} />
-              <Route path="/status" element={<ProtectedPage module="status"><StatusPage /></ProtectedPage>} />
-              <Route path="/chatbot-keys" element={<ProtectedPage module="chatbot_keys"><ChatbotKeys /></ProtectedPage>} />
-              <Route path="/workflow" element={<ProtectedPage module="workflow"><Workflows /></ProtectedPage>} />
-              <Route path="/chatbot-keywords" element={<ProtectedPage module="chatbot_keys"><ChatbotKeywords /></ProtectedPage>} />
               <Route path="/ai-agents" element={<ProtectedPage module="ai_agents"><AIAgents /></ProtectedPage>} />
               <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Campaigns /></ProtectedPage>} />
 
@@ -117,16 +100,15 @@ const App = () => (
               <Route path="/admin/health" element={<ProtectedPage role={['admin']}><AdminHealth /></ProtectedPage>} />
               <Route path="/admin/webhooks" element={<ProtectedPage role={['admin']}><AdminWebhooks /></ProtectedPage>} />
               <Route path="/admin/logs" element={<ProtectedPage role={['admin']}><AdminLogs /></ProtectedPage>} />
-              <Route path="/admin/greetings" element={<ProtectedPage role={['admin']}><AdminGreetings /></ProtectedPage>} />
-              <Route path="/admin/absence" element={<ProtectedPage role={['admin']}><AdminAbsence /></ProtectedPage>} />
-              <Route path="/admin/status" element={<ProtectedPage role={['admin']}><AdminStatus /></ProtectedPage>} />
-              <Route path="/admin/chatbot-keys" element={<ProtectedPage role={['admin']}><AdminChatbotKeys /></ProtectedPage>} />
-              <Route path="/admin/workflows" element={<ProtectedPage role={['admin']}><AdminWorkflows /></ProtectedPage>} />
-              <Route path="/admin/chatbot-keywords" element={<ProtectedPage role={['admin']}><AdminChatbotKeywords /></ProtectedPage>} />
               <Route path="/admin/ai-agents" element={<ProtectedPage role={['admin']}><AdminAIAgents /></ProtectedPage>} />
               <Route path="/admin/campaigns" element={<ProtectedPage role={['admin']}><AdminCampaigns /></ProtectedPage>} />
               <Route path="/admin/settings" element={<ProtectedPage role={['admin']}><AdminSettings /></ProtectedPage>} />
               <Route path="/admin/branding" element={<ProtectedPage role={['admin']}><AdminBranding /></ProtectedPage>} />
+
+              {/* Legacy redirects */}
+              {legacyRedirects.map(path => (
+                <Route key={path} path={path} element={<Navigate to="/dashboard" replace />} />
+              ))}
 
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,8 +1,7 @@
 export type AppRole = 'admin' | 'user';
 
 export type ModuleName = 
-  | 'dashboard' | 'instances' | 'greetings' | 'absence' 
-  | 'status' | 'chatbot_keys' | 'workflow' | 'ai_agents' 
+  | 'dashboard' | 'instances' | 'ai_agents' 
   | 'campaigns' | 'settings';
 
 export interface ModulePermission {
