@@ -5,8 +5,8 @@
 
 import {
   LayoutDashboard, Smartphone, Bot, Megaphone, Settings,
-  Building2, CreditCard, Receipt, Users, Shield, User,
-  Globe, BarChart3, Heart, Webhook, FileText, Palette,
+  CreditCard, Receipt, Users, User, Palette,
+  Globe, BarChart3, Heart, Webhook, FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -19,7 +19,7 @@ export interface RouteDefinition {
   adminOnly?: boolean;
 }
 
-// ── Operational (company-level) ──────────────────────────────────
+// ── Operational (todos os usuários com permissão) ────────────────
 export const operationalRoutes: RouteDefinition[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'dashboard' },
   { path: '/instances', label: 'Instâncias', icon: Smartphone, module: 'instances' },
@@ -27,50 +27,29 @@ export const operationalRoutes: RouteDefinition[] = [
   { path: '/campaigns', label: 'Campanhas', icon: Megaphone, module: 'campaigns' },
 ];
 
-// ── Commercial ───────────────────────────────────────────────────
-export const commercialRoutes: RouteDefinition[] = [
-  { path: '/subscription', label: 'Plano e Assinatura', icon: CreditCard },
-  { path: '/invoices', label: 'Faturas', icon: Receipt },
-];
-
-// ── Company admin ────────────────────────────────────────────────
-export const companyAdminRoutes: RouteDefinition[] = [
+// ── Administração (admin only) ───────────────────────────────────
+export const adminRoutes: RouteDefinition[] = [
   { path: '/users', label: 'Usuários', icon: Users, adminOnly: true },
-  { path: '/settings', label: 'Ajustes', icon: Settings, module: 'settings' },
+  { path: '/settings', label: 'Ajustes', icon: Settings, module: 'settings', adminOnly: true },
   { path: '/branding', label: 'Marca', icon: Palette, adminOnly: true },
+  { path: '/subscription', label: 'Plano e Assinatura', icon: CreditCard, adminOnly: true },
+  { path: '/invoices', label: 'Faturas', icon: Receipt, adminOnly: true },
+  { path: '/admin/gateways', label: 'Gateways', icon: Globe, adminOnly: true },
+  { path: '/admin/reports', label: 'Relatórios', icon: BarChart3, adminOnly: true },
+  { path: '/admin/health', label: 'Saúde do Sistema', icon: Heart, adminOnly: true },
+  { path: '/admin/webhooks', label: 'Webhooks', icon: Webhook, adminOnly: true },
+  { path: '/admin/logs', label: 'Logs de Mensagens', icon: FileText, adminOnly: true },
 ];
 
-// ── System admin ─────────────────────────────────────────────────
-export const systemAdminRoutes: RouteDefinition[] = [
-  { path: '/admin/companies', label: 'Empresas', icon: Building2 },
-  { path: '/admin/subscriptions', label: 'Assinaturas', icon: CreditCard },
-  { path: '/admin/instances', label: 'Instâncias Globais', icon: Smartphone },
-  { path: '/admin/ai-agents', label: 'Agentes IA Globais', icon: Bot },
-  { path: '/admin/campaigns', label: 'Campanhas Globais', icon: Megaphone },
-  { path: '/admin/plans', label: 'Planos Globais', icon: CreditCard },
-  { path: '/admin/users', label: 'Usuários Globais', icon: Shield },
-  { path: '/admin/invoices', label: 'Faturas Globais', icon: Receipt },
-  { path: '/admin/gateways', label: 'Gateways', icon: Globe },
-  { path: '/admin/settings', label: 'Ajustes Globais', icon: Settings },
-  { path: '/admin/branding', label: 'Marca Global', icon: Palette },
-  { path: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
-  { path: '/admin/health', label: 'Saúde do Sistema', icon: Heart },
-  { path: '/admin/webhooks', label: 'Webhooks', icon: Webhook },
-  { path: '/admin/logs', label: 'Logs de Mensagens', icon: FileText },
-];
-
-// ── Personal ─────────────────────────────────────────────────────
+// ── Pessoal ──────────────────────────────────────────────────────
 export const personalRoutes: RouteDefinition[] = [
-  { path: '/profile', label: 'Meu Perfil', icon: User },
   { path: '/account', label: 'Minha Conta', icon: User },
 ];
 
 // ── All active routes (flat) ─────────────────────────────────────
 export const allActiveRoutes: RouteDefinition[] = [
   ...operationalRoutes,
-  ...commercialRoutes,
-  ...companyAdminRoutes,
-  ...systemAdminRoutes,
+  ...adminRoutes,
   ...personalRoutes,
 ];
 
@@ -83,8 +62,7 @@ export const breadcrumbLabels: Record<string, string> = Object.fromEntries(
       return [lastSegment, r.label];
     })
 );
-// Add known segments not directly in routes
-breadcrumbLabels['admin'] = 'Admin';
+breadcrumbLabels['admin'] = 'Administração';
 breadcrumbLabels['reset-password'] = 'Redefinir Senha';
 
 // ── Legacy paths that should redirect to /dashboard ──────────────
@@ -95,12 +73,23 @@ export const legacyRedirects: string[] = [
   '/chatbot-keys',
   '/workflow',
   '/chatbot-keywords',
+  '/profile',
   '/admin/greetings',
   '/admin/absence',
   '/admin/status',
   '/admin/chatbot-keys',
   '/admin/workflows',
   '/admin/chatbot-keywords',
+  '/admin/companies',
+  '/admin/subscriptions',
+  '/admin/instances',
+  '/admin/ai-agents',
+  '/admin/campaigns',
+  '/admin/plans',
+  '/admin/users',
+  '/admin/invoices',
+  '/admin/settings',
+  '/admin/branding',
 ];
 
 // ── Route order for initial redirect (user role) ─────────────────

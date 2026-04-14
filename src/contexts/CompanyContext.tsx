@@ -41,20 +41,22 @@ const CompanyContext = createContext<CompanyContextType>({
 });
 
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
-  const { company } = useAuth();
+  const { company, isAdmin } = useAuth();
   const { data: plan, isLoading: planLoading } = useEffectivePlan();
   const { data: allowedProviders = [], isLoading: providersLoading } = useAllowedProviders();
 
-  const isActive = plan?.status === 'active' || plan?.status === 'trialing';
-  const isSuspended = plan?.status === 'canceled' || plan?.status === 'past_due';
+  const isActive = isAdmin ? true : (plan?.status === 'active' || plan?.status === 'trialing');
+  const isSuspended = isAdmin ? false : (plan?.status === 'canceled' || plan?.status === 'past_due');
   const isTrialing = plan?.status === 'trialing';
 
   const hasFeature = (feature: keyof EffectivePlan['features']): boolean => {
+    if (isAdmin) return true;
     if (!plan) return false;
     return plan.features[feature];
   };
 
   const getLimit = (key: keyof EffectivePlan['limits']): number => {
+    if (isAdmin) return Infinity;
     if (!plan) return 0;
     return plan.limits[key];
   };
