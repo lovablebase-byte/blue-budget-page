@@ -206,7 +206,7 @@ export default function AdminSubscriptions() {
   /* ── mutations ── */
   const saveMutation = useMutation({
     mutationFn: async (values: typeof form & { id?: string }) => {
-      const payload: Record<string, any> = {
+      const payload = {
         company_id: values.company_id,
         plan_id: values.plan_id,
         status: values.status,
