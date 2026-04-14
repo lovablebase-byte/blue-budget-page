@@ -7,47 +7,41 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function jsonRes(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Auth check
+    /* ── Auth ── */
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ error: "Unauthorized" }, 401);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnon, {
+    const supabaseUser = createClient(supabaseUrl, supabaseAnon, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const { data: userData, error: userErr } = await supabaseUser.auth.getUser();
+    if (userErr || !userData?.user) {
+      return jsonRes({ error: "Unauthorized" }, 401);
     }
 
-    // Parse action from URL
-    const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    /* ── Service client ── */
+    const svc = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Get gateway config using service role
-    const supabaseService = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const { data: gateway } = await supabaseService
+    /* ── Gateway config ── */
+    const { data: gateway } = await svc
       .from("payment_gateways")
       .select("*")
       .eq("provider", "amplopay")
@@ -55,54 +49,51 @@ serve(async (req) => {
       .single();
 
     if (!gateway) {
-      return new Response(
-        JSON.stringify({ error: "Gateway Amplo Pay não configurado" }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonRes({ error: "Gateway Amplo Pay não configurado" }, 404);
     }
 
     const config = (gateway.config || {}) as Record<string, any>;
-    const baseUrl = config.base_url || "";
+    const baseUrl = (config.base_url || "").replace(/\/+$/, "");
     const apiKey = config.api_key || "";
 
     if (!baseUrl || !apiKey) {
-      return new Response(
-        JSON.stringify({ error: "Credenciais da Amplo Pay incompletas" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonRes({ error: "Credenciais da Amplo Pay incompletas" }, 400);
     }
 
-    // ─── ACTION: test ───
+    const url = new URL(req.url);
+    const action = url.searchParams.get("action");
+
+    /* ─── Helpers ─── */
+    const logEvent = (data: Record<string, any>) =>
+      svc.from("payment_events").insert({
+        received_at: new Date().toISOString(),
+        ...data,
+      });
+
+    const apiHeaders = {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    };
+
+    /* ═══════════════════════════════════════════════
+       ACTION: test  (PDF seção 6.1)
+       ═══════════════════════════════════════════════ */
     if (action === "test") {
       try {
         const testResp = await fetch(`${baseUrl}/health`, {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
+          headers: apiHeaders,
         });
         const testBody = await testResp.text();
 
-        // Log attempt
-        await supabaseService.from("payment_events").insert({
+        await logEvent({
           event_type: "connection_test",
-          payload: {
-            http_status: testResp.status,
-            response: testBody.substring(0, 500),
-          },
+          payload: { http_status: testResp.status, response: testBody.substring(0, 500) },
           result: testResp.ok ? "success" : "failure",
           processed_at: new Date().toISOString(),
         });
 
-        // Update gateway last test
-        await supabaseService
+        await svc
           .from("payment_gateways")
           .update({
             config: {
@@ -113,51 +104,43 @@ serve(async (req) => {
           })
           .eq("id", gateway.id);
 
-        return new Response(
-          JSON.stringify({
-            ok: testResp.ok,
-            provider: "amplopay",
-            status: testResp.ok ? "connected" : "error",
-            http_status: testResp.status,
-            checked_at: new Date().toISOString(),
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonRes({
+          ok: testResp.ok,
+          provider: "amplopay",
+          status: testResp.ok ? "connected" : "error",
+          http_status: testResp.status,
+          checked_at: new Date().toISOString(),
+        });
       } catch (fetchErr: any) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            provider: "amplopay",
-            status: "unreachable",
-            error: fetchErr.message,
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        await logEvent({
+          event_type: "connection_test",
+          payload: { error: fetchErr.message },
+          result: "error",
+          processed_at: new Date().toISOString(),
+        });
+
+        await svc
+          .from("payment_gateways")
+          .update({
+            config: { ...config, last_test_at: new Date().toISOString(), last_test_status: "error" },
+          })
+          .eq("id", gateway.id);
+
+        return jsonRes({ ok: false, provider: "amplopay", status: "unreachable", error: fetchErr.message });
       }
     }
 
-    // ─── ACTION: create-charge ───
+    /* ═══════════════════════════════════════════════
+       ACTION: create-charge  (PDF seção 6.2)
+       ═══════════════════════════════════════════════ */
     if (action === "create-charge" && req.method === "POST") {
       const body = await req.json();
       const { subscription_id, company_id, amount_cents, description, expires_at } = body;
 
       if (!subscription_id || !amount_cents) {
-        return new Response(
-          JSON.stringify({ error: "subscription_id e amount_cents obrigatórios" }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonRes({ error: "subscription_id e amount_cents obrigatórios" }, 400);
       }
 
-      // Call Amplo Pay API to create PIX charge
       const chargePayload = {
         amount: amount_cents,
         description: description || "Cobrança de assinatura",
@@ -169,60 +152,44 @@ serve(async (req) => {
       try {
         externalResp = await fetch(`${baseUrl}/charges/pix`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
+          headers: apiHeaders,
           body: JSON.stringify(chargePayload),
         });
         externalBody = await externalResp.json();
       } catch (fetchErr: any) {
-        // Log failure
-        await supabaseService.from("payment_events").insert({
+        await logEvent({
           event_type: "charge_creation_failed",
           payload: { error: fetchErr.message, request: chargePayload },
           result: "error",
           processed_at: new Date().toISOString(),
         });
-
-        return new Response(
-          JSON.stringify({ ok: false, error: "Falha ao conectar com Amplo Pay: " + fetchErr.message }),
-          {
-            status: 502,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonRes({ ok: false, error: "Falha ao conectar com Amplo Pay: " + fetchErr.message }, 502);
       }
 
-      // Log attempt
-      await supabaseService.from("payment_events").insert({
+      const extId = externalBody?.id || externalBody?.charge_id || null;
+
+      await logEvent({
         event_type: "charge_created",
-        external_id: externalBody?.id || externalBody?.charge_id || null,
-        payload: {
-          request: chargePayload,
-          response: externalBody,
-          http_status: externalResp.status,
-        },
+        external_id: extId,
+        payload: { request: chargePayload, response: externalBody, http_status: externalResp.status },
         result: externalResp.ok ? "success" : "error",
         processed_at: new Date().toISOString(),
       });
 
       if (!externalResp.ok) {
-        return new Response(
-          JSON.stringify({ ok: false, error: "Erro da Amplo Pay", details: externalBody }),
-          {
-            status: externalResp.status,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonRes({ ok: false, error: "Erro da Amplo Pay", details: externalBody }, externalResp.status);
       }
 
-      // Persist charge locally
-      const extId = externalBody?.id || externalBody?.charge_id || null;
-      const qrCode = externalBody?.qr_code || externalBody?.qrcode || null;
-      const pixCopyPaste = externalBody?.pix_copy_paste || externalBody?.copy_paste || externalBody?.brcode || null;
+      // Mapear campos do QR conforme resposta (PDF seção 13 — campos confirmáveis)
+      const qrCode = externalBody?.qr_code || externalBody?.qrcode || externalBody?.qr_code_base64 || null;
+      const pixCopyPaste =
+        externalBody?.pix_copy_paste ||
+        externalBody?.copy_paste ||
+        externalBody?.brcode ||
+        externalBody?.emv ||
+        null;
 
-      const { data: charge, error: insertErr } = await supabaseService
+      const { data: charge, error: insertErr } = await svc
         .from("payment_charges")
         .insert({
           subscription_id,
@@ -242,143 +209,117 @@ serve(async (req) => {
         console.error("[amplopay-proxy] Insert charge error:", insertErr.message);
       }
 
-      // Update subscription gateway reference
+      // Vincular gateway à assinatura (PDF seção 5.2 item 3)
       if (extId) {
-        await supabaseService
+        await svc
           .from("subscriptions")
           .update({ gateway: "amplopay", gateway_reference: extId })
           .eq("id", subscription_id);
       }
 
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          provider: "amplopay",
-          charge_id: charge?.id,
-          external_id: extId,
-          status: "pending",
-          qr_code: qrCode,
-          pix_copy_paste: pixCopyPaste,
-          expires_at: expires_at || null,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonRes({
+        ok: true,
+        provider: "amplopay",
+        charge_id: charge?.id,
+        external_id: extId,
+        status: "pending",
+        qr_code: qrCode,
+        pix_copy_paste: pixCopyPaste,
+        expires_at: expires_at || null,
+      });
     }
 
-    // ─── ACTION: query-charge ───
+    /* ═══════════════════════════════════════════════
+       ACTION: query-charge  (PDF seção 6.3 + fallback 5.3)
+       ═══════════════════════════════════════════════ */
     if (action === "query-charge") {
       const chargeId = url.searchParams.get("charge_id");
       if (!chargeId) {
-        return new Response(
-          JSON.stringify({ error: "charge_id obrigatório" }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonRes({ error: "charge_id obrigatório" }, 400);
       }
 
-      // Get local charge
-      const { data: charge } = await supabaseService
+      const { data: charge } = await svc
         .from("payment_charges")
         .select("*")
         .eq("id", chargeId)
         .single();
 
       if (!charge) {
-        return new Response(
-          JSON.stringify({ error: "Cobrança não encontrada" }),
-          {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonRes({ error: "Cobrança não encontrada" }, 404);
       }
 
-      // If charge has external_id, query Amplo Pay for updated status
-      if (charge.external_id) {
+      // Consulta ativa na Amplo Pay (fallback — PDF seção 5.3)
+      if (charge.external_id && charge.status !== "paid") {
         try {
-          const statusResp = await fetch(
-            `${baseUrl}/charges/${charge.external_id}`,
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
+          const statusResp = await fetch(`${baseUrl}/charges/${charge.external_id}`, {
+            method: "GET",
+            headers: apiHeaders,
+          });
 
           if (statusResp.ok) {
             const statusBody = await statusResp.json();
             const newStatus = statusBody?.status || charge.status;
 
-            // Update local if changed
             if (newStatus !== charge.status) {
               const updateData: Record<string, any> = { status: newStatus };
-              if (newStatus === "paid" && !charge.paid_at) {
+              if ((newStatus === "paid" || newStatus === "approved" || newStatus === "confirmed") && !charge.paid_at) {
                 updateData.paid_at = new Date().toISOString();
+                updateData.status = "paid";
               }
-              await supabaseService
-                .from("payment_charges")
-                .update(updateData)
-                .eq("id", charge.id);
 
-              // If paid, update subscription
-              if (newStatus === "paid" && charge.subscription_id) {
-                await supabaseService
+              await svc.from("payment_charges").update(updateData).eq("id", charge.id);
+
+              // Se pago, ativar assinatura (PDF seção 5.4)
+              if (updateData.status === "paid" && charge.subscription_id) {
+                const now = new Date();
+                const nextMonth = new Date(now);
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+                await svc
                   .from("subscriptions")
                   .update({
                     status: "active",
-                    started_at: new Date().toISOString(),
+                    started_at: now.toISOString(),
+                    expires_at: nextMonth.toISOString(),
+                    canceled_at: null,
+                    suspended_at: null,
                   })
                   .eq("id", charge.subscription_id);
+
+                await logEvent({
+                  event_type: "fallback_reconciliation",
+                  external_id: charge.external_id,
+                  charge_id: charge.id,
+                  payload: { subscription_id: charge.subscription_id, new_status: "paid" },
+                  result: "processed",
+                  processed_at: new Date().toISOString(),
+                });
               }
 
-              charge.status = newStatus;
+              charge.status = updateData.status;
+              charge.paid_at = updateData.paid_at || charge.paid_at;
             }
           }
         } catch {
-          // Fallback: just return local data
+          // Retornar dados locais se consulta falhar
         }
       }
 
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          charge_id: charge.id,
-          external_id: charge.external_id,
-          status: charge.status,
-          paid_at: charge.paid_at,
-          amount_cents: charge.amount_cents,
-          qr_code: charge.qr_code,
-          pix_copy_paste: charge.pix_copy_paste,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonRes({
+        ok: true,
+        charge_id: charge.id,
+        external_id: charge.external_id,
+        status: charge.status,
+        paid_at: charge.paid_at,
+        amount_cents: charge.amount_cents,
+        qr_code: charge.qr_code,
+        pix_copy_paste: charge.pix_copy_paste,
+      });
     }
 
-    return new Response(
-      JSON.stringify({ error: "Ação não reconhecida. Use: test, create-charge, query-charge" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return jsonRes({ error: "Ação não reconhecida. Use: test, create-charge, query-charge" }, 400);
   } catch (error: any) {
     console.error("[amplopay-proxy] ERROR:", error.message);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return jsonRes({ error: error.message }, 500);
   }
 });
