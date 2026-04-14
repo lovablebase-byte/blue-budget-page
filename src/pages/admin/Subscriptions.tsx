@@ -102,6 +102,9 @@ export default function AdminSubscriptions() {
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
   const [planFilter, setPlanFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [pixRow, setPixRow] = useState<SubRow | null>(null);
+  const [pixResult, setPixResult] = useState<any>(null);
+  const [pixLoading, setPixLoading] = useState(false);
 
   /* ── queries ── */
   const { data: subs = [], isLoading } = useQuery({
