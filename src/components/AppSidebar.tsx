@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { PlanFeatures } from '@/services/plan-enforcement';
 import {
   operationalRoutes, commercialRoutes, companyAdminRoutes,
-  systemAdminRoutes, type RouteDefinition,
+  systemAdminRoutes, personalRoutes, type RouteDefinition,
 } from '@/lib/routes';
 
 /** Map module names to plan feature flags for enforcement */
