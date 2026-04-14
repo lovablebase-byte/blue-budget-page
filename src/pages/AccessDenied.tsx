@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
+import { routeOrderForRedirect } from '@/lib/routes';
 
 export default function AccessDenied() {
   const navigate = useNavigate();
@@ -16,17 +17,11 @@ export default function AccessDenied() {
     setRefreshing(true);
     await refreshAuth();
     setRefreshing(false);
-    // After refresh, try to find first allowed route
-    const routes = [
-      { path: '/dashboard', module: 'dashboard' },
-      { path: '/instances', module: 'instances' },
-      { path: '/greetings', module: 'greetings' },
-    ];
     if (role === 'admin') {
       navigate('/dashboard', { replace: true });
       return;
     }
-    for (const route of routes) {
+    for (const route of routeOrderForRedirect) {
       if (hasPermission(route.module, 'view')) {
         navigate(route.path, { replace: true });
         return;

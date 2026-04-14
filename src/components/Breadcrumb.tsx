@@ -1,31 +1,6 @@
 import { useLocation, Link } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-
-const routeLabels: Record<string, string> = {
-  dashboard: 'Dashboard',
-  instances: 'Instâncias',
-  greetings: 'Saudações',
-  absence: 'Ausência',
-  status: 'Status',
-  'chatbot-keys': 'Chatbots Keys',
-  workflow: 'Workflow',
-  'ai-agents': 'Agentes IA',
-  campaigns: 'Campanhas',
-  subscription: 'Assinatura',
-  invoices: 'Faturas',
-  users: 'Usuários',
-  settings: 'Ajustes',
-  profile: 'Meu Perfil',
-  account: 'Minha Conta',
-  admin: 'Admin',
-  companies: 'Empresas',
-  plans: 'Planos',
-  gateways: 'Gateways',
-  reports: 'Relatórios',
-  health: 'Saúde',
-  webhooks: 'Webhooks',
-  'reset-password': 'Redefinir Senha',
-};
+import { breadcrumbLabels } from '@/lib/routes';
 
 export function Breadcrumb() {
   const location = useLocation();
@@ -41,7 +16,7 @@ export function Breadcrumb() {
       {segments.map((segment, index) => {
         const path = '/' + segments.slice(0, index + 1).join('/');
         const isLast = index === segments.length - 1;
-        const label = routeLabels[segment] || segment;
+        const label = breadcrumbLabels[segment] || segment;
 
         return (
           <span key={path} className="flex items-center gap-1">
