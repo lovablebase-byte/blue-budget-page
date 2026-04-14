@@ -256,7 +256,7 @@ export default function Subscription() {
               <UsageBar label="Instâncias" used={usage?.instances ?? 0} max={plan.limits.max_instances} icon={Package} />
               <UsageBar label="Campanhas" used={usage?.campaigns ?? 0} max={plan.limits.max_campaigns} icon={MessageSquare} />
               <UsageBar label="Agentes IA" used={usage?.ai_agents ?? 0} max={plan.limits.max_ai_agents} icon={Bot} />
-              <UsageBar label="Workflows" used={usage?.workflows ?? 0} max={plan.limits.max_workflows} icon={Workflow} />
+              <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan.limits.max_users} icon={Users} />
               <UsageBar label="Usuários" used={usage?.users ?? 0} max={plan.limits.max_users} icon={Users} />
               <div className="text-xs text-muted-foreground pt-2">
                 Msgs/dia: {plan.limits.max_messages_day} · Msgs/mês: {plan.limits.max_messages_month.toLocaleString()}
