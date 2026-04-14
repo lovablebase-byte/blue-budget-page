@@ -49,17 +49,13 @@ const defaultForm = {
   display_order: 0, notes: '', is_popular: false,
   max_instances: 1, max_messages_month: 1000, max_messages_day: 500,
   max_users: 3, max_campaigns: 5, max_ai_agents: 1,
-  max_chatbots: 3, max_workflows: 3, max_contacts: 1000,
+  max_contacts: 1000,
   // Active feature toggles
   instances_enabled: true,
   campaigns_enabled: false, ai_agents_enabled: false,
   invoices_enabled: true, branding_enabled: false,
   api_access: false, whitelabel_enabled: false,
   advanced_logs_enabled: false, advanced_webhooks_enabled: false,
-  // Legacy features kept for DB compat but hidden from UI
-  greetings_enabled: true, absence_enabled: true,
-  status_enabled: true, chatbot_keys_enabled: true,
-  chatbot_keywords_enabled: true, workflows_enabled: false,
   support_priority: 'standard', is_active: true,
 };
 
@@ -341,8 +337,6 @@ export default function AdminPlans() {
                   <div><Label>Msgs/mês</Label><Input type="number" min={0} value={form.max_messages_month} onChange={e => set('max_messages_month', Number(e.target.value))} /></div>
                   <div><Label>Msgs/dia</Label><Input type="number" min={0} value={form.max_messages_day} onChange={e => set('max_messages_day', Number(e.target.value))} /></div>
                   <div><Label>Max Agentes IA</Label><Input type="number" min={0} value={form.max_ai_agents} onChange={e => set('max_ai_agents', Number(e.target.value))} /></div>
-                  <div><Label>Max Chatbots</Label><Input type="number" min={0} value={form.max_chatbots} onChange={e => set('max_chatbots', Number(e.target.value))} /></div>
-                  <div><Label>Max Workflows</Label><Input type="number" min={0} value={form.max_workflows} onChange={e => set('max_workflows', Number(e.target.value))} /></div>
                   <div><Label>Max Contatos</Label><Input type="number" min={0} value={form.max_contacts} onChange={e => set('max_contacts', Number(e.target.value))} /></div>
                 </div>
               </TabsContent>

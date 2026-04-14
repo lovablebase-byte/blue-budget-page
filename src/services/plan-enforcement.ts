@@ -12,20 +12,12 @@ export interface PlanLimits {
   max_messages_day: number;
   max_campaigns: number;
   max_ai_agents: number;
-  max_chatbots: number;
-  max_workflows: number;
   max_contacts: number;
 }
 
 export interface PlanFeatures {
   instances_enabled: boolean;
-  greetings_enabled: boolean;
-  absence_enabled: boolean;
-  status_enabled: boolean;
-  chatbot_keys_enabled: boolean;
-  chatbot_keywords_enabled: boolean;
   campaigns_enabled: boolean;
-  workflows_enabled: boolean;
   ai_agents_enabled: boolean;
   invoices_enabled: boolean;
   branding_enabled: boolean;
@@ -95,19 +87,11 @@ export async function getEffectivePlan(companyId: string): Promise<EffectivePlan
       max_messages_day: getLimit('max_messages_day', plan.max_messages_day),
       max_campaigns: getLimit('max_campaigns', plan.max_campaigns),
       max_ai_agents: getLimit('max_ai_agents', plan.max_ai_agents),
-      max_chatbots: getLimit('max_chatbots', plan.max_chatbots),
-      max_workflows: getLimit('max_workflows', plan.max_workflows),
       max_contacts: getLimit('max_contacts', plan.max_contacts),
     },
     features: {
       instances_enabled: getFeature('instances_enabled', plan.instances_enabled ?? true),
-      greetings_enabled: getFeature('greetings_enabled', plan.greetings_enabled ?? true),
-      absence_enabled: getFeature('absence_enabled', plan.absence_enabled ?? true),
-      status_enabled: getFeature('status_enabled', plan.status_enabled ?? true),
-      chatbot_keys_enabled: getFeature('chatbot_keys_enabled', plan.chatbot_keys_enabled ?? true),
-      chatbot_keywords_enabled: getFeature('chatbot_keywords_enabled', plan.chatbot_keywords_enabled ?? true),
       campaigns_enabled: getFeature('campaigns_enabled', plan.campaigns_enabled),
-      workflows_enabled: getFeature('workflows_enabled', plan.workflows_enabled),
       ai_agents_enabled: getFeature('ai_agents_enabled', plan.ai_agents_enabled),
       invoices_enabled: getFeature('invoices_enabled', plan.invoices_enabled ?? true),
       branding_enabled: getFeature('branding_enabled', plan.branding_enabled ?? false),

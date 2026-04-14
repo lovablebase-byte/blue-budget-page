@@ -14,7 +14,7 @@ import {
   Copy, Eye, EyeOff, RefreshCw, Loader2, Calendar,
   Send, CheckCircle2, XCircle, Wifi, WifiOff, Ban, Signal,
   TrendingUp, BarChart3, Contact, Shield, Lock, CreditCard,
-  FileText, Zap, Bot, Megaphone, GitBranch, Globe,
+  FileText, Zap, Bot, Megaphone, Globe,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { toast } from 'sonner';
@@ -393,7 +393,6 @@ export default function ClientDashboard() {
                 <div className="space-y-1.5">
                   {[
                     { key: 'campaigns_enabled' as const, label: 'Campanhas', icon: Megaphone },
-                    { key: 'workflows_enabled' as const, label: 'Workflows', icon: GitBranch },
                     { key: 'ai_agents_enabled' as const, label: 'Agentes IA', icon: Bot },
                     { key: 'api_access' as const, label: 'Acesso API', icon: Globe },
                     { key: 'whitelabel_enabled' as const, label: 'White-label', icon: Shield },
