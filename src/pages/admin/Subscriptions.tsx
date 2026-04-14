@@ -610,8 +610,52 @@ export default function AdminSubscriptions() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground text-center">
-                ID externo: {pixResult.external_id || '—'} • Status: {pixResult.status}
+                ID externo: {pixResult.external_id || '—'} • Status: {pixResult.status === 'paid' ? 'Pago ✓' : pixResult.status === 'pending' ? 'Aguardando pagamento' : pixResult.status}
               </p>
+              {/* Fallback: consultar status (PDF seção 5.3) */}
+              {pixResult.charge_id && pixResult.status !== 'paid' && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={pixLoading}
+                  onClick={async () => {
+                    setPixLoading(true);
+                    try {
+                      const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rmswpurvnqqayemvuocv';
+                      const session = await supabase.auth.getSession();
+                      const token = session.data?.session?.access_token;
+                      const resp = await fetch(
+                        `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/amplopay-proxy?action=query-charge&charge_id=${pixResult.charge_id}`,
+                        {
+                          method: 'POST',
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                          },
+                        }
+                      );
+                      const result = await resp.json();
+                      if (result.ok) {
+                        setPixResult({ ...pixResult, status: result.status, paid_at: result.paid_at });
+                        if (result.status === 'paid') {
+                          toast.success('Pagamento confirmado!');
+                          qc.invalidateQueries({ queryKey: ['admin-subscriptions'] });
+                        } else {
+                          toast.info(`Status atual: ${result.status}`);
+                        }
+                      }
+                    } catch (err: any) {
+                      toast.error(err.message);
+                    } finally {
+                      setPixLoading(false);
+                    }
+                  }}
+                >
+                  {pixLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  Consultar Status do Pagamento
+                </Button>
+              )}
             </div>
           )}
           <DialogFooter>
