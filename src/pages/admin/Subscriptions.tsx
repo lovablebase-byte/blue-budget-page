@@ -524,6 +524,101 @@ export default function AdminSubscriptions() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PIX charge dialog */}
+      <Dialog open={!!pixRow} onOpenChange={(v) => { if (!v) { setPixRow(null); setPixResult(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Cobrança PIX — Amplo Pay</DialogTitle></DialogHeader>
+          {pixRow && !pixResult && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Gerar cobrança PIX para <strong>{(pixRow.companies as any)?.name || 'Cliente'}</strong> — plano <strong>{(pixRow.plans as any)?.name || '—'}</strong>
+              </p>
+              <Button
+                className="w-full"
+                disabled={pixLoading}
+                onClick={async () => {
+                  setPixLoading(true);
+                  try {
+                    const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rmswpurvnqqayemvuocv';
+                    const session = await supabase.auth.getSession();
+                    const token = session.data?.session?.access_token;
+                    // Get plan price
+                    const { data: plan } = await supabase.from('plans').select('price_cents, name').eq('id', pixRow.plan_id).single();
+                    const resp = await fetch(
+                      `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/amplopay-proxy?action=create-charge`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                          'Content-Type': 'application/json',
+                          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                        },
+                        body: JSON.stringify({
+                          subscription_id: pixRow.id,
+                          company_id: pixRow.company_id,
+                          amount_cents: plan?.price_cents || 0,
+                          description: `Assinatura ${plan?.name || ''}`,
+                        }),
+                      }
+                    );
+                    const result = await resp.json();
+                    if (result.ok) {
+                      setPixResult(result);
+                      toast.success('Cobrança PIX gerada!');
+                    } else {
+                      toast.error(result.error || 'Erro ao gerar cobrança');
+                    }
+                  } catch (err: any) {
+                    toast.error(err.message);
+                  } finally {
+                    setPixLoading(false);
+                  }
+                }}
+              >
+                {pixLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                Gerar Cobrança PIX
+              </Button>
+            </div>
+          )}
+          {pixResult && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <Badge variant="default" className="mb-3">Cobrança gerada</Badge>
+                {pixResult.qr_code && (
+                  <div className="flex justify-center mb-4">
+                    <img src={pixResult.qr_code} alt="QR Code PIX" className="w-48 h-48 border rounded-lg" />
+                  </div>
+                )}
+              </div>
+              {pixResult.pix_copy_paste && (
+                <div className="space-y-2">
+                  <Label>Código Copia e Cola</Label>
+                  <div className="flex gap-2">
+                    <Input value={pixResult.pix_copy_paste} readOnly className="font-mono text-xs" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(pixResult.pix_copy_paste);
+                        toast.success('Código copiado!');
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground text-center">
+                ID externo: {pixResult.external_id || '—'} • Status: {pixResult.status}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPixRow(null); setPixResult(null); }}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
