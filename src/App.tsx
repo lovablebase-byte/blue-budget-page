@@ -11,7 +11,7 @@ import { legacyRedirects } from "@/lib/routes";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
-import AccessDenied from "./pages/AccessDenied";
+
 import Dashboard from "./pages/Dashboard";
 import Account from "./pages/Account";
 import Instances from "./pages/Instances";
@@ -68,7 +68,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/access-denied" element={<AccessDenied />} />
+              
 
               {/* Operational */}
               <Route path="/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
