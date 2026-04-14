@@ -133,34 +133,20 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin (company owner) */}
+        {/* Administração (admin only) */}
         {isAdmin && (
           <>
             <SidebarSeparator className="border-border/30" />
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Empresa</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {companyAdminRoutes.map(renderMenuItem)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
-
-        {/* System Admin */}
-        {isAdmin && (
-          <>
-            <SidebarSeparator className="border-border/30" />
-            <Collapsible defaultOpen={location.pathname.startsWith('/admin')}>
+            <Collapsible defaultOpen={location.pathname.startsWith('/admin') || ['/users', '/settings', '/branding'].includes(location.pathname)}>
               <SidebarGroup>
                 <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-bold text-accent/70 uppercase tracking-widest hover:text-accent transition-colors">
-                  Admin do Sistema
+                  Administração
                   {!collapsed && <ChevronDown className="h-3 w-3" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarGroupContent>
                     <SidebarMenu>
+                      {companyAdminRoutes.map(renderMenuItem)}
                       {systemAdminRoutes.map(renderMenuItem)}
                     </SidebarMenu>
                   </SidebarGroupContent>
