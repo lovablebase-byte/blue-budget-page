@@ -20,6 +20,7 @@ import {
 
 /** Map module names to plan feature flags for enforcement */
 const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
+  instances: 'instances_enabled',
   campaigns: 'campaigns_enabled',
   ai_agents: 'ai_agents_enabled',
 };
