@@ -89,7 +89,7 @@ export default function AdminDashboard() {
         </div>
       ) : s ? (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          <StatCard title="Empresas" value={s.companies} icon={Building2} subtitle="registradas" color="text-primary" />
+          <StatCard title="Clientes" value={s.companies} icon={Building2} subtitle="registrados" color="text-primary" />
           <StatCard title="Usuários" value={s.users} icon={Users} subtitle="no sistema" color="text-accent" />
           <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" color="text-primary" />
           <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" color="text-info" />
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
           <CardContent>
             {recentCompanies.isLoading ? <SectionSkeleton /> :
              (recentCompanies.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground">Nenhuma empresa</p>
+               <p className="text-sm text-muted-foreground">Nenhum cliente</p>
              ) : (
                <div className="space-y-3">
                  {recentCompanies.data!.map((c) => (

@@ -209,7 +209,7 @@ export default function Campaigns() {
   // Create campaign
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!company?.id) throw new Error('Empresa não encontrada');
+      if (!company?.id) throw new Error('Conta não encontrada');
       if (contacts.length === 0) throw new Error('Adicione contatos');
       if (selectedInstances.length === 0) throw new Error('Selecione ao menos uma instância');
 

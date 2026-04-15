@@ -25,7 +25,7 @@ function getFallbackRoute(hasPermission: (m: string, a: string) => boolean): str
   for (const route of routeOrderForRedirect) {
     if (hasPermission(route.module, 'view')) return route.path;
   }
-  return '/profile';
+  return '/account';
 }
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {

@@ -90,6 +90,7 @@ export const legacyRedirects: string[] = [
   '/admin/settings',
   '/admin/branding',
   '/admin/webhooks',
+  '/company-invoices',
 ];
 
 // ── Route order for initial redirect (user role) ─────────────────

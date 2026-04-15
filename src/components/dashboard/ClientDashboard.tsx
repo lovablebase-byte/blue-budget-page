@@ -206,7 +206,7 @@ export default function ClientDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">
             Bem-vindo{company ? `, ${company.name}` : ''}
           </h1>
-          <p className="text-muted-foreground">Painel de controle da sua empresa</p>
+          <p className="text-muted-foreground">Painel de controle da sua conta</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Atualizado: {lastRefresh.toLocaleTimeString('pt-BR')}</span>

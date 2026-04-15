@@ -114,7 +114,7 @@ export default function Settings() {
   });
 
   const saveProvider = async (provider: 'evolution' | 'wuzapi', state: ProviderState) => {
-    if (!company?.id) throw new Error('Empresa não identificada');
+    if (!company?.id) throw new Error('Conta não identificada');
     if (!state.baseUrl) throw new Error('URL da API é obrigatória');
 
     const payload = {
@@ -290,7 +290,7 @@ export default function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground">Configurações gerais da empresa</p>
+        <p className="text-muted-foreground">Configurações gerais da conta</p>
       </div>
 
       {isSuspended && (
@@ -310,11 +310,11 @@ export default function Settings() {
               </div>
               Geral
             </CardTitle>
-            <CardDescription>Informações básicas da empresa</CardDescription>
+            <CardDescription>Informações básicas da conta</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome da empresa</Label>
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome da conta</Label>
               <Input value={companyName} onChange={e => setCompanyName(e.target.value)} disabled={!isAdmin || isSuspended} />
             </div>
           </CardContent>
@@ -329,7 +329,7 @@ export default function Settings() {
                 </div>
                 Configurações Efetivas
               </CardTitle>
-              <CardDescription>Valores herdados do sistema ou sobrescritos para a empresa</CardDescription>
+              <CardDescription>Valores herdados do sistema ou personalizados para a conta</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
@@ -356,7 +356,7 @@ export default function Settings() {
 
         <div className="space-y-2">
           <h2 className="text-lg font-semibold tracking-tight text-foreground">Provedores WhatsApp</h2>
-          <p className="text-sm text-muted-foreground">Configure os provedores de API WhatsApp disponíveis para sua empresa</p>
+          <p className="text-sm text-muted-foreground">Configure os provedores de API WhatsApp disponíveis para sua conta</p>
         </div>
 
         {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API para gerenciamento de WhatsApp', evo, setEvo)}
