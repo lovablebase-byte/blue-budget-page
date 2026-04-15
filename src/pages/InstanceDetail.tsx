@@ -185,12 +185,19 @@ export default function InstanceDetailPage() {
     if (data) setInstance(data as InstanceDetail);
   };
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!id) return;
+    if (!id) { setLoadError('ID da instância não informado'); setLoading(false); return; }
     const fetchData = async () => {
       setLoading(true);
+      setLoadError(null);
       const { data, error } = await supabase.from('instances').select('*').eq('id', id).single();
-      if (error) { toast.error(error.message); navigate('/instances'); return; }
+      if (error) {
+        setLoadError(error.code === 'PGRST116' ? 'Instância não encontrada' : error.message);
+        setLoading(false);
+        return;
+      }
       setInstance(data as InstanceDetail);
       setLoading(false);
     };
@@ -217,10 +224,23 @@ export default function InstanceDetailPage() {
     toast.success('Copiado!');
   };
 
-  if (loading || !instance) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loadError || !instance) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <h2 className="text-xl font-semibold">{loadError || 'Instância não encontrada'}</h2>
+        <p className="text-muted-foreground text-sm">Verifique o ID ou se você tem permissão para acessar esta instância.</p>
+        <Button variant="outline" onClick={() => navigate('/instances')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Instâncias
+        </Button>
       </div>
     );
   }
