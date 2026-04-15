@@ -583,8 +583,9 @@ export default function Instances() {
     providerBreakdown[label] = (providerBreakdown[label] || 0) + 1;
   });
 
+  const featureBlocked = !isAdmin && instanceFeature.data === false;
   const limitData = instanceLimit.data;
-  const canCreateByPlan = !limitData || limitData.allowed;
+  const canCreateByPlan = !featureBlocked && (!limitData || limitData.allowed);
 
   const effectiveProviders = planProviders.length > 0
     ? activeProviders.filter(p => planProviders.includes(p.provider))
@@ -592,6 +593,7 @@ export default function Instances() {
 
   return (
     <div className="space-y-6">
+      {featureBlocked && <FeatureLockedBanner featureLabel="Instâncias WhatsApp" />}
       {isSuspended && (
         <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <AlertCircle className="h-5 w-5 text-destructive" />
@@ -601,7 +603,7 @@ export default function Instances() {
           </div>
         </div>
       )}
-      {limitData && (
+      {!featureBlocked && limitData && (
         <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="instâncias" />
       )}
       <div className="flex items-center justify-between">
@@ -621,7 +623,7 @@ export default function Instances() {
           {canCreate && !isReadOnly && !isSuspended && (
             <GuardedButton
               allowed={canCreateByPlan}
-              reason={`Limite de ${limitData?.max || 0} instâncias atingido`}
+              reason={featureBlocked ? 'Instâncias não habilitadas no plano' : `Limite de ${limitData?.max || 0} instâncias atingido`}
               onClick={() => { fetchActiveProviders(); setShowCreate(true); }}
             >
               <Plus className="h-4 w-4 mr-1" /> Nova instância
