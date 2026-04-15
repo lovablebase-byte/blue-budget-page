@@ -253,7 +253,7 @@ function StatusItem({ label, enabled }: { label: string; enabled: boolean }) {
   return (
     <div className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
       {enabled ? (
-        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+        <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
       ) : (
         <XCircle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
       )}

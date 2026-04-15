@@ -90,12 +90,12 @@ export function PlanStatusBanner({ resources, featureBlocked, featureLabel }: Pl
   const borderColor = isCritical
     ? 'border-destructive/50'
     : isWarning
-    ? 'border-yellow-500/40'
+    ? 'border-warning/40'
     : 'border-border/60';
   const bgColor = isCritical
     ? 'bg-destructive/5'
     : isWarning
-    ? 'bg-yellow-500/5'
+    ? 'bg-warning/5'
     : 'bg-card';
 
   return (
@@ -104,14 +104,14 @@ export function PlanStatusBanner({ resources, featureBlocked, featureLabel }: Pl
         <div className="flex items-start gap-3">
           {/* Icon */}
           <div className={`rounded-lg p-2 shrink-0 ${
-            isCritical ? 'bg-destructive/10' : isWarning ? 'bg-yellow-500/10' : 'bg-primary/10'
+            isCritical ? 'bg-destructive/10' : isWarning ? 'bg-warning/10' : 'bg-primary/10'
           }`}>
             {featureBlocked ? (
-              <Lock className={`h-5 w-5 ${isCritical ? 'text-destructive' : 'text-yellow-600'}`} />
+              <Lock className={`h-5 w-5 ${isCritical ? 'text-destructive' : 'text-warning'}`} />
             ) : isCritical ? (
               <AlertTriangle className="h-5 w-5 text-destructive" />
             ) : hasLimitReached ? (
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
             ) : (
               <Crown className="h-5 w-5 text-primary" />
             )}
@@ -164,7 +164,7 @@ export function PlanStatusBanner({ resources, featureBlocked, featureLabel }: Pl
                     <div key={r.label}>
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-muted-foreground">{r.label}</span>
-                        <span className={`font-medium ${atLimit ? 'text-destructive' : nearLimit ? 'text-yellow-600' : 'text-foreground'}`}>
+                        <span className={`font-medium ${atLimit ? 'text-destructive' : nearLimit ? 'text-warning' : 'text-foreground'}`}>
                           {r.current}/{r.max}
                           {atLimit && ' (limite atingido)'}
                           {r.max > 0 && !atLimit && ` · ${r.max - r.current} disponíveis`}
@@ -172,7 +172,7 @@ export function PlanStatusBanner({ resources, featureBlocked, featureLabel }: Pl
                       </div>
                       <Progress
                         value={percent}
-                        className={`h-1.5 ${atLimit ? '[&>div]:bg-destructive' : nearLimit ? '[&>div]:bg-yellow-500' : ''}`}
+                        className={`h-1.5 ${atLimit ? '[&>div]:bg-destructive' : nearLimit ? '[&>div]:bg-warning' : ''}`}
                       />
                     </div>
                   );
