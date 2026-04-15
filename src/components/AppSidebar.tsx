@@ -30,8 +30,8 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, isAdmin, hasPermission, signOut, company, user } = useAuth();
-  const { hasFeature, plan } = useCompany();
+  const { role, isAdmin, hasPermission, permissions, signOut, company, user } = useAuth();
+  const { hasFeature, plan, planLoading } = useCompany();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -44,9 +44,28 @@ export function AppSidebar() {
     return !hasFeature(featureKey);
   };
 
+  /**
+   * Visibility logic for operational menu items:
+   * 1. Admin → always visible
+   * 2. No module → always visible (e.g. dashboard)
+   * 3. Plan feature flag exists and is DISABLED → hide entirely
+   * 4. If user has granular permissions configured → respect hasPermission
+   * 5. If user has NO granular permissions → show (plan feature controls access)
+   */
   const visibleOperational = operationalRoutes.filter(item => {
     if (isAdmin) return true;
-    return item.module ? hasPermission(item.module, 'view') : true;
+    if (!item.module) return true;
+
+    // Check plan feature — if plan disables it, hide from menu
+    const featureKey = moduleFeatureMap[item.module];
+    if (featureKey && plan && !hasFeature(featureKey)) return false;
+
+    // If user has granular permissions configured, respect them
+    const hasAnyPerms = permissions.length > 0;
+    if (hasAnyPerms) return hasPermission(item.module, 'view');
+
+    // No granular permissions set → plan feature is enough to show
+    return true;
   });
 
   const handleSignOut = async () => {
