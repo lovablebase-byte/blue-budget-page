@@ -376,7 +376,7 @@ export default function Subscription() {
                         </div>
                         <Progress
                           value={percent}
-                          className={`h-2 ${atLimit ? '[&>div]:bg-destructive' : nearLimit ? '[&>div]:bg-yellow-500' : ''}`}
+                          className={`h-2 ${atLimit ? '[&>div]:bg-destructive' : nearLimit ? '[&>div]:bg-warning' : ''}`}
                         />
                       </div>
                     );
