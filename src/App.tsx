@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword";
 // Lazy-loaded pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Account = lazy(() => import("./pages/Account"));
+const Subscription = lazy(() => import("./pages/Subscription"));
 const Instances = lazy(() => import("./pages/Instances"));
 
 const AIAgents = lazy(() => import("./pages/AIAgents"));
@@ -90,6 +91,7 @@ const App = () => (
 
               {/* Pessoal */}
               <Route path="/account" element={<ProtectedPage><Account /></ProtectedPage>} />
+              <Route path="/subscription" element={<ProtectedPage><Subscription /></ProtectedPage>} />
 
 
               {/* Legacy redirects */}
