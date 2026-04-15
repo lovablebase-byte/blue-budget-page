@@ -322,32 +322,6 @@ export default function InstanceDetailPage() {
     }
   };
 
-  const handleTestWebhook = async () => {
-    if (!instance) return;
-    setActionLoading('webhook');
-    try {
-      const webhookUrl = instance.webhook_secret
-        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
-        : instance.webhook_url;
-      if (!webhookUrl) { toast.error('Webhook não configurado'); return; }
-      const res = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: instance.provider === 'wuzapi' ? 'Connected' : 'connection.update',
-          type: instance.provider === 'wuzapi' ? 'Connected' : undefined,
-          instance: instance.name,
-          data: { state: 'open', statusReason: 200, _test: true },
-        }),
-      });
-      if (res.ok) { toast.success('Evento de teste enviado!'); setTimeout(fetchEvents, 1500); }
-      else { const txt = await res.text().catch(() => ''); toast.error(`Webhook retornou ${res.status}: ${txt}`); }
-    } catch (e: any) {
-      toast.error(e.message || 'Falha ao testar webhook');
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   // --- Loading ---
   if (loading) {
