@@ -1,7 +1,7 @@
 /**
  * Reusable components for plan enforcement in client pages.
  */
-import { AlertCircle, Lock } from 'lucide-react';
+import { AlertCircle, Lock, ArrowUpRight, ShieldAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -15,12 +15,17 @@ interface LimitBannerProps {
 export function LimitReachedBanner({ current, max, resourceLabel }: LimitBannerProps) {
   if (current < max) return null;
   return (
-    <Alert variant="destructive" className="mb-4">
+    <Alert variant="destructive" className="mb-4 border-destructive/30 bg-destructive/5">
       <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Limite atingido</AlertTitle>
-      <AlertDescription>
-        Você atingiu o limite de {max} {resourceLabel} do seu plano ({current}/{max}).
-        Entre em contato com o administrador para ampliar.
+      <AlertTitle>Limite de {resourceLabel} atingido</AlertTitle>
+      <AlertDescription className="flex items-center justify-between gap-4 flex-wrap">
+        <span>
+          Você está usando <strong>{current}</strong> de <strong>{max}</strong> {resourceLabel} disponíveis no seu plano.
+          Para ampliar, entre em contato com o administrador.
+        </span>
+        <Button size="sm" variant="outline" className="shrink-0 gap-1.5" onClick={() => window.open('mailto:suporte@exemplo.com', '_blank')}>
+          <ArrowUpRight className="h-3.5 w-3.5" /> Solicitar upgrade
+        </Button>
       </AlertDescription>
     </Alert>
   );
@@ -28,16 +33,34 @@ export function LimitReachedBanner({ current, max, resourceLabel }: LimitBannerP
 
 interface FeatureLockedProps {
   featureLabel: string;
+  description?: string;
 }
 
-export function FeatureLockedBanner({ featureLabel }: FeatureLockedProps) {
+export function FeatureLockedBanner({ featureLabel, description }: FeatureLockedProps) {
   return (
-    <Alert className="mb-4 border-yellow-500/50 bg-yellow-500/5">
-      <Lock className="h-4 w-4 text-yellow-600" />
-      <AlertTitle>Recurso bloqueado</AlertTitle>
+    <Alert className="mb-4 border-warning/30 bg-warning/5">
+      <Lock className="h-4 w-4 text-warning" />
+      <AlertTitle className="text-warning">Recurso não disponível</AlertTitle>
+      <AlertDescription className="flex items-center justify-between gap-4 flex-wrap">
+        <span>
+          {description || `${featureLabel} não está incluído no seu plano atual. Para acessar, solicite um upgrade.`}
+        </span>
+        <Button size="sm" variant="outline" className="shrink-0 gap-1.5" onClick={() => window.open('mailto:suporte@exemplo.com', '_blank')}>
+          <ArrowUpRight className="h-3.5 w-3.5" /> Solicitar upgrade
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+export function SuspendedBanner() {
+  return (
+    <Alert variant="destructive" className="mb-4 border-destructive/40 bg-destructive/5">
+      <ShieldAlert className="h-4 w-4" />
+      <AlertTitle>Conta suspensa</AlertTitle>
       <AlertDescription>
-        {featureLabel} não está disponível no seu plano atual.
-        Entre em contato com o administrador para habilitar.
+        Sua assinatura está suspensa ou cancelada. A conta está em modo somente leitura.
+        Regularize o pagamento para voltar a operar normalmente.
       </AlertDescription>
     </Alert>
   );
@@ -62,7 +85,7 @@ export function GuardedButton({ allowed, reason, children, onClick, className }:
           <Button disabled className={className}>{children}</Button>
         </span>
       </TooltipTrigger>
-      <TooltipContent>{reason || 'Recurso bloqueado pelo plano'}</TooltipContent>
+      <TooltipContent className="max-w-[250px]">{reason || 'Recurso indisponível no seu plano atual'}</TooltipContent>
     </Tooltip>
   );
 }
