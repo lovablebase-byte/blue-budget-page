@@ -293,9 +293,16 @@ export default function Subscription() {
                   {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
                 </div>
               ) : invoices.length === 0 ? (
-                <div className="text-center py-8">
-                  <Receipt className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
-                  <p className="text-sm text-muted-foreground">Nenhuma fatura encontrada</p>
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="rounded-full p-3 bg-muted/30">
+                    <Receipt className="h-8 w-8 text-muted-foreground/40" />
+                  </div>
+                  <div className="text-center space-y-1 max-w-xs">
+                    <p className="font-medium">Nenhuma fatura emitida</p>
+                    <p className="text-sm text-muted-foreground">
+                      Suas faturas aparecerão aqui conforme forem geradas pelo sistema de cobrança.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y divide-border/30">

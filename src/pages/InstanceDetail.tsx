@@ -584,7 +584,7 @@ export default function InstanceDetailPage() {
             searchKey="event_type"
             searchPlaceholder="Buscar evento..."
             loading={loadingEvents}
-            emptyMessage="Nenhum evento registrado."
+            emptyMessage="Nenhum evento registrado ainda. Eventos aparecerão conforme a instância for utilizada."
             pageSize={15}
           />
         </TabsContent>
