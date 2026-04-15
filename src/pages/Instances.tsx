@@ -89,6 +89,7 @@ export default function Instances() {
   const [filterProvider, setFilterProvider] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchText, setSearchText] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
 
   // Active providers
   const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
