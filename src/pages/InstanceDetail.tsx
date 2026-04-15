@@ -28,6 +28,7 @@ import { ProviderBadge } from '@/components/instances/ProviderBadge';
 import { StatusBadge } from '@/components/instances/StatusBadge';
 import { callProviderProxy } from '@/components/instances/useProviderProxy';
 import { getProviderEvents } from '@/components/instances/constants';
+import { InstanceActivityLog } from '@/components/instances/InstanceActivityLog';
 
 interface InstanceDetail {
   id: string;
@@ -512,7 +513,8 @@ export default function InstanceDetailPage() {
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="technical">Dados técnicos</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-          <TabsTrigger value="logs">Logs de eventos</TabsTrigger>
+          <TabsTrigger value="activity">Histórico</TabsTrigger>
+          <TabsTrigger value="logs">Eventos brutos</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -670,7 +672,12 @@ export default function InstanceDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Logs */}
+        {/* Activity / History */}
+        <TabsContent value="activity" className="space-y-4 mt-4">
+          <InstanceActivityLog instanceId={instance.id} />
+        </TabsContent>
+
+        {/* Raw Logs */}
         <TabsContent value="logs" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium flex items-center gap-2">
