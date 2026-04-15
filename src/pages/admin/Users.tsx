@@ -18,15 +18,12 @@ const ROLE_LABELS: Record<string, string> = { admin: 'Admin', user: 'Usuário' }
 export default function AdminUsers() {
   const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState('all');
-  const [companyFilter, setCompanyFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailUser, setDetailUser] = useState<any | null>(null);
-  const [editUser, setEditUser] = useState<any | null>(null);
 
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<string>('user');
-  const [newCompanyId, setNewCompanyId] = useState('');
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -40,29 +37,12 @@ export default function AdminUsers() {
     },
   });
 
-  const { data: companies = [] } = useQuery({
-    queryKey: ['admin-companies-list'],
-    queryFn: async () => {
-      const { data } = await supabase.from('companies').select('id, name').order('name');
-      return data || [];
-    },
-  });
-
   const updateRole = useMutation({
     mutationFn: async ({ id, role }: { id: string; role: string }) => {
       const { error } = await supabase.from('user_roles').update({ role: role as any }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); toast({ title: 'Papel atualizado' }); },
-    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
-  });
-
-  const updateCompany = useMutation({
-    mutationFn: async ({ id, company_id }: { id: string; company_id: string | null }) => {
-      const { error } = await supabase.from('user_roles').update({ company_id }).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); toast({ title: 'Empresa atualizada' }); },
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
@@ -77,9 +57,9 @@ export default function AdminUsers() {
 
   const createUser = useMutation({
     mutationFn: async () => {
-      if (!newEmail || !newCompanyId) throw new Error('Email e empresa são obrigatórios');
+      if (!newEmail) throw new Error('Email é obrigatório');
       const { data, error } = await supabase.functions.invoke('seed-users', {
-        body: { email: newEmail, full_name: newName || newEmail, role: newRole, company_id: newCompanyId },
+        body: { email: newEmail, full_name: newName || newEmail, role: newRole },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -88,14 +68,13 @@ export default function AdminUsers() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast({ title: 'Usuário criado' });
       setDialogOpen(false);
-      setNewEmail(''); setNewName(''); setNewRole('user'); setNewCompanyId('');
+      setNewEmail(''); setNewName(''); setNewRole('user');
     },
     onError: (e: any) => toast({ title: 'Erro ao criar', description: e.message, variant: 'destructive' }),
   });
 
   const filtered = users.filter((u: any) => {
     if (roleFilter !== 'all' && u.role !== roleFilter) return false;
-    if (companyFilter !== 'all' && u.company_id !== companyFilter) return false;
     return true;
   });
 
@@ -106,8 +85,8 @@ export default function AdminUsers() {
       sortable: true,
     },
     {
-      key: 'companies', label: 'Empresa',
-      render: (row) => <span className="text-muted-foreground">{(row.companies as any)?.name || 'Sem empresa'}</span>,
+      key: 'companies', label: 'Cliente',
+      render: (row) => <span className="text-muted-foreground">{(row.companies as any)?.name || '—'}</span>,
       sortable: true,
     },
     {
@@ -151,15 +130,6 @@ export default function AdminUsers() {
             <SelectItem value="user">Usuário</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={companyFilter} onValueChange={setCompanyFilter}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Empresa" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as empresas</SelectItem>
-            {companies.map((c: any) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <DataTable
@@ -191,7 +161,7 @@ export default function AdminUsers() {
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" /> Novo Usuário
             </DialogTitle>
-            <DialogDescription>Crie um novo usuário e vincule a uma empresa</DialogDescription>
+            <DialogDescription>Crie um novo usuário no sistema</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -212,21 +182,10 @@ export default function AdminUsers() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Empresa *</Label>
-              <Select value={newCompanyId} onValueChange={setNewCompanyId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {companies.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => createUser.mutate()} disabled={createUser.isPending || !newEmail || !newCompanyId}>
+            <Button onClick={() => createUser.mutate()} disabled={createUser.isPending || !newEmail}>
               {createUser.isPending ? 'Criando...' : 'Criar'}
             </Button>
           </DialogFooter>
@@ -240,7 +199,7 @@ export default function AdminUsers() {
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5 text-accent" /> Detalhes do Usuário
             </DialogTitle>
-            <DialogDescription>Informações e vínculo</DialogDescription>
+            <DialogDescription>Informações do usuário</DialogDescription>
           </DialogHeader>
           {detailUser && (
             <div className="space-y-3 text-sm">
@@ -253,22 +212,9 @@ export default function AdminUsers() {
                 <Badge variant="outline" className="bg-primary/10 border-primary/30 text-primary">{ROLE_LABELS[detailUser.role] || detailUser.role}</Badge>
               </div>
               <Separator className="bg-border/30" />
-              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20 border border-border/30">
-                <span className="text-muted-foreground">Empresa</span>
-                <Select
-                  value={detailUser.company_id || ''}
-                  onValueChange={(v) => {
-                    updateCompany.mutate({ id: detailUser.id, company_id: v || null });
-                    setDetailUser((prev: any) => prev ? { ...prev, company_id: v } : null);
-                  }}
-                >
-                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Sem empresa" /></SelectTrigger>
-                  <SelectContent>
-                    {companies.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
+                <span className="text-muted-foreground">Cliente</span>
+                <span className="text-foreground">{(detailUser.companies as any)?.name || '—'}</span>
               </div>
               <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Criado em</span>

@@ -50,7 +50,7 @@ export function InstanceFilters({
                 <SelectValue placeholder="Empresa" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas empresas</SelectItem>
+                <SelectItem value="all">Todos os clientes</SelectItem>
                 {companies.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}

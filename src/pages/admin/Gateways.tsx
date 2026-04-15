@@ -15,7 +15,7 @@ import {
   AlertTriangle, RefreshCw, Shield,
 } from 'lucide-react';
 
-const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rmswpurvnqqayemvuocv';
+const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
 function getWebhookUrl(secret: string) {
   return `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/amplopay-webhook?secret=${secret}`;

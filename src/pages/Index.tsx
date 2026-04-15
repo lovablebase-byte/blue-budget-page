@@ -16,7 +16,7 @@ const Index = () => {
     }
   }
 
-  return <Navigate to="/profile" replace />;
+  return <Navigate to="/account" replace />;
 };
 
 export default Index;

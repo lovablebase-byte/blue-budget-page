@@ -67,7 +67,7 @@ export default function CompanyUsers() {
 
   const inviteMutation = useMutation({
     mutationFn: async () => {
-      if (!company?.id || !user?.id) throw new Error('Empresa não encontrada');
+      if (!company?.id || !user?.id) throw new Error('Conta não encontrada');
       throw new Error('Para convidar usuários, eles devem primeiro criar uma conta. Após o cadastro, adicione-os manualmente informando o ID do usuário.');
     },
     onError: (e: any) => toast({ title: 'Info', description: e.message }),
@@ -131,7 +131,7 @@ export default function CompanyUsers() {
             <div className="p-1.5 rounded-md bg-primary/10">
               <Users className="h-6 w-6 text-primary" />
             </div>
-            Usuários da Empresa
+            Usuários
           </h1>
           {limitData && (
             <p className="text-sm text-muted-foreground mt-1">
@@ -162,7 +162,7 @@ export default function CompanyUsers() {
           row.user_id !== user?.id && isAdmin && !isSuspended ? (
             <ConfirmDialog
               title="Remover usuário?"
-              description="O usuário perderá acesso à empresa."
+              description="O usuário perderá acesso à conta."
               onConfirm={() => deleteMutation.mutate(row.id)}
               trigger={
                 <Button variant="ghost" size="icon" className="hover:bg-destructive/10">

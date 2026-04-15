@@ -197,7 +197,7 @@ export function useAdminDashboard() {
         .select('id', { count: 'exact', head: true })
         .eq('is_active', false);
       if (inactiveCount && inactiveCount > 0) {
-        result.push({ type: 'info', message: `${inactiveCount} empresa(s) desativada(s)` });
+        result.push({ type: 'info', message: `${inactiveCount} conta(s) desativada(s)` });
       }
 
       return result;
