@@ -528,57 +528,45 @@ export default function Instances() {
     }
   };
 
-  // ── Filtering ──
-  const filtered = instances.filter(inst => {
-    if (filterProvider !== 'all' && inst.provider !== filterProvider) return false;
-    if (filterStatus !== 'all') {
-      if (filterStatus === 'online' && inst.status !== 'online' && inst.status !== 'connected') return false;
-      if (filterStatus === 'offline' && inst.status !== 'offline') return false;
-      if (filterStatus === 'connecting' && inst.status !== 'connecting' && inst.status !== 'pairing') return false;
-      if (filterStatus === 'error' && inst.status !== 'error') return false;
-    }
-    if (searchText) {
-      const s = searchText.toLowerCase();
-      return inst.name.toLowerCase().includes(s) || (inst.phone_number || '').includes(s);
-    }
-    return true;
-  });
+  // ── Filtering & Sorting ──
+  const filtered = useMemo(() => {
+    let result = instances.filter(inst => {
+      if (filterProvider !== 'all' && inst.provider !== filterProvider) return false;
+      if (filterStatus !== 'all') {
+        if (filterStatus === 'online' && inst.status !== 'online' && inst.status !== 'connected') return false;
+        if (filterStatus === 'offline' && inst.status !== 'offline') return false;
+        if (filterStatus === 'connecting' && inst.status !== 'connecting' && inst.status !== 'pairing') return false;
+        if (filterStatus === 'error' && inst.status !== 'error') return false;
+      }
+      if (searchText) {
+        const s = searchText.toLowerCase();
+        return inst.name.toLowerCase().includes(s) || (inst.phone_number || '').includes(s);
+      }
+      return true;
+    });
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'name_asc': return a.name.localeCompare(b.name);
+        case 'name_desc': return b.name.localeCompare(a.name);
+        default: return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    return result;
+  }, [instances, filterProvider, filterStatus, searchText, sortBy]);
 
-  const hasFilters = filterProvider !== 'all' || filterStatus !== 'all' || searchText !== '';
-  const clearFilters = () => { setFilterProvider('all'); setFilterStatus('all'); setSearchText(''); };
-
-  const columns: Column<Instance>[] = [
-    { key: 'name', label: 'Nome', sortable: true },
-    { key: 'phone_number', label: 'Número', render: (r) => r.phone_number || '—' },
-    {
-      key: 'provider', label: 'Provider', render: (r) => <ProviderBadge provider={r.provider} />
-    },
-    {
-      key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} />
-    },
-    {
-      key: 'tags', label: 'Tags', render: (r) =>
-        r.tags?.length ? r.tags.map(t => <Badge key={t} variant="outline" className="mr-1 text-xs">{t}</Badge>) : '—'
-    },
-    {
-      key: 'created_at', label: 'Criada em', sortable: true, render: (r) =>
-        new Date(r.created_at).toLocaleDateString('pt-BR')
-    },
-    {
-      key: 'last_connected_at', label: 'Última conexão', render: (r) =>
-        r.last_connected_at ? new Date(r.last_connected_at).toLocaleString('pt-BR') : 'Nunca'
-    },
-  ];
+  const hasFilters = filterProvider !== 'all' || filterStatus !== 'all' || searchText !== '' || sortBy !== 'newest';
+  const clearFilters = () => { setFilterProvider('all'); setFilterStatus('all'); setSearchText(''); setSortBy('newest'); };
 
   const canCreate = hasPermission('instances', 'create');
   const canDelete = hasPermission('instances', 'delete');
 
-  const onlineCount = filtered.filter(i => i.status === 'online' || i.status === 'connected').length;
-  const offlineCount = filtered.filter(i => i.status === 'offline').length;
-  const connectingCount = filtered.filter(i => i.status === 'connecting' || i.status === 'pairing').length;
+  const onlineCount = instances.filter(i => i.status === 'online' || i.status === 'connected').length;
+  const offlineCount = instances.filter(i => i.status === 'offline').length;
+  const connectingCount = instances.filter(i => i.status === 'connecting' || i.status === 'pairing').length;
 
   const providerBreakdown: Record<string, number> = {};
-  filtered.forEach(i => {
+  instances.forEach(i => {
     const label = providerLabels[i.provider] || i.provider;
     providerBreakdown[label] = (providerBreakdown[label] || 0) + 1;
   });
@@ -592,7 +580,7 @@ export default function Instances() {
     : activeProviders;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {featureBlocked && <FeatureLockedBanner featureLabel="Instâncias WhatsApp" />}
       {isSuspended && (
         <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
@@ -606,15 +594,11 @@ export default function Instances() {
       {!featureBlocked && limitData && (
         <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="instâncias" />
       )}
-      <div className="flex items-center justify-between">
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Instâncias WhatsApp</h1>
-          <p className="text-muted-foreground">
-            Gerencie suas conexões — Evolution API e WuzAPI em um único painel
-            {limitData && limitData.max > 0 && (
-              <span className="ml-2 text-xs">({limitData.current}/{limitData.max} do plano)</span>
-            )}
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">Instâncias WhatsApp</h1>
+          <p className="text-sm text-muted-foreground">Gerencie suas conexões em um único painel</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchInstances}>
@@ -633,10 +617,11 @@ export default function Instances() {
       </div>
 
       <InstanceStatsCards
-        total={filtered.length}
+        total={instances.length}
         online={onlineCount}
         offline={offlineCount}
         connecting={connectingCount}
+        planMax={limitData?.max}
         providerBreakdown={providerBreakdown}
       />
 
@@ -647,59 +632,102 @@ export default function Instances() {
         onProviderChange={setFilterProvider}
         filterStatus={filterStatus}
         onStatusChange={setFilterStatus}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
         hasFilters={hasFilters}
         onClear={clearFilters}
       />
 
-      <DataTable
-        data={filtered}
-        columns={columns}
-        searchKey="name"
-        searchPlaceholder="Buscar instância..."
-        loading={loading}
-        emptyMessage="Nenhuma instância encontrada."
-        actions={(row) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowQR(true); }}>
-                <Eye className="mr-2 h-4 w-4" /> Ver detalhes / QR
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowQR(true); }}>
-                <QrCode className="mr-2 h-4 w-4" /> Parear QR Code
-              </DropdownMenuItem>
-              {row.status === 'online' || row.status === 'connected' ? (
-                <DropdownMenuItem onClick={() => handleStatusChange(row, 'offline')}>
-                  <PowerOff className="mr-2 h-4 w-4" /> Desconectar
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => handleStatusChange(row, 'connecting')}>
-                  <Power className="mr-2 h-4 w-4" /> Conectar
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => handleRestart(row)}>
-                <RotateCcw className="mr-2 h-4 w-4" /> Reiniciar sessão
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowTestMsg(true); }}>
-                <Send className="mr-2 h-4 w-4" /> Enviar teste
-              </DropdownMenuItem>
-              {canDelete && !isReadOnly && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive" onClick={() => { setSelectedInstance(row); setShowDelete(true); }}>
-                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      />
+      <div className="rounded-lg border border-border/60 overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30">
+              <TableHead className="font-semibold">Instância</TableHead>
+              <TableHead className="font-semibold">Provider</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold hidden md:table-cell">Última conexão</TableHead>
+              <TableHead className="font-semibold hidden lg:table-cell">Criada em</TableHead>
+              <TableHead className="w-[60px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mt-2">Carregando instâncias...</p>
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-12">
+                  <p className="text-muted-foreground">Nenhuma instância encontrada.</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((row) => (
+                <TableRow key={row.id} className="group">
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{row.name}</span>
+                      <span className="text-xs text-muted-foreground">{row.phone_number || 'Sem número'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell><ProviderBadge provider={row.provider} /></TableCell>
+                  <TableCell><StatusBadge status={row.status} /></TableCell>
+                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                    {row.last_connected_at ? new Date(row.last_connected_at).toLocaleString('pt-BR') : 'Nunca'}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                    {new Date(row.created_at).toLocaleDateString('pt-BR')}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/instances/${row.id}`)}>
+                          <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => { setSelectedInstance(row); setConnectionSuccess(false); setQrCodeBase64(null); setQrError(null); setShowQR(true); }}>
+                          <QrCode className="mr-2 h-4 w-4" /> Parear QR Code
+                        </DropdownMenuItem>
+                        {row.status === 'online' || row.status === 'connected' ? (
+                          <DropdownMenuItem onClick={() => handleStatusChange(row, 'offline')}>
+                            <PowerOff className="mr-2 h-4 w-4" /> Desconectar
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleStatusChange(row, 'connecting')}>
+                            <Power className="mr-2 h-4 w-4" /> Conectar
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => handleRestart(row)}>
+                          <RotateCcw className="mr-2 h-4 w-4" /> Reiniciar sessão
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowTestMsg(true); }}>
+                          <Send className="mr-2 h-4 w-4" /> Enviar teste
+                        </DropdownMenuItem>
+                        {canDelete && !isReadOnly && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={() => { setSelectedInstance(row); setShowDelete(true); }}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Create dialog */}
       <Dialog open={showCreate} onOpenChange={(o) => { setShowCreate(o); if (!o) resetForm(); }}>
