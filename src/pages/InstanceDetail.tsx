@@ -75,7 +75,6 @@ export default function InstanceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [showToken, setShowToken] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [showQrDialog, setShowQrDialog] = useState(false);
