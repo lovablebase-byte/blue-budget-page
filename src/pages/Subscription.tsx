@@ -646,7 +646,7 @@ export default function Subscription() {
             ? `Você está prestes a ${getPlanAction(confirmPlan) === 'upgrade' ? 'fazer upgrade' : 'fazer downgrade'} para o plano ${confirmPlan.name} (${formatCurrency(confirmPlan.price_cents)}/${confirmPlan.billing_cycle === 'monthly' ? 'mês' : confirmPlan.billing_cycle}). Os novos limites e recursos serão aplicados imediatamente.`
             : ''
         }
-        confirmText="Confirmar troca"
+        confirmLabel="Confirmar troca"
         onConfirm={() => confirmPlan && changePlanMutation.mutate(confirmPlan.id)}
         loading={changePlanMutation.isPending}
       />
