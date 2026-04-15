@@ -305,7 +305,7 @@ export default function Instances() {
           providerInstanceId = createData.instanceToken;
         }
         providerActive = true;
-        toast.success('Instância criada no provider!');
+        notify.instanceCreated(instanceName);
       } catch (err: any) {
         if (err.message?.includes('não configurad') || err.message?.includes('desativad')) {
           toast.info('Provider não configurado. Instância criada apenas no painel.');
@@ -373,7 +373,7 @@ export default function Instances() {
         });
       } catch {}
 
-      toast.success('Instância excluída com sucesso');
+      notify.instanceDeleted(instance.name);
       setShowDelete(false);
       setSelectedInstance(null);
       fetchInstances();
@@ -391,7 +391,7 @@ export default function Instances() {
       } catch {}
       const { error } = await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
       if (error) toast.error(error.message);
-      else { toast.success('Instância desconectada'); fetchInstances(); }
+      else { notify.instanceDisconnected(instance.name); fetchInstances(); }
       return;
     }
 
@@ -418,7 +418,7 @@ export default function Instances() {
           setShowQR(true);
         } else if (data?.connected || data?.jid) {
           await supabase.from('instances').update({ status: 'online', last_connected_at: new Date().toISOString() }).eq('id', instance.id);
-          toast.success('Instância conectada!');
+          notify.instanceConnected(instance.name);
         } else {
           await supabase.from('instances').update({ status: 'connecting' }).eq('id', instance.id);
           setSelectedInstance(instance);
@@ -462,7 +462,7 @@ export default function Instances() {
         number: testNumber,
         text: testMessage,
       });
-      toast.success('Mensagem teste enviada!');
+      toast.success('Mensagem de teste enviada!');
       setShowTestMsg(false);
       setTestNumber(''); setTestMessage('');
     } catch (e: any) {
