@@ -513,7 +513,8 @@ export default function InstanceDetailPage() {
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="technical">Dados técnicos</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-          <TabsTrigger value="logs">Logs de eventos</TabsTrigger>
+          <TabsTrigger value="activity">Histórico</TabsTrigger>
+          <TabsTrigger value="logs">Eventos brutos</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
