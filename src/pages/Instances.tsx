@@ -19,9 +19,10 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   Plus, RefreshCw, Trash2, QrCode, Send, Power, PowerOff,
-  MoreHorizontal, Eye, Loader2, AlertCircle,
+  MoreHorizontal, Eye, Loader2, AlertCircle, Smartphone,
   Copy, RotateCcw, Link, Key, CheckCircle2,
 } from 'lucide-react';
+import { notify } from '@/lib/notifications';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -654,8 +655,30 @@ export default function Instances() {
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12">
-                  <p className="text-muted-foreground">Nenhuma instância encontrada.</p>
+                <TableCell colSpan={6} className="py-0">
+                  {instances.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 gap-3">
+                      <div className="rounded-full p-4 bg-muted/30">
+                        <Smartphone className="h-8 w-8 text-muted-foreground/40" />
+                      </div>
+                      <div className="text-center space-y-1 max-w-xs">
+                        <p className="font-semibold">Nenhuma instância criada</p>
+                        <p className="text-sm text-muted-foreground">
+                          Crie sua primeira instância WhatsApp para começar a enviar mensagens.
+                        </p>
+                      </div>
+                      {canCreate && !isReadOnly && !isSuspended && canCreateByPlan && (
+                        <Button size="sm" onClick={() => { fetchActiveProviders(); setShowCreate(true); }}>
+                          <Plus className="h-4 w-4 mr-1.5" /> Criar primeira instância
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 gap-2">
+                      <p className="text-sm text-muted-foreground">Nenhuma instância corresponde aos filtros.</p>
+                      <Button variant="ghost" size="sm" onClick={clearFilters}>Limpar filtros</Button>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
