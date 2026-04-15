@@ -392,6 +392,7 @@ export default function ClientDashboard() {
               <>
                 <div className="space-y-1.5">
                   {[
+                    { key: 'instances_enabled' as const, label: 'Instâncias', icon: Smartphone },
                     { key: 'campaigns_enabled' as const, label: 'Campanhas', icon: Megaphone },
                     { key: 'ai_agents_enabled' as const, label: 'Agentes IA', icon: Bot },
                     { key: 'api_access' as const, label: 'Acesso API', icon: Globe },
