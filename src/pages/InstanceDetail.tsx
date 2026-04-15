@@ -672,7 +672,12 @@ export default function InstanceDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Logs */}
+        {/* Activity / History */}
+        <TabsContent value="activity" className="space-y-4 mt-4">
+          <InstanceActivityLog instanceId={instance.id} />
+        </TabsContent>
+
+        {/* Raw Logs */}
         <TabsContent value="logs" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium flex items-center gap-2">
