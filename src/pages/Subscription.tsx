@@ -269,10 +269,10 @@ export default function Subscription() {
                       <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> Falar com suporte
                     </Button>
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         {/* ── FATURAS ── */}
