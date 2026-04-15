@@ -1,8 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { routeOrderForRedirect } from '@/lib/routes';
 import { toast } from '@/hooks/use-toast';
+import type { PlanFeatures } from '@/services/plan-enforcement';
+
+const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
+  instances: 'instances_enabled',
+  campaigns: 'campaigns_enabled',
+  ai_agents: 'ai_agents_enabled',
+};
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -29,10 +37,28 @@ function getFallbackRoute(hasPermission: (m: string, a: string) => boolean): str
 }
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
-  const { user, loading, role, hasPermission } = useAuth();
+  const { user, loading, role, hasPermission, permissions } = useAuth();
+  const { hasFeature, plan } = useCompany();
 
   const roleDenied = !!(role && requiredRole && !requiredRole.includes(role));
-  const permDenied = !!(role && role !== 'admin' && requiredModule && !hasPermission(requiredModule, requiredAction));
+
+  // Permission check aligned with sidebar visibility:
+  // 1. Admin → always allowed
+  // 2. Plan feature disabled → denied
+  // 3. Granular permissions exist → respect them
+  // 4. No granular permissions → plan feature is enough
+  const getPermDenied = (): boolean => {
+    if (!role || role === 'admin' || !requiredModule) return false;
+
+    const featureKey = moduleFeatureMap[requiredModule];
+    if (featureKey && plan && !hasFeature(featureKey)) return true;
+
+    if (permissions.length > 0) return !hasPermission(requiredModule, requiredAction);
+
+    return false;
+  };
+
+  const permDenied = getPermDenied();
 
   useDeniedToast(
     roleDenied
@@ -61,17 +87,14 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     );
   }
 
-  // Admin has full access (bypass)
   if (role === 'admin') {
     return <>{children}</>;
   }
 
-  // Role-based restriction
   if (roleDenied) {
     return <Navigate to={getFallbackRoute(hasPermission)} replace />;
   }
 
-  // Module permission check
   if (permDenied) {
     return <Navigate to={getFallbackRoute(hasPermission)} replace />;
   }
