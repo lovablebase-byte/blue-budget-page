@@ -273,13 +273,17 @@ async function handleWuzapi(
       console.log(`[wuzapi:connect] Calling /session/connect for token=${instanceName?.slice(0,6)}...`);
       const cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
 
-      // If connect failed, return real error — do NOT proceed to QR polling
+      // "already connected" is not a real error — proceed to QR/status check
       if (!cr.ok) {
-        console.error(`[wuzapi:connect] /session/connect failed: status=${cr.status}`, cr.data);
-        const errMsg = cr.status === 401
-          ? "Token da instância inválido ou expirado"
-          : `Falha ao conectar sessão Wuzapi (status ${cr.status})`;
-        return { ok: false, status: cr.status || 500, body: { error: errMsg, raw: cr.data } };
+        const alreadyConnected = cr.data?.error === "already connected" || cr.data?.data?.Details === "already connected";
+        if (!alreadyConnected) {
+          console.error(`[wuzapi:connect] /session/connect failed: status=${cr.status}`, cr.data);
+          const errMsg = cr.status === 401
+            ? "Token da instância inválido ou expirado"
+            : `Falha ao conectar sessão Wuzapi (status ${cr.status})`;
+          return { ok: false, status: cr.status || 500, body: { error: errMsg, raw: cr.data } };
+        }
+        console.log(`[wuzapi:connect] Already connected — skipping to QR/status check`);
       }
 
       console.log(`[wuzapi:connect] /session/connect OK`, JSON.stringify(cr.data).slice(0, 200));
