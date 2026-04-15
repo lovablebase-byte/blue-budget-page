@@ -23,9 +23,9 @@ import type { Tables } from '@/integrations/supabase/types';
 type Invoice = Tables<'invoices'>;
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  active: { label: 'Ativa', icon: CheckCircle2, color: 'text-emerald-500' },
-  trialing: { label: 'Período de teste', icon: Clock, color: 'text-blue-400' },
-  past_due: { label: 'Pagamento pendente', icon: AlertTriangle, color: 'text-yellow-500' },
+  active: { label: 'Ativa', icon: CheckCircle2, color: 'text-success' },
+  trialing: { label: 'Período de teste', icon: Clock, color: 'text-info' },
+  past_due: { label: 'Pagamento pendente', icon: AlertTriangle, color: 'text-warning' },
   canceled: { label: 'Cancelada', icon: XCircle, color: 'text-destructive' },
   suspended: { label: 'Suspensa', icon: XCircle, color: 'text-destructive' },
 };
@@ -234,7 +234,7 @@ export default function Subscription() {
                       ].map((f) => (
                         <div key={f.label} className="flex items-center gap-2 text-sm">
                           {f.enabled ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                           ) : (
                             <XCircle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                           )}
