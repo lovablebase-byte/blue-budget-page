@@ -31,7 +31,7 @@ function getFallbackRoute(hasPermission: (m: string, a: string) => boolean): str
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
   const { user, loading, role, hasPermission, permissions } = useAuth();
-  const { hasFeature, plan } = useCompany();
+  const { hasFeature, plan, planLoading } = useCompany();
 
   const roleDenied = !!(role && requiredRole && !requiredRole.includes(role));
 
@@ -63,7 +63,7 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     roleDenied || permDenied,
   );
 
-  if (loading) {
+  if (loading || planLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
