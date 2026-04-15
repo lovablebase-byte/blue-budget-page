@@ -43,6 +43,7 @@ export const adminRoutes: RouteDefinition[] = [
 // ── Pessoal ──────────────────────────────────────────────────────
 export const personalRoutes: RouteDefinition[] = [
   { path: '/account', label: 'Minha Conta', icon: User },
+  { path: '/subscription', label: 'Assinatura', icon: CreditCard },
 ];
 
 // ── All active routes (flat) ─────────────────────────────────────
@@ -74,7 +75,6 @@ export const legacyRedirects: string[] = [
   '/chatbot-keywords',
   '/profile',
   '/invoices',
-  '/subscription',
   '/agentes',
   '/agents',
   '/admin/greetings',

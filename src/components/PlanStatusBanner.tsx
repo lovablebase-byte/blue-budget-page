@@ -183,7 +183,7 @@ export function PlanStatusBanner({ resources, featureBlocked, featureLabel }: Pl
             {/* CTAs */}
             {(isCritical || hasLimitReached || featureBlocked) && (
               <div className="flex flex-wrap gap-2 mt-3">
-                <Button size="sm" variant="outline" onClick={() => navigate('/account')}>
+                <Button size="sm" variant="outline" onClick={() => navigate('/subscription')}>
                   <Crown className="h-3.5 w-3.5 mr-1.5" /> Ver meu plano
                 </Button>
                 {(hasLimitReached || featureBlocked) && (
