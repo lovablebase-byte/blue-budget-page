@@ -69,7 +69,7 @@ const getProviderInstanceName = (instance: Instance): string => {
 };
 
 export default function Instances() {
-  const { company, hasPermission, isReadOnly } = useAuth();
+  const { company, hasPermission, isReadOnly, isAdmin } = useAuth();
   const { allowedProviders: planProviders, isSuspended } = useCompany();
   const instanceFeature = useFeatureEnabled('instances_enabled');
   const instanceLimit = useResourceLimit('max_instances', 'instances');
