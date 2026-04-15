@@ -583,19 +583,11 @@ export default function Instances() {
 
   return (
     <div className="space-y-5">
-      {featureBlocked && <FeatureLockedBanner featureLabel="Instâncias WhatsApp" />}
-      {isSuspended && (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <AlertCircle className="h-5 w-5 text-destructive" />
-          <div>
-            <p className="font-medium">Assinatura suspensa</p>
-            <p className="text-sm text-muted-foreground">Não é possível criar ou gerenciar instâncias. Entre em contato com o administrador.</p>
-          </div>
-        </div>
-      )}
-      {!featureBlocked && limitData && (
-        <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="instâncias" />
-      )}
+      <PlanStatusBanner
+        featureBlocked={featureBlocked}
+        featureLabel="Instâncias WhatsApp"
+        resources={limitData ? [{ label: 'Instâncias', current: limitData.current, max: limitData.max }] : undefined}
+      />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
