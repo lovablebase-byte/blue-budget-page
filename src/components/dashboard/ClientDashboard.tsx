@@ -437,7 +437,7 @@ export default function ClientDashboard() {
       <Tabs defaultValue="hourly" className="space-y-4">
         <TabsList>
           <TabsTrigger value="hourly">Envios por Hora</TabsTrigger>
-          <TabsTrigger value="campaign">Por Campanha</TabsTrigger>
+          {hasFeature('campaigns_enabled') && <TabsTrigger value="campaign">Por Campanha</TabsTrigger>}
           <TabsTrigger value="status">Status Instâncias</TabsTrigger>
         </TabsList>
         <TabsContent value="hourly">
@@ -456,7 +456,7 @@ export default function ClientDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="campaign">
+        {hasFeature('campaigns_enabled') && <TabsContent value="campaign">
           <Card>
             <CardHeader><CardTitle className="text-sm">Envios por Campanha</CardTitle></CardHeader>
             <CardContent className="h-72">
@@ -476,7 +476,7 @@ export default function ClientDashboard() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
         <TabsContent value="status">
           <Card>
             <CardHeader><CardTitle className="text-sm">Distribuição de Status</CardTitle></CardHeader>
