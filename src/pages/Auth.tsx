@@ -70,7 +70,7 @@ export default function Auth() {
       <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-accent/6 rounded-full blur-[100px] pointer-events-none" />
 
-      <Card className="w-full max-w-md border-border/60 shadow-[0_0_60px_-15px_hsl(var(--primary)/0.15),0_25px_50px_-12px_rgba(0,0,0,0.6)] hover:border-primary/30 transition-all duration-300">
+      <Card className="w-full max-w-md border-border/60 shadow-[0_0_60px_-15px_hsl(var(--primary)/0.15),0_25px_50px_-12px_hsl(var(--foreground)/0.08)] hover:border-primary/30 transition-all duration-300">
         <CardHeader className="text-center pb-4">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark glow-primary">
             <MessageSquare className="h-8 w-8 text-primary-foreground drop-shadow-[0_0_6px_hsl(var(--glow)/0.5)]" />
