@@ -536,6 +536,7 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
+        {hasFeature('invoices_enabled') && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -563,10 +564,12 @@ export default function ClientDashboard() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Bottom utilities */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {hasFeature('api_access') && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -587,6 +590,7 @@ export default function ClientDashboard() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -612,6 +616,7 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
+        {referralCode && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -627,6 +632,7 @@ export default function ClientDashboard() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );
