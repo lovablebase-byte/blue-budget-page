@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, Column } from '@/components/DataTable';
 import { toast } from 'sonner';
+import { notify } from '@/lib/notifications';
 import {
   ArrowLeft, QrCode, RefreshCw, Copy, Power, PowerOff,
   Send, Loader2, AlertCircle, Webhook, ScrollText, Pencil, Check, X,
@@ -194,9 +195,9 @@ export default function InstanceDetailPage() {
     return () => clearInterval(interval);
   }, [connectionSuccess, refreshInstance]);
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, label?: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copiado!');
+    notify.copied(label);
   };
 
   // --- Actions ---
@@ -220,14 +221,14 @@ export default function InstanceDetailPage() {
         setQrCode(normalized);
         setShowQrDialog(true);
       } else if (data?.connected || data?.jid) {
-        toast.success('Instância já está conectada!');
+        notify.instanceConnected(instance.name);
         refreshInstance();
       } else {
         setShowQrDialog(true);
         toast.info('Abra o WhatsApp no celular para escanear o QR Code');
       }
     } catch (e: any) {
-      toast.error(e.message || 'Falha ao gerar QR Code');
+      notify.integrationError(e.message || 'Falha ao gerar QR Code');
     } finally {
       setActionLoading(null);
     }
@@ -260,7 +261,7 @@ export default function InstanceDetailPage() {
     try {
       await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
       await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
-      toast.success('Instância desconectada');
+      notify.instanceDisconnected(instance.name);
       setInstance(prev => prev ? { ...prev, status: 'offline' } : prev);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao desconectar');
@@ -282,7 +283,7 @@ export default function InstanceDetailPage() {
         webhook: webhookUrl || undefined,
         events: getProviderEvents(instance.provider),
       });
-      toast.success('Sessão reiniciada');
+      notify.instanceRestarted(instance.name);
       setTimeout(refreshInstance, 3000);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao reiniciar');
