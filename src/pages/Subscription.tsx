@@ -97,37 +97,13 @@ export default function Subscription() {
     },
   });
 
-  // Change plan mutation
+  // Change plan mutation — uses SECURITY DEFINER RPC to bypass RLS
   const changePlanMutation = useMutation({
     mutationFn: async (newPlanId: string) => {
-      if (!company?.id) throw new Error('Sem empresa');
-      // Find existing subscription
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('id')
-        .eq('company_id', company.id)
-        .in('status', ['active', 'trialing'])
-        .single();
-
-      if (sub) {
-        // Update existing subscription to new plan
-        const { error } = await supabase
-          .from('subscriptions')
-          .update({ plan_id: newPlanId, updated_at: new Date().toISOString() })
-          .eq('id', sub.id);
-        if (error) throw error;
-      } else {
-        // Create new subscription
-        const { error } = await supabase
-          .from('subscriptions')
-          .insert({
-            company_id: company.id,
-            plan_id: newPlanId,
-            status: 'active',
-            started_at: new Date().toISOString(),
-          });
-        if (error) throw error;
-      }
+      const { error } = await supabase.rpc('change_subscription_plan', {
+        _new_plan_id: newPlanId,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       // Invalidate all plan-related queries to refresh immediately
