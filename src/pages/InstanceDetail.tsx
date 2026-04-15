@@ -339,23 +339,25 @@ export default function InstanceDetailPage() {
     const isNoPermission = loadError === 'no_permission';
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <div className={`rounded-full p-4 ${isNoPermission ? 'bg-yellow-500/10' : 'bg-destructive/10'}`}>
+        <div className={`rounded-full p-4 ${isNoPermission ? 'bg-warning/10' : 'bg-destructive/10'}`}>
           {isNoPermission ? (
-            <Shield className="h-10 w-10 text-yellow-600" />
+            <Shield className="h-10 w-10 text-warning" />
           ) : (
             <AlertCircle className="h-10 w-10 text-destructive" />
           )}
         </div>
-        <h2 className="text-xl font-semibold">
-          {isNotFound ? 'Instância não encontrada' : isNoPermission ? 'Sem permissão' : 'Erro ao carregar'}
-        </h2>
-        <p className="text-muted-foreground text-sm text-center max-w-md">
-          {isNotFound
-            ? 'A instância solicitada não existe ou foi removida.'
-            : isNoPermission
-            ? 'Você não tem permissão para acessar esta instância. Verifique com o administrador.'
-            : loadError || 'Não foi possível carregar os dados da instância.'}
-        </p>
+        <div className="text-center space-y-1 max-w-sm">
+          <h2 className="text-xl font-semibold">
+            {isNotFound ? 'Instância não encontrada' : isNoPermission ? 'Acesso restrito' : 'Erro ao carregar'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isNotFound
+              ? 'A instância solicitada não existe ou foi removida da sua conta.'
+              : isNoPermission
+              ? 'Você não tem permissão para acessar esta instância. Verifique com o administrador da sua empresa.'
+              : loadError || 'Não foi possível carregar os dados. Tente novamente em alguns instantes.'}
+          </p>
+        </div>
         <Button variant="outline" onClick={() => navigate('/instances')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Instâncias
         </Button>
