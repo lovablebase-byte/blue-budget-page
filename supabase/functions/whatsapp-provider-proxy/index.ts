@@ -500,7 +500,7 @@ serve(async (req) => {
     // --- Execute action ---
     console.log(`[whatsapp-provider-proxy] ${resolvedProvider}/${action}`, {
       company_id: companyId,
-      user_id: user.id,
+      user_id: userId,
       instanceName,
     });
 
