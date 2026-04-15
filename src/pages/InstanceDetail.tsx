@@ -29,6 +29,7 @@ import { StatusBadge } from '@/components/instances/StatusBadge';
 import { callProviderProxy } from '@/components/instances/useProviderProxy';
 import { getProviderEvents } from '@/components/instances/constants';
 import { InstanceActivityLog } from '@/components/instances/InstanceActivityLog';
+import { InstanceIntegrations } from '@/components/instances/InstanceIntegrations';
 
 interface InstanceDetail {
   id: string;
@@ -511,8 +512,7 @@ export default function InstanceDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
-          <TabsTrigger value="technical">Dados técnicos</TabsTrigger>
-          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="integrations">Integrações</TabsTrigger>
           <TabsTrigger value="activity">Histórico</TabsTrigger>
           <TabsTrigger value="logs">Eventos brutos</TabsTrigger>
         </TabsList>
