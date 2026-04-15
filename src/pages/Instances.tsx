@@ -663,8 +663,8 @@ export default function Instances() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/instances/${row.id}`)}>
-                <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+              <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowQR(true); }}>
+                <Eye className="mr-2 h-4 w-4" /> Ver detalhes / QR
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowQR(true); }}>
@@ -869,8 +869,8 @@ export default function Instances() {
                   <Button variant="outline" className="flex-1" onClick={() => setShowPostCreate(false)}>
                     Fechar
                   </Button>
-                  <Button className="flex-1" onClick={() => { setShowPostCreate(false); navigate(`/instances/${createdInstance?.id}`); }}>
-                    <Eye className="h-4 w-4 mr-1" /> Ver detalhes
+                  <Button className="flex-1" onClick={() => { setShowPostCreate(false); }}>
+                    <Eye className="h-4 w-4 mr-1" /> OK
                   </Button>
                 </div>
               </>
