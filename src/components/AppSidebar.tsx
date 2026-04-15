@@ -13,17 +13,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { PlanFeatures } from '@/services/plan-enforcement';
+import { moduleFeatureMap } from '@/lib/routes';
 import {
   operationalRoutes, adminRoutes, personalRoutes, type RouteDefinition,
 } from '@/lib/routes';
-
-/** Map module names to plan feature flags for enforcement */
-const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
-  instances: 'instances_enabled',
-  campaigns: 'campaigns_enabled',
-  ai_agents: 'ai_agents_enabled',
-};
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -40,7 +33,8 @@ export function AppSidebar() {
     if (isAdmin) return false;
     const featureKey = moduleFeatureMap[module];
     if (!featureKey) return false;
-    if (!plan) return false;
+    // No plan loaded yet or no subscription → locked
+    if (!plan) return true;
     return !hasFeature(featureKey);
   };
 
@@ -48,17 +42,22 @@ export function AppSidebar() {
    * Visibility logic for operational menu items:
    * 1. Admin → always visible
    * 2. No module → always visible (e.g. dashboard)
-   * 3. Plan feature flag exists and is DISABLED → hide entirely
-   * 4. If user has granular permissions configured → respect hasPermission
-   * 5. If user has NO granular permissions → show (plan feature controls access)
+   * 3. Plan still loading → show skeleton / show all (handled by planLoading)
+   * 4. Plan feature flag exists and is DISABLED (or no plan) → hide entirely
+   * 5. If user has granular permissions configured → respect hasPermission
+   * 6. If user has NO granular permissions → show (plan feature controls access)
    */
   const visibleOperational = operationalRoutes.filter(item => {
     if (isAdmin) return true;
     if (!item.module) return true;
+    // While plan is loading, show all items to avoid flicker
+    if (planLoading) return true;
 
-    // Check plan feature — if plan disables it, hide from menu
+    // Check plan feature — if plan disables it OR no plan exists, hide from menu
     const featureKey = moduleFeatureMap[item.module];
-    if (featureKey && plan && !hasFeature(featureKey)) return false;
+    if (featureKey) {
+      if (!plan || !hasFeature(featureKey)) return false;
+    }
 
     // If user has granular permissions configured, respect them
     const hasAnyPerms = permissions.length > 0;
