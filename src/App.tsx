@@ -91,6 +91,10 @@ const App = () => (
               {/* Pessoal */}
               <Route path="/account" element={<ProtectedPage><Account /></ProtectedPage>} />
 
+              {/* Catch sub-routes that no longer exist */}
+              <Route path="/campaigns/*" element={<Navigate to="/campaigns" replace />} />
+              <Route path="/agents/*" element={<Navigate to="/ai-agents" replace />} />
+
               {/* Legacy redirects */}
               {legacyRedirects.map(path => (
                 <Route key={path} path={path} element={<Navigate to="/dashboard" replace />} />
