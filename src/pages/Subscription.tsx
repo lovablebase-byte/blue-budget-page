@@ -1,8 +1,10 @@
 /**
  * Subscription — Client-facing page for subscription, invoices, and usage.
  * All data comes from backend (plan, subscription, invoices, instance counts).
+ * Plans are fetched directly from the `plans` table (admin-managed).
  */
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,14 +15,17 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { toast } from '@/hooks/use-toast';
 import {
   Crown, CreditCard, BarChart3, CheckCircle2, XCircle, Clock,
-  AlertTriangle, ArrowUpRight, MessageCircle, Receipt, Smartphone,
-  Bot, Megaphone, Users, FileText, Shield, Zap,
+  AlertTriangle, ArrowUpRight, ArrowDownRight, MessageCircle, Receipt, Smartphone,
+  Bot, Megaphone, Users, FileText, Shield, Zap, Star,
 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'>;
+type Plan = Tables<'plans'>;
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   active: { label: 'Ativa', icon: CheckCircle2, color: 'text-success' },
@@ -37,6 +42,18 @@ const invoiceStatusMap: Record<string, { label: string; variant: 'default' | 'de
   canceled: { label: 'Cancelada', variant: 'outline' },
 };
 
+const FEATURE_LABELS: Record<string, string> = {
+  instances_enabled: 'Instâncias',
+  campaigns_enabled: 'Campanhas',
+  ai_agents_enabled: 'Agentes IA',
+  invoices_enabled: 'Faturas',
+  branding_enabled: 'Marca própria',
+  api_access: 'API externa',
+  whitelabel_enabled: 'White-label',
+  advanced_logs_enabled: 'Logs avançados',
+  advanced_webhooks_enabled: 'Webhooks avançados',
+};
+
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 }
@@ -47,6 +64,7 @@ function formatDate(d: string | null) {
 }
 
 export default function Subscription() {
+  const queryClient = useQueryClient();
   const { plan, planLoading, allowedProviders, isActive, isSuspended } = useCompany();
   const { company, isAdmin } = useAuth();
 
@@ -54,6 +72,77 @@ export default function Subscription() {
   const [invoicesLoading, setInvoicesLoading] = useState(true);
   const [usage, setUsage] = useState<Record<string, number>>({});
   const [usageLoading, setUsageLoading] = useState(true);
+  const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
+
+  // Fetch all active plans from DB (admin-managed)
+  const { data: availablePlans = [], isLoading: plansLoading } = useQuery({
+    queryKey: ['available-plans'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('price_cents', { ascending: true });
+      if (error) throw error;
+      return data as Plan[];
+    },
+  });
+
+  // Fetch providers per plan
+  const { data: planProviders = [] } = useQuery({
+    queryKey: ['plan-providers-client'],
+    queryFn: async () => {
+      const { data } = await supabase.from('plan_allowed_providers').select('plan_id, provider');
+      return data || [];
+    },
+  });
+
+  // Change plan mutation
+  const changePlanMutation = useMutation({
+    mutationFn: async (newPlanId: string) => {
+      if (!company?.id) throw new Error('Sem empresa');
+      // Find existing subscription
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('id')
+        .eq('company_id', company.id)
+        .in('status', ['active', 'trialing'])
+        .single();
+
+      if (sub) {
+        // Update existing subscription to new plan
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({ plan_id: newPlanId, updated_at: new Date().toISOString() })
+          .eq('id', sub.id);
+        if (error) throw error;
+      } else {
+        // Create new subscription
+        const { error } = await supabase
+          .from('subscriptions')
+          .insert({
+            company_id: company.id,
+            plan_id: newPlanId,
+            status: 'active',
+            started_at: new Date().toISOString(),
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      // Invalidate all plan-related queries to refresh immediately
+      queryClient.invalidateQueries({ queryKey: ['effective-plan'] });
+      queryClient.invalidateQueries({ queryKey: ['allowed-providers'] });
+      queryClient.invalidateQueries({ queryKey: ['available-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['resource-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['feature-enabled'] });
+      toast({ title: 'Plano alterado com sucesso', description: 'Os novos limites e recursos já estão ativos.' });
+      setConfirmPlan(null);
+    },
+    onError: (e: any) => {
+      toast({ title: 'Erro ao trocar plano', description: e.message, variant: 'destructive' });
+    },
+  });
 
   // Fetch invoices
   useEffect(() => {
@@ -81,12 +170,10 @@ export default function Subscription() {
       supabase.from('campaigns').select('id', { count: 'exact' }).eq('company_id', company.id),
       supabase.from('user_roles').select('id', { count: 'exact' }).eq('company_id', company.id),
     ]).then(([inst, agents, campaigns, users]) => {
-      // Count instances by provider
       const providerCounts: Record<string, number> = {};
       (inst.data || []).forEach((i: any) => {
         providerCounts[i.provider] = (providerCounts[i.provider] || 0) + 1;
       });
-
       setUsage({
         instances: inst.count ?? 0,
         ai_agents: agents.count ?? 0,
@@ -100,7 +187,7 @@ export default function Subscription() {
 
   if (planLoading) {
     return (
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6 max-w-5xl">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
@@ -109,9 +196,33 @@ export default function Subscription() {
   }
 
   const status = plan ? (statusConfig[plan.status] || statusConfig.active) : null;
+  const currentPlanId = plan?.plan_id;
+
+  const getProvidersForPlan = (planId: string) => {
+    const pp = planProviders.filter((p: any) => p.plan_id === planId);
+    if (pp.length === 0) return ['evolution', 'wuzapi'];
+    return pp.map((p: any) => p.provider);
+  };
+
+  const getPlanAction = (targetPlan: Plan) => {
+    if (targetPlan.id === currentPlanId) return 'current';
+    if (!plan) return 'upgrade'; // no plan = any plan is upgrade
+    if (targetPlan.price_cents > plan.price_cents) return 'upgrade';
+    if (targetPlan.price_cents < plan.price_cents) return 'downgrade';
+    // Same price: compare by display_order
+    const currentDisplay = availablePlans.find(p => p.id === currentPlanId);
+    if (currentDisplay && targetPlan.display_order > currentDisplay.display_order) return 'upgrade';
+    return 'downgrade';
+  };
+
+  const getEnabledFeatures = (p: Plan) => {
+    return Object.entries(FEATURE_LABELS)
+      .filter(([key]) => (p as any)[key] === true)
+      .map(([, label]) => label);
+  };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Assinatura</h1>
         <p className="text-muted-foreground">Gerencie seu plano, faturas e acompanhe o consumo</p>
@@ -122,6 +233,9 @@ export default function Subscription() {
           <TabsTrigger value="plan" className="gap-1.5">
             <Crown className="h-4 w-4" /> Plano
           </TabsTrigger>
+          <TabsTrigger value="plans" className="gap-1.5">
+            <CreditCard className="h-4 w-4" /> Planos disponíveis
+          </TabsTrigger>
           <TabsTrigger value="invoices" className="gap-1.5">
             <Receipt className="h-4 w-4" /> Faturas
           </TabsTrigger>
@@ -130,7 +244,7 @@ export default function Subscription() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ── PLANO ── */}
+        {/* ── PLANO ATUAL ── */}
         <TabsContent value="plan" className="space-y-4">
           {!plan ? (
             <Card className="border-destructive/50 bg-destructive/5">
@@ -141,137 +255,248 @@ export default function Subscription() {
                 <div>
                   <p className="font-semibold text-lg">Nenhum plano ativo</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Sua conta não possui uma assinatura ativa. Entre em contato com o administrador.
+                    Sua conta não possui uma assinatura ativa. Escolha um plano na aba "Planos disponíveis".
                   </p>
-                  <Button size="sm" variant="outline" className="mt-3" onClick={() => window.open('mailto:suporte@exemplo.com', '_blank')}>
-                    <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> Falar com suporte
-                  </Button>
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <>
-              {/* Plan card */}
-              <Card className="border-border/40 bg-card/80">
-                <CardHeader>
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <CardTitle className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-md bg-primary/10">
-                        <Crown className="h-5 w-5 text-primary" />
-                      </div>
-                      Plano {plan.plan_name}
-                    </CardTitle>
-                    {status && (
-                      <Badge variant={isSuspended ? 'destructive' : 'secondary'} className="gap-1">
-                        <status.icon className={`h-3 w-3 ${status.color}`} />
-                        {status.label}
-                      </Badge>
-                    )}
-                  </div>
-                  {plan.plan_description && (
-                    <CardDescription>{plan.plan_description}</CardDescription>
+            <Card className="border-border/40 bg-card/80">
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-md bg-primary/10">
+                      <Crown className="h-5 w-5 text-primary" />
+                    </div>
+                    Plano {plan.plan_name}
+                  </CardTitle>
+                  {status && (
+                    <Badge variant={isSuspended ? 'destructive' : 'secondary'} className="gap-1">
+                      <status.icon className={`h-3 w-3 ${status.color}`} />
+                      {status.label}
+                    </Badge>
                   )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground text-xs uppercase tracking-wider block mb-1">Valor</span>
-                      <span className="font-semibold text-lg">{formatCurrency(plan.price_cents)}</span>
-                      <span className="text-muted-foreground text-xs">/{plan.billing_cycle === 'monthly' ? 'mês' : plan.billing_cycle === 'yearly' ? 'ano' : plan.billing_cycle}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs uppercase tracking-wider block mb-1">Renovação</span>
-                      <span className="font-medium">{formatDate(plan.renewal_date)}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs uppercase tracking-wider block mb-1">Vencimento</span>
-                      <span className="font-medium">{formatDate(plan.expires_at)}</span>
-                    </div>
-                  </div>
-
-                  <Separator className="bg-border/30" />
-
-                  {/* Limits overview */}
+                </div>
+                {plan.plan_description && (
+                  <CardDescription>{plan.plan_description}</CardDescription>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Limites do plano</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {[
-                        { label: 'Instâncias', value: plan.limits.max_instances, icon: Smartphone },
-                        { label: 'Agentes IA', value: plan.limits.max_ai_agents, icon: Bot },
-                        { label: 'Campanhas', value: plan.limits.max_campaigns, icon: Megaphone },
-                        { label: 'Usuários', value: plan.limits.max_users, icon: Users },
-                        { label: 'Msgs/dia', value: plan.limits.max_messages_day, icon: Zap },
-                        { label: 'Msgs/mês', value: plan.limits.max_messages_month, icon: FileText },
-                        { label: 'Contatos', value: plan.limits.max_contacts, icon: Users },
-                      ].map((item) => (
-                        <div key={item.label} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
-                          <item.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div>
-                            <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                            <p className="text-sm font-semibold">{item.value.toLocaleString('pt-BR')}</p>
-                          </div>
+                    <span className="text-muted-foreground text-xs uppercase tracking-wider block mb-1">Valor</span>
+                    <span className="font-semibold text-lg">{formatCurrency(plan.price_cents)}</span>
+                    <span className="text-muted-foreground text-xs">/{plan.billing_cycle === 'monthly' ? 'mês' : plan.billing_cycle === 'yearly' ? 'ano' : plan.billing_cycle}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs uppercase tracking-wider block mb-1">Renovação</span>
+                    <span className="font-medium">{formatDate(plan.renewal_date)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs uppercase tracking-wider block mb-1">Vencimento</span>
+                    <span className="font-medium">{formatDate(plan.expires_at)}</span>
+                  </div>
+                </div>
+
+                <Separator className="bg-border/30" />
+
+                {/* Limits overview */}
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Limites do plano</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Instâncias', value: plan.limits.max_instances, icon: Smartphone },
+                      { label: 'Agentes IA', value: plan.limits.max_ai_agents, icon: Bot },
+                      { label: 'Campanhas', value: plan.limits.max_campaigns, icon: Megaphone },
+                      { label: 'Usuários', value: plan.limits.max_users, icon: Users },
+                      { label: 'Msgs/dia', value: plan.limits.max_messages_day, icon: Zap },
+                      { label: 'Msgs/mês', value: plan.limits.max_messages_month, icon: FileText },
+                      { label: 'Contatos', value: plan.limits.max_contacts, icon: Users },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
+                        <item.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="text-[11px] text-muted-foreground">{item.label}</p>
+                          <p className="text-sm font-semibold">{item.value.toLocaleString('pt-BR')}</p>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
 
-                  <Separator className="bg-border/30" />
+                <Separator className="bg-border/30" />
 
-                  {/* Features */}
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Recursos</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        { label: 'Instâncias', enabled: plan.features.instances_enabled },
-                        { label: 'Campanhas', enabled: plan.features.campaigns_enabled },
-                        { label: 'Agentes IA', enabled: plan.features.ai_agents_enabled },
-                        { label: 'Faturas', enabled: plan.features.invoices_enabled },
-                        { label: 'Marca própria', enabled: plan.features.branding_enabled },
-                        { label: 'API externa', enabled: plan.features.api_access },
-                        { label: 'White-label', enabled: plan.features.whitelabel_enabled },
-                        { label: 'Logs avançados', enabled: plan.features.advanced_logs_enabled },
-                        { label: 'Webhooks avançados', enabled: plan.features.advanced_webhooks_enabled },
-                      ].map((f) => (
-                        <div key={f.label} className="flex items-center gap-2 text-sm">
-                          {f.enabled ? (
+                {/* Features */}
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Recursos</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {Object.entries(FEATURE_LABELS).map(([key, label]) => {
+                      const enabled = plan.features[key as keyof typeof plan.features];
+                      return (
+                        <div key={key} className="flex items-center gap-2 text-sm">
+                          {enabled ? (
                             <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                           ) : (
                             <XCircle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                           )}
-                          <span className={f.enabled ? 'text-foreground' : 'text-muted-foreground/60'}>{f.label}</span>
+                          <span className={enabled ? 'text-foreground' : 'text-muted-foreground/60'}>{label}</span>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
+                </div>
 
-                  <Separator className="bg-border/30" />
+                <Separator className="bg-border/30" />
 
-                  {/* Providers */}
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Providers liberados</p>
-                    <div className="flex flex-wrap gap-2">
-                      {allowedProviders.length === 0 ? (
-                        <span className="text-sm text-muted-foreground">Nenhum provider configurado</span>
+                {/* Providers */}
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Providers liberados</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allowedProviders.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">Nenhum provider configurado</span>
+                    ) : (
+                      allowedProviders.map((p) => (
+                        <Badge key={p} variant="outline" className="capitalize">{p}</Badge>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── PLANOS DISPONÍVEIS ── */}
+        <TabsContent value="plans" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Planos disponíveis</h2>
+            <p className="text-sm text-muted-foreground">Escolha o plano ideal para sua operação</p>
+          </div>
+
+          {plansLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-80 w-full" />)}
+            </div>
+          ) : availablePlans.length === 0 ? (
+            <Card className="border-border/40 bg-card/80">
+              <CardContent className="flex flex-col items-center justify-center py-12 gap-3">
+                <CreditCard className="h-8 w-8 text-muted-foreground/40" />
+                <p className="font-medium">Nenhum plano disponível</p>
+                <p className="text-sm text-muted-foreground">Aguarde a configuração de planos pelo administrador.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availablePlans.map((p) => {
+                const action = getPlanAction(p);
+                const isCurrent = action === 'current';
+                const providers = getProvidersForPlan(p.id);
+                const features = getEnabledFeatures(p);
+
+                return (
+                  <Card
+                    key={p.id}
+                    className={`relative border-border/40 bg-card/80 flex flex-col ${isCurrent ? 'ring-2 ring-primary' : ''} ${p.is_popular ? 'border-primary/50' : ''}`}
+                  >
+                    {p.is_popular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className="gap-1 bg-primary text-primary-foreground">
+                          <Star className="h-3 w-3 fill-current" /> Popular
+                        </Badge>
+                      </div>
+                    )}
+                    {isCurrent && (
+                      <div className="absolute -top-3 right-4">
+                        <Badge variant="secondary" className="gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> Plano atual
+                        </Badge>
+                      </div>
+                    )}
+
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg">{p.name}</CardTitle>
+                      {p.description && <CardDescription className="text-xs">{p.description}</CardDescription>}
+                      <div className="mt-2">
+                        <span className="text-2xl font-bold">{formatCurrency(p.price_cents)}</span>
+                        <span className="text-muted-foreground text-xs">/{p.billing_cycle === 'monthly' ? 'mês' : p.billing_cycle === 'yearly' ? 'ano' : p.billing_cycle}</span>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="flex-1 space-y-3 text-sm">
+                      {/* Limits */}
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Limites</p>
+                        <div className="grid grid-cols-2 gap-1 text-xs">
+                          <span>{p.max_instances} instâncias</span>
+                          <span>{p.max_users} usuários</span>
+                          <span>{p.max_campaigns} campanhas</span>
+                          <span>{p.max_ai_agents} agentes IA</span>
+                          <span>{p.max_messages_day.toLocaleString('pt-BR')} msgs/dia</span>
+                          <span>{p.max_messages_month.toLocaleString('pt-BR')} msgs/mês</span>
+                          <span>{p.max_contacts.toLocaleString('pt-BR')} contatos</span>
+                        </div>
+                      </div>
+
+                      {/* Features */}
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recursos</p>
+                        <div className="space-y-0.5">
+                          {Object.entries(FEATURE_LABELS).map(([key, label]) => {
+                            const enabled = (p as any)[key] === true;
+                            return (
+                              <div key={key} className="flex items-center gap-1.5 text-xs">
+                                {enabled ? (
+                                  <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                ) : (
+                                  <XCircle className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                                )}
+                                <span className={enabled ? '' : 'text-muted-foreground/50'}>{label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Providers */}
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Providers</p>
+                        <div className="flex flex-wrap gap-1">
+                          {providers.map(prov => (
+                            <Badge key={prov} variant="outline" className="text-[10px] capitalize">{prov}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+
+                    {/* Action */}
+                    <div className="p-4 pt-0 mt-auto">
+                      {isCurrent ? (
+                        <Button disabled className="w-full" variant="secondary">
+                          <CheckCircle2 className="h-4 w-4 mr-1.5" /> Plano atual
+                        </Button>
+                      ) : action === 'upgrade' ? (
+                        <Button
+                          className="w-full"
+                          onClick={() => setConfirmPlan(p)}
+                          disabled={changePlanMutation.isPending}
+                        >
+                          <ArrowUpRight className="h-4 w-4 mr-1.5" /> Fazer upgrade
+                        </Button>
                       ) : (
-                        allowedProviders.map((p) => (
-                          <Badge key={p} variant="outline" className="capitalize">{p}</Badge>
-                        ))
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          onClick={() => setConfirmPlan(p)}
+                          disabled={changePlanMutation.isPending}
+                        >
+                          <ArrowDownRight className="h-4 w-4 mr-1.5" /> Fazer downgrade
+                        </Button>
                       )}
                     </div>
-                  </div>
-
-                  {/* CTAs */}
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Button size="sm" variant="outline" onClick={() => window.open('mailto:suporte@exemplo.com', '_blank')}>
-                      <ArrowUpRight className="h-3.5 w-3.5 mr-1.5" /> Solicitar upgrade
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => window.open('mailto:suporte@exemplo.com', '_blank')}>
-                      <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> Falar com suporte
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
 
@@ -410,6 +635,21 @@ export default function Subscription() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Confirm plan change dialog */}
+      <ConfirmDialog
+        open={!!confirmPlan}
+        onOpenChange={(v) => { if (!v) setConfirmPlan(null); }}
+        title={`Trocar para plano ${confirmPlan?.name || ''}?`}
+        description={
+          confirmPlan
+            ? `Você está prestes a ${getPlanAction(confirmPlan) === 'upgrade' ? 'fazer upgrade' : 'fazer downgrade'} para o plano ${confirmPlan.name} (${formatCurrency(confirmPlan.price_cents)}/${confirmPlan.billing_cycle === 'monthly' ? 'mês' : confirmPlan.billing_cycle}). Os novos limites e recursos serão aplicados imediatamente.`
+            : ''
+        }
+        confirmText="Confirmar troca"
+        onConfirm={() => confirmPlan && changePlanMutation.mutate(confirmPlan.id)}
+        loading={changePlanMutation.isPending}
+      />
     </div>
   );
 }
