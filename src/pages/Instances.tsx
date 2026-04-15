@@ -6,6 +6,7 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
