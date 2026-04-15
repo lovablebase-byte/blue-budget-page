@@ -29,6 +29,7 @@ import { StatusBadge } from '@/components/instances/StatusBadge';
 import { callProviderProxy } from '@/components/instances/useProviderProxy';
 import { getProviderEvents } from '@/components/instances/constants';
 import { InstanceActivityLog } from '@/components/instances/InstanceActivityLog';
+import { InstanceIntegrations } from '@/components/instances/InstanceIntegrations';
 
 interface InstanceDetail {
   id: string;
@@ -74,7 +75,6 @@ export default function InstanceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [showToken, setShowToken] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [showQrDialog, setShowQrDialog] = useState(false);
@@ -322,32 +322,6 @@ export default function InstanceDetailPage() {
     }
   };
 
-  const handleTestWebhook = async () => {
-    if (!instance) return;
-    setActionLoading('webhook');
-    try {
-      const webhookUrl = instance.webhook_secret
-        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
-        : instance.webhook_url;
-      if (!webhookUrl) { toast.error('Webhook não configurado'); return; }
-      const res = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: instance.provider === 'wuzapi' ? 'Connected' : 'connection.update',
-          type: instance.provider === 'wuzapi' ? 'Connected' : undefined,
-          instance: instance.name,
-          data: { state: 'open', statusReason: 200, _test: true },
-        }),
-      });
-      if (res.ok) { toast.success('Evento de teste enviado!'); setTimeout(fetchEvents, 1500); }
-      else { const txt = await res.text().catch(() => ''); toast.error(`Webhook retornou ${res.status}: ${txt}`); }
-    } catch (e: any) {
-      toast.error(e.message || 'Falha ao testar webhook');
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   // --- Loading ---
   if (loading) {
@@ -511,8 +485,7 @@ export default function InstanceDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
-          <TabsTrigger value="technical">Dados técnicos</TabsTrigger>
-          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="integrations">Integrações</TabsTrigger>
           <TabsTrigger value="activity">Histórico</TabsTrigger>
           <TabsTrigger value="logs">Eventos brutos</TabsTrigger>
         </TabsList>
@@ -578,98 +551,13 @@ export default function InstanceDetailPage() {
           </div>
         </TabsContent>
 
-        {/* Technical */}
-        <TabsContent value="technical" className="space-y-4 mt-4">
-          {/* API Endpoint */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Globe className="h-4 w-4" /> Endpoint de Produção para Delivery
-              </CardTitle>
-              <CardDescription>Cole este endpoint diretamente no seu sistema de delivery para envio automático de mensagens via WhatsApp.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5" /> Endpoint de Produção (API)
-                </Label>
-                <div className="flex gap-2">
-                  <Input value={getDeliveryEndpoint(instance.id, instance.access_token)} readOnly className="font-mono text-xs" />
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(getDeliveryEndpoint(instance.id, instance.access_token))}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Aceita <code className="bg-muted px-1 rounded">multipart/form-data</code>, <code className="bg-muted px-1 rounded">JSON</code> e <code className="bg-muted px-1 rounded">form-urlencoded</code>. Campos: <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code>.
-                </p>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <Key className="h-3.5 w-3.5" /> Token da Sessão
-                </Label>
-                <div className="flex gap-2">
-                  <Input type={showToken ? 'text' : 'password'} value={instance.access_token} readOnly className="font-mono text-xs" />
-                  <Button variant="outline" size="icon" onClick={() => setShowToken(!showToken)}>
-                    {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(instance.access_token)}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Webhooks */}
-        <TabsContent value="webhooks" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Webhook className="h-5 w-5" /> Configuração de Webhook</CardTitle>
-              <CardDescription>URL para receber eventos desta instância</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>URL do Webhook</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={instance.webhook_secret
-                      ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
-                      : instance.webhook_url || 'Não configurado'}
-                    readOnly className="font-mono text-xs"
-                  />
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(
-                    instance.webhook_secret
-                      ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
-                      : instance.webhook_url || ''
-                  )}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Secret</Label>
-                <div className="flex gap-2">
-                  <Input value={instance.webhook_secret || 'Não configurado'} readOnly className="font-mono text-xs" />
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(instance.webhook_secret || '')}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Eventos assinados</Label>
-                <div className="flex flex-wrap gap-1">
-                  {getProviderEvents(instance.provider).map(ev => (
-                    <Badge key={ev} variant="outline" className="text-xs">{ev}</Badge>
-                  ))}
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleTestWebhook} disabled={actionLoading === 'webhook' || actionsBlocked}>
-                {actionLoading === 'webhook' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />} Testar webhook
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Integrations */}
+        <TabsContent value="integrations" className="space-y-4 mt-4">
+          <InstanceIntegrations
+            instance={instance}
+            actionsBlocked={actionsBlocked}
+            onRefreshEvents={fetchEvents}
+          />
         </TabsContent>
 
         {/* Activity / History */}
