@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, Column } from '@/components/DataTable';
 import { toast } from 'sonner';
+import { notify } from '@/lib/notifications';
 import {
   ArrowLeft, QrCode, RefreshCw, Copy, Power, PowerOff,
   Send, Loader2, AlertCircle, Webhook, ScrollText, Pencil, Check, X,
@@ -194,9 +195,9 @@ export default function InstanceDetailPage() {
     return () => clearInterval(interval);
   }, [connectionSuccess, refreshInstance]);
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, label?: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copiado!');
+    notify.copied(label);
   };
 
   // --- Actions ---
@@ -220,14 +221,14 @@ export default function InstanceDetailPage() {
         setQrCode(normalized);
         setShowQrDialog(true);
       } else if (data?.connected || data?.jid) {
-        toast.success('Instância já está conectada!');
+        notify.instanceConnected(instance.name);
         refreshInstance();
       } else {
         setShowQrDialog(true);
         toast.info('Abra o WhatsApp no celular para escanear o QR Code');
       }
     } catch (e: any) {
-      toast.error(e.message || 'Falha ao gerar QR Code');
+      notify.integrationError(e.message || 'Falha ao gerar QR Code');
     } finally {
       setActionLoading(null);
     }
@@ -260,7 +261,7 @@ export default function InstanceDetailPage() {
     try {
       await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
       await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
-      toast.success('Instância desconectada');
+      notify.instanceDisconnected(instance.name);
       setInstance(prev => prev ? { ...prev, status: 'offline' } : prev);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao desconectar');
@@ -282,7 +283,7 @@ export default function InstanceDetailPage() {
         webhook: webhookUrl || undefined,
         events: getProviderEvents(instance.provider),
       });
-      toast.success('Sessão reiniciada');
+      notify.instanceRestarted(instance.name);
       setTimeout(refreshInstance, 3000);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao reiniciar');
@@ -338,23 +339,25 @@ export default function InstanceDetailPage() {
     const isNoPermission = loadError === 'no_permission';
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <div className={`rounded-full p-4 ${isNoPermission ? 'bg-yellow-500/10' : 'bg-destructive/10'}`}>
+        <div className={`rounded-full p-4 ${isNoPermission ? 'bg-warning/10' : 'bg-destructive/10'}`}>
           {isNoPermission ? (
-            <Shield className="h-10 w-10 text-yellow-600" />
+            <Shield className="h-10 w-10 text-warning" />
           ) : (
             <AlertCircle className="h-10 w-10 text-destructive" />
           )}
         </div>
-        <h2 className="text-xl font-semibold">
-          {isNotFound ? 'Instância não encontrada' : isNoPermission ? 'Sem permissão' : 'Erro ao carregar'}
-        </h2>
-        <p className="text-muted-foreground text-sm text-center max-w-md">
-          {isNotFound
-            ? 'A instância solicitada não existe ou foi removida.'
-            : isNoPermission
-            ? 'Você não tem permissão para acessar esta instância. Verifique com o administrador.'
-            : loadError || 'Não foi possível carregar os dados da instância.'}
-        </p>
+        <div className="text-center space-y-1 max-w-sm">
+          <h2 className="text-xl font-semibold">
+            {isNotFound ? 'Instância não encontrada' : isNoPermission ? 'Acesso restrito' : 'Erro ao carregar'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isNotFound
+              ? 'A instância solicitada não existe ou foi removida da sua conta.'
+              : isNoPermission
+              ? 'Você não tem permissão para acessar esta instância. Verifique com o administrador da sua empresa.'
+              : loadError || 'Não foi possível carregar os dados. Tente novamente em alguns instantes.'}
+          </p>
+        </div>
         <Button variant="outline" onClick={() => navigate('/instances')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Instâncias
         </Button>
@@ -581,7 +584,7 @@ export default function InstanceDetailPage() {
             searchKey="event_type"
             searchPlaceholder="Buscar evento..."
             loading={loadingEvents}
-            emptyMessage="Nenhum evento registrado."
+            emptyMessage="Nenhum evento registrado ainda. Eventos aparecerão conforme a instância for utilizada."
             pageSize={15}
           />
         </TabsContent>

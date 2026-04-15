@@ -23,9 +23,9 @@ import type { Tables } from '@/integrations/supabase/types';
 type Invoice = Tables<'invoices'>;
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  active: { label: 'Ativa', icon: CheckCircle2, color: 'text-emerald-500' },
-  trialing: { label: 'Período de teste', icon: Clock, color: 'text-blue-400' },
-  past_due: { label: 'Pagamento pendente', icon: AlertTriangle, color: 'text-yellow-500' },
+  active: { label: 'Ativa', icon: CheckCircle2, color: 'text-success' },
+  trialing: { label: 'Período de teste', icon: Clock, color: 'text-info' },
+  past_due: { label: 'Pagamento pendente', icon: AlertTriangle, color: 'text-warning' },
   canceled: { label: 'Cancelada', icon: XCircle, color: 'text-destructive' },
   suspended: { label: 'Suspensa', icon: XCircle, color: 'text-destructive' },
 };
@@ -234,7 +234,7 @@ export default function Subscription() {
                       ].map((f) => (
                         <div key={f.label} className="flex items-center gap-2 text-sm">
                           {f.enabled ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                           ) : (
                             <XCircle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                           )}
@@ -293,9 +293,16 @@ export default function Subscription() {
                   {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
                 </div>
               ) : invoices.length === 0 ? (
-                <div className="text-center py-8">
-                  <Receipt className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
-                  <p className="text-sm text-muted-foreground">Nenhuma fatura encontrada</p>
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="rounded-full p-3 bg-muted/30">
+                    <Receipt className="h-8 w-8 text-muted-foreground/40" />
+                  </div>
+                  <div className="text-center space-y-1 max-w-xs">
+                    <p className="font-medium">Nenhuma fatura emitida</p>
+                    <p className="text-sm text-muted-foreground">
+                      Suas faturas aparecerão aqui conforme forem geradas pelo sistema de cobrança.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y divide-border/30">
@@ -369,7 +376,7 @@ export default function Subscription() {
                         </div>
                         <Progress
                           value={percent}
-                          className={`h-2 ${atLimit ? '[&>div]:bg-destructive' : nearLimit ? '[&>div]:bg-yellow-500' : ''}`}
+                          className={`h-2 ${atLimit ? '[&>div]:bg-destructive' : nearLimit ? '[&>div]:bg-warning' : ''}`}
                         />
                       </div>
                     );
