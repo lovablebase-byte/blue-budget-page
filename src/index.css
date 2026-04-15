@@ -154,6 +154,16 @@
   }
 }
 
-#lovable-badge {
+/* remove Lovable e overlays externos */
+#lovable-badge,
+[class*="lovable"],
+[id*="lovable"],
+iframe[src*="lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body > div[style*="position: fixed"][style*="z-index"] {
   display: none !important;
 }
