@@ -30,7 +30,7 @@ import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
 import { ProviderBadge } from '@/components/instances/ProviderBadge';
 import { StatusBadge } from '@/components/instances/StatusBadge';
 import { InstanceStatsCards } from '@/components/instances/InstanceStatsCards';
-import { InstanceFilters } from '@/components/instances/InstanceFilters';
+import { InstanceFilters, SortOption } from '@/components/instances/InstanceFilters';
 import { callProviderProxy } from '@/components/instances/useProviderProxy';
 import { providerLabels, TIMEZONES, getProviderEvents } from '@/components/instances/constants';
 
