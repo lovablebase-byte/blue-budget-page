@@ -4,77 +4,71 @@
 
 @layer base {
   :root {
-    /* Base – #02050B, #06101A, #0A1624 */
-    --background: 220 69% 3%;
-    --foreground: 210 40% 98%;
+    /* ── Light Mode ── */
+    --background: 210 20% 98%;
+    --foreground: 220 20% 14%;
 
-    /* Card – #0A1624 */
-    --card: 211 56% 9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 14%;
 
-    /* Popover – #06101A */
-    --popover: 210 63% 6%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 14%;
 
-    /* Primary – #25D366 green */
-    --primary: 145 69% 49%;
-    --primary-foreground: 220 69% 3%;
+    /* Primary – WhatsApp green */
+    --primary: 145 69% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary – #06101A */
-    --secondary: 210 63% 6%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 16% 93%;
+    --secondary-foreground: 220 20% 14%;
 
-    /* Muted – #17324A */
-    --muted: 209 51% 19%;
-    --muted-foreground: 211 16% 51%;
+    --muted: 210 16% 93%;
+    --muted-foreground: 215 14% 46%;
 
-    /* Accent – #00E5FF cyan */
-    --accent: 186 100% 50%;
-    --accent-foreground: 220 69% 3%;
+    --accent: 186 80% 42%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Destructive – #FF4D6D */
-    --destructive: 348 100% 65%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 348 80% 52%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Border – #17324A */
-    --border: 209 51% 19%;
-    --input: 209 51% 19%;
-    --ring: 145 69% 49%;
+    --border: 214 18% 83%;
+    --input: 214 18% 83%;
+    --ring: 145 69% 42%;
 
     --radius: 0.5rem;
 
-    /* Sidebar – deepest black #02050B */
-    --sidebar-background: 220 69% 2%;
-    --sidebar-foreground: 213 22% 77%;
-    --sidebar-primary: 145 69% 49%;
-    --sidebar-primary-foreground: 220 69% 3%;
-    --sidebar-accent: 152 100% 50%;
-    --sidebar-accent-foreground: 220 69% 3%;
-    --sidebar-border: 209 51% 15%;
-    --sidebar-ring: 145 69% 49%;
+    /* Sidebar – light */
+    --sidebar-background: 210 18% 96%;
+    --sidebar-foreground: 220 14% 36%;
+    --sidebar-primary: 145 69% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 186 80% 42%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 214 18% 88%;
+    --sidebar-ring: 145 69% 42%;
 
     /* Status colors */
-    --success: 150 100% 57%;
-    --success-foreground: 220 69% 3%;
-    --warning: 48 96% 53%;
-    --warning-foreground: 220 69% 3%;
-    --info: 199 93% 60%;
-    --info-foreground: 220 69% 3%;
+    --success: 150 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 80% 46%;
+    --info-foreground: 0 0% 100%;
 
     /* Brand accents */
-    --glow: 152 100% 50%;
-    --cyan: 186 100% 50%;
-    --purple: 258 90% 66%;
+    --glow: 145 69% 42%;
+    --cyan: 186 80% 42%;
+    --purple: 258 70% 56%;
 
     /* Extra greens */
-    --primary-hover: 140 100% 62%;
-    --primary-dark: 152 100% 39%;
+    --primary-hover: 140 70% 48%;
+    --primary-dark: 152 70% 34%;
 
-    /* Card hover – #102033 */
-    --card-hover: 213 53% 13%;
+    /* Card hover */
+    --card-hover: 210 16% 96%;
   }
 
   .dark {
+    /* ── Dark Mode (preserved exactly) ── */
     --background: 220 69% 3%;
     --foreground: 210 40% 98%;
 
@@ -151,6 +145,20 @@
   }
   .glow-neon {
     box-shadow: 0 0 20px -2px hsl(152 100% 50% / 0.5), 0 0 40px -4px hsl(152 100% 50% / 0.2);
+  }
+
+  /* Light mode: softer glows */
+  :root:not(.dark) .glow-primary {
+    box-shadow: 0 0 16px -4px hsl(145 69% 42% / 0.3);
+  }
+  :root:not(.dark) .glow-primary-sm {
+    box-shadow: 0 0 10px -3px hsl(145 69% 42% / 0.25);
+  }
+  :root:not(.dark) .glow-cyan {
+    box-shadow: 0 0 12px -4px hsl(186 80% 42% / 0.25);
+  }
+  :root:not(.dark) .glow-neon {
+    box-shadow: 0 0 12px -3px hsl(145 69% 42% / 0.3);
   }
 }
 
