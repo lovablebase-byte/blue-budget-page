@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useFeatureEnabled } from '@/hooks/use-plan-enforcement';
+import { PlanStatusBanner } from '@/components/PlanStatusBanner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -14,9 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, Column } from '@/components/DataTable';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, QrCode, RefreshCw, Copy,
-  Send, Loader2, AlertCircle, Webhook, ScrollText,
-  Key, Globe, Eye, EyeOff,
+  ArrowLeft, QrCode, RefreshCw, Copy, Power, PowerOff,
+  Send, Loader2, AlertCircle, Webhook, ScrollText, Pencil, Check, X,
+  Key, Globe, Eye, EyeOff, RotateCcw, Clock, Phone, Calendar,
+  Fingerprint, Tag, Shield, Settings,
 } from 'lucide-react';
 import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
@@ -55,32 +58,152 @@ interface WebhookEvent {
 }
 
 const getProviderInstanceName = (inst: InstanceDetail): string => {
-  // Evolution API uses the human-readable instance name
-  if (inst.provider === 'evolution') {
-    return inst.name;
-  }
-  // Wuzapi uses the token stored in provider_instance_id
+  if (inst.provider === 'evolution') return inst.name;
   return inst.provider_instance_id || inst.name;
 };
 
 export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { company, isReadOnly } = useAuth();
+  const { company, hasPermission, isReadOnly, isAdmin } = useAuth();
   const { isSuspended } = useCompany();
+  const instanceFeature = useFeatureEnabled('instances_enabled');
   const [instance, setInstance] = useState<InstanceDetail | null>(null);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [showQrDialog, setShowQrDialog] = useState(false);
+  const [connectionSuccess, setConnectionSuccess] = useState(false);
+  const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
 
+  // Edit name
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+
+  // Send test message
+  const [showTestMsg, setShowTestMsg] = useState(false);
+  const [testNumber, setTestNumber] = useState('');
+  const [testMessage, setTestMessage] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+
+  const featureBlocked = !isAdmin && instanceFeature.data === false;
+  const actionsBlocked = isSuspended || isReadOnly || featureBlocked;
+
+  const refreshInstance = useCallback(async () => {
+    if (!id) return;
+    const { data } = await supabase.from('instances').select('*').eq('id', id).single();
+    if (data) setInstance(data as InstanceDetail);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) { setLoadError('ID da instância não informado'); setLoading(false); return; }
+    const fetchData = async () => {
+      setLoading(true);
+      setLoadError(null);
+      const { data, error } = await supabase.from('instances').select('*').eq('id', id).single();
+      if (error) {
+        if (error.code === 'PGRST116') setLoadError('not_found');
+        else if (error.code === '42501' || error.message?.includes('permission')) setLoadError('no_permission');
+        else setLoadError(error.message);
+        setLoading(false);
+        return;
+      }
+      setInstance(data as InstanceDetail);
+      setLoading(false);
+
+      // Sync status from provider
+      try {
+        const inst = data as InstanceDetail;
+        const providerName = getProviderInstanceName(inst);
+        if (providerName) {
+          const res = await callProviderProxy('status', inst.provider, providerName);
+          const state = res?.instance?.state || '';
+          let newStatus = inst.status;
+          if (state === 'open' || state === 'connected') newStatus = 'online';
+          else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
+          else if (state === 'connecting') newStatus = 'connecting';
+          if (newStatus !== inst.status) {
+            const updateData: Record<string, any> = { status: newStatus };
+            if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
+            await supabase.from('instances').update(updateData).eq('id', inst.id);
+            setInstance(prev => prev ? { ...prev, status: newStatus, ...(newStatus === 'online' ? { last_connected_at: new Date().toISOString() } : {}) } : prev);
+          }
+        }
+      } catch {}
+    };
+    fetchData();
+  }, [id]);
+
+  const fetchEvents = useCallback(async () => {
+    if (!id) return;
+    setLoadingEvents(true);
+    const { data } = await supabase
+      .from('webhook_events')
+      .select('*')
+      .eq('instance_id', id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setEvents((data as WebhookEvent[]) || []);
+    setLoadingEvents(false);
+  }, [id]);
+
+  useEffect(() => { if (id) fetchEvents(); }, [id, fetchEvents]);
+
+  // Poll connection when QR dialog is open
+  useEffect(() => {
+    if (!showQrDialog || !instance || connectionSuccess) return;
+    const providerName = getProviderInstanceName(instance);
+    if (!providerName) return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await callProviderProxy('status', instance.provider, providerName);
+        const state = res?.instance?.state || '';
+        if (state === 'open' || state === 'connected') {
+          setConnectionSuccess(true);
+          await supabase.from('instances').update({ status: 'online', last_connected_at: new Date().toISOString() }).eq('id', instance.id);
+          setInstance(prev => prev ? { ...prev, status: 'online', last_connected_at: new Date().toISOString() } : prev);
+        }
+      } catch {}
+    }, 5000);
+    return () => clearInterval(poll);
+  }, [showQrDialog, instance, connectionSuccess]);
+
+  // Auto-close on connection success
+  useEffect(() => {
+    if (!connectionSuccess) return;
+    setAutoCloseCountdown(3);
+    const interval = setInterval(() => {
+      setAutoCloseCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          setShowQrDialog(false);
+          setConnectionSuccess(false);
+          setQrCode(null);
+          setAutoCloseCountdown(null);
+          refreshInstance();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [connectionSuccess, refreshInstance]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copiado!');
+  };
+
+  // --- Actions ---
   const handlePairQR = async () => {
     if (!instance) return;
     setActionLoading('qr');
     setQrCode(null);
+    setConnectionSuccess(false);
     try {
       const providerName = getProviderInstanceName(instance);
       const webhookUrl = instance.webhook_secret
@@ -92,7 +215,8 @@ export default function InstanceDetailPage() {
       });
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
       if (qr) {
-        setQrCode(qr);
+        const normalized = qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`;
+        setQrCode(normalized);
         setShowQrDialog(true);
       } else if (data?.connected || data?.jid) {
         toast.success('Instância já está conectada!');
@@ -108,9 +232,9 @@ export default function InstanceDetailPage() {
     }
   };
 
-  const handleReconnect = async () => {
+  const handleConnect = async () => {
     if (!instance) return;
-    setActionLoading('reconnect');
+    setActionLoading('connect');
     try {
       const providerName = getProviderInstanceName(instance);
       const webhookUrl = instance.webhook_secret
@@ -120,27 +244,80 @@ export default function InstanceDetailPage() {
         webhook: webhookUrl || undefined,
         events: getProviderEvents(instance.provider),
       });
-      toast.success('Reconexão solicitada ao provider');
+      toast.success('Conexão solicitada');
       setTimeout(refreshInstance, 2000);
     } catch (e: any) {
-      toast.error(e.message || 'Falha ao reconectar');
+      toast.error(e.message || 'Falha ao conectar');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleLogout = async () => {
+  const handleDisconnect = async () => {
     if (!instance) return;
-    setActionLoading('logout');
+    setActionLoading('disconnect');
     try {
       await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
       await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
       toast.success('Instância desconectada');
-      refreshInstance();
+      setInstance(prev => prev ? { ...prev, status: 'offline' } : prev);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao desconectar');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!instance) return;
+    setActionLoading('restart');
+    try {
+      const providerName = getProviderInstanceName(instance);
+      try { await callProviderProxy('logout', instance.provider, providerName); } catch {}
+      const webhookUrl = instance.webhook_secret
+        ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
+        : instance.webhook_url;
+      await callProviderProxy('connect', instance.provider, providerName, {
+        webhook: webhookUrl || undefined,
+        events: getProviderEvents(instance.provider),
+      });
+      toast.success('Sessão reiniciada');
+      setTimeout(refreshInstance, 3000);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao reiniciar');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveName = async () => {
+    if (!instance || !editName.trim()) return;
+    const { error } = await supabase.from('instances').update({ name: editName.trim() }).eq('id', instance.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Nome atualizado');
+    setInstance(prev => prev ? { ...prev, name: editName.trim() } : prev);
+    setEditingName(false);
+  };
+
+  const handleSendTest = async () => {
+    if (!instance || !testNumber.trim() || !testMessage.trim()) return;
+    setSendingTest(true);
+    try {
+      const endpoint = getDeliveryEndpoint(instance.id, instance.access_token);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: testNumber.replace(/\D/g, ''), body: testMessage }),
+      });
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      toast.success('Mensagem de teste enviada!');
+      setShowTestMsg(false);
+      setTestNumber('');
+      setTestMessage('');
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -151,10 +328,7 @@ export default function InstanceDetailPage() {
       const webhookUrl = instance.webhook_secret
         ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
         : instance.webhook_url;
-      if (!webhookUrl) {
-        toast.error('Webhook não configurado para esta instância');
-        return;
-      }
+      if (!webhookUrl) { toast.error('Webhook não configurado'); return; }
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,13 +339,8 @@ export default function InstanceDetailPage() {
           data: { state: 'open', statusReason: 200, _test: true },
         }),
       });
-      if (res.ok) {
-        toast.success('Evento de teste enviado! Verifique na aba de Logs.');
-        setTimeout(fetchEvents, 1500);
-      } else {
-        const txt = await res.text().catch(() => '');
-        toast.error(`Webhook retornou ${res.status}: ${txt}`);
-      }
+      if (res.ok) { toast.success('Evento de teste enviado!'); setTimeout(fetchEvents, 1500); }
+      else { const txt = await res.text().catch(() => ''); toast.error(`Webhook retornou ${res.status}: ${txt}`); }
     } catch (e: any) {
       toast.error(e.message || 'Falha ao testar webhook');
     } finally {
@@ -179,51 +348,7 @@ export default function InstanceDetailPage() {
     }
   };
 
-  const refreshInstance = async () => {
-    if (!id) return;
-    const { data } = await supabase.from('instances').select('*').eq('id', id).single();
-    if (data) setInstance(data as InstanceDetail);
-  };
-
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id) { setLoadError('ID da instância não informado'); setLoading(false); return; }
-    const fetchData = async () => {
-      setLoading(true);
-      setLoadError(null);
-      const { data, error } = await supabase.from('instances').select('*').eq('id', id).single();
-      if (error) {
-        setLoadError(error.code === 'PGRST116' ? 'Instância não encontrada' : error.message);
-        setLoading(false);
-        return;
-      }
-      setInstance(data as InstanceDetail);
-      setLoading(false);
-    };
-    fetchData();
-  }, [id]);
-
-  const fetchEvents = async () => {
-    if (!id) return;
-    setLoadingEvents(true);
-    const { data } = await supabase
-      .from('webhook_events')
-      .select('*')
-      .eq('instance_id', id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    setEvents((data as WebhookEvent[]) || []);
-    setLoadingEvents(false);
-  };
-
-  useEffect(() => { if (id) fetchEvents(); }, [id]);
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copiado!');
-  };
-
+  // --- Loading ---
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -232,18 +357,39 @@ export default function InstanceDetailPage() {
     );
   }
 
+  // --- Error states ---
   if (loadError || !instance) {
+    const isNotFound = loadError === 'not_found';
+    const isNoPermission = loadError === 'no_permission';
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <AlertCircle className="h-12 w-12 text-destructive" />
-        <h2 className="text-xl font-semibold">{loadError || 'Instância não encontrada'}</h2>
-        <p className="text-muted-foreground text-sm">Verifique o ID ou se você tem permissão para acessar esta instância.</p>
+        <div className={`rounded-full p-4 ${isNoPermission ? 'bg-yellow-500/10' : 'bg-destructive/10'}`}>
+          {isNoPermission ? (
+            <Shield className="h-10 w-10 text-yellow-600" />
+          ) : (
+            <AlertCircle className="h-10 w-10 text-destructive" />
+          )}
+        </div>
+        <h2 className="text-xl font-semibold">
+          {isNotFound ? 'Instância não encontrada' : isNoPermission ? 'Sem permissão' : 'Erro ao carregar'}
+        </h2>
+        <p className="text-muted-foreground text-sm text-center max-w-md">
+          {isNotFound
+            ? 'A instância solicitada não existe ou foi removida.'
+            : isNoPermission
+            ? 'Você não tem permissão para acessar esta instância. Verifique com o administrador.'
+            : loadError || 'Não foi possível carregar os dados da instância.'}
+        </p>
         <Button variant="outline" onClick={() => navigate('/instances')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Instâncias
         </Button>
       </div>
     );
   }
+
+  const isOnline = instance.status === 'online' || instance.status === 'connected';
+  const isOffline = instance.status === 'offline';
+  const canEdit = hasPermission('instances', 'edit') && !isReadOnly;
 
   const eventColumns: Column<WebhookEvent>[] = [
     { key: 'event_type', label: 'Evento', sortable: true },
@@ -258,124 +404,185 @@ export default function InstanceDetailPage() {
     },
   ];
 
-  const isOnline = instance.status === 'online' || instance.status === 'connected';
+  const InfoRow = ({ icon: Icon, label, value, mono }: { icon: any; label: string; value: React.ReactNode; mono?: boolean }) => (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        <span>{label}</span>
+      </div>
+      <span className={`text-sm ${mono ? 'font-mono text-xs' : ''}`}>{value || '—'}</span>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
+      {/* Plan enforcement banner */}
+      {featureBlocked && (
+        <PlanStatusBanner featureBlocked featureLabel="Instâncias WhatsApp" />
+      )}
+
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/instances')}>
+      <div className="flex items-start gap-3">
+        <Button variant="ghost" size="icon" className="mt-1 shrink-0" onClick={() => navigate('/instances')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{instance.name}</h1>
-          <p className="text-muted-foreground text-sm">{instance.phone_number || 'Número não registrado'}</p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="h-8 text-lg font-bold w-60"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                />
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveName}>
+                  <Check className="h-4 w-4 text-success" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingName(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold tracking-tight truncate">{instance.name}</h1>
+                {canEdit && !actionsBlocked && (
+                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => { setEditName(instance.name); setEditingName(true); }}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <ProviderBadge provider={instance.provider} />
+            <StatusBadge status={instance.status} />
+            {instance.phone_number && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Phone className="h-3 w-3" />
+                {instance.phone_number}
+              </Badge>
+            )}
+          </div>
         </div>
-        <ProviderBadge provider={instance.provider} className="mr-2" />
-        <StatusBadge status={instance.status} />
+
+        {/* Quick actions header */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={refreshInstance} disabled={!!actionLoading}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${actionLoading ? 'animate-spin' : ''}`} /> Sync
+          </Button>
+        </div>
       </div>
 
-      {isSuspended && (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <AlertCircle className="h-5 w-5 text-destructive" />
-          <div>
-            <p className="font-medium">Assinatura suspensa</p>
-            <p className="text-sm text-muted-foreground">Ações de gerenciamento estão temporariamente indisponíveis.</p>
-          </div>
+      {/* Action buttons bar */}
+      {!actionsBlocked && (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={handlePairQR} disabled={!!actionLoading}>
+            {actionLoading === 'qr' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <QrCode className="h-4 w-4 mr-1.5" />}
+            QR Code
+          </Button>
+          {isOffline && (
+            <Button size="sm" variant="outline" onClick={handleConnect} disabled={!!actionLoading}>
+              {actionLoading === 'connect' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Power className="h-4 w-4 mr-1.5" />}
+              Conectar
+            </Button>
+          )}
+          {isOnline && (
+            <Button size="sm" variant="outline" onClick={handleDisconnect} disabled={!!actionLoading}>
+              {actionLoading === 'disconnect' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <PowerOff className="h-4 w-4 mr-1.5" />}
+              Desconectar
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={handleRestart} disabled={!!actionLoading}>
+            {actionLoading === 'restart' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-1.5" />}
+            Reiniciar
+          </Button>
+          {isOnline && (
+            <Button size="sm" variant="outline" onClick={() => setShowTestMsg(true)} disabled={!!actionLoading}>
+              <Send className="h-4 w-4 mr-1.5" /> Enviar teste
+            </Button>
+          )}
         </div>
       )}
 
+      {/* Tabs */}
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
+          <TabsTrigger value="technical">Dados técnicos</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="logs">Logs de eventos</TabsTrigger>
         </TabsList>
 
+        {/* Overview */}
         <TabsContent value="overview" className="space-y-4 mt-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Live status card */}
+            {/* Status card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Status ao vivo</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Settings className="h-4 w-4" /> Status e conexão
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Conexão</span>
-                  <StatusBadge status={instance.status} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Provider</span>
-                  <ProviderBadge provider={instance.provider} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Reconexão</span>
-                  <span className="text-sm capitalize">{instance.reconnect_policy}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Última conexão</span>
-                  <span className="text-sm">
-                    {instance.last_connected_at ? new Date(instance.last_connected_at).toLocaleString('pt-BR') : 'Nunca'}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handlePairQR} disabled={actionLoading === 'qr' || isSuspended || isReadOnly}>
-                    {actionLoading === 'qr' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />} Parear QR
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={handleReconnect} disabled={actionLoading === 'reconnect' || isSuspended || isReadOnly}>
-                    {actionLoading === 'reconnect' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Reconectar
-                  </Button>
-                </div>
-                {isOnline && (
-                  <Button size="sm" variant="secondary" className="w-full gap-1" onClick={handleLogout} disabled={actionLoading === 'logout' || isSuspended || isReadOnly}>
-                    {actionLoading === 'logout' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Desconectar
-                  </Button>
+              <CardContent className="space-y-0 divide-y divide-border/50">
+                <InfoRow icon={Fingerprint} label="Status" value={<StatusBadge status={instance.status} />} />
+                <InfoRow icon={Globe} label="Provider" value={<ProviderBadge provider={instance.provider} />} />
+                <InfoRow icon={Phone} label="Número" value={instance.phone_number || 'Não registrado'} />
+                <InfoRow icon={Shield} label="Reconexão" value={<span className="capitalize">{instance.reconnect_policy}</span>} />
+                <InfoRow icon={Clock} label="Última conexão" value={
+                  instance.last_connected_at
+                    ? new Date(instance.last_connected_at).toLocaleString('pt-BR')
+                    : 'Nunca conectou'
+                } />
+                <InfoRow icon={Calendar} label="Criada em" value={new Date(instance.created_at).toLocaleString('pt-BR')} />
+                {instance.updated_at && (
+                  <InfoRow icon={RefreshCw} label="Última sincronização" value={new Date(instance.updated_at).toLocaleString('pt-BR')} />
                 )}
               </CardContent>
             </Card>
 
             {/* Info card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Informações</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Key className="h-4 w-4" /> Identificadores
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">ID</span>
-                  <span className="text-xs font-mono text-muted-foreground">{instance.id.slice(0, 8)}...</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Fuso horário</span>
-                  <span className="text-sm">{instance.timezone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Tags</span>
-                  <div className="flex gap-1">
-                    {instance.tags?.length ? instance.tags.map(t =>
-                      <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
-                    ) : <span className="text-sm text-muted-foreground">—</span>}
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Criada em</span>
-                  <span className="text-sm">{new Date(instance.created_at).toLocaleDateString('pt-BR')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Provider Instance ID</span>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    {instance.provider_instance_id || instance.evolution_instance_id || '—'}
-                  </span>
-                </div>
+              <CardContent className="space-y-0 divide-y divide-border/50">
+                <InfoRow icon={Fingerprint} label="Instance ID" value={
+                  <button onClick={() => copyToClipboard(instance.id)} className="hover:text-primary transition-colors">
+                    {instance.id.slice(0, 12)}…
+                  </button>
+                } mono />
+                <InfoRow icon={Fingerprint} label="Session ID" value={
+                  instance.provider_instance_id || instance.evolution_instance_id
+                    ? <button onClick={() => copyToClipboard(instance.provider_instance_id || instance.evolution_instance_id || '')} className="hover:text-primary transition-colors truncate max-w-[180px] block">
+                        {(instance.provider_instance_id || instance.evolution_instance_id || '').slice(0, 16)}…
+                      </button>
+                    : '—'
+                } mono />
+                <InfoRow icon={Globe} label="Fuso horário" value={instance.timezone} />
+                <InfoRow icon={Tag} label="Tags" value={
+                  instance.tags?.length
+                    ? <div className="flex gap-1 flex-wrap justify-end">{instance.tags.map(t => <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>)}</div>
+                    : '—'
+                } />
+                <InfoRow icon={Key} label="Instância na API" value={
+                  <Badge variant="outline" className="font-mono text-[10px]">{instance.name}</Badge>
+                } />
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
 
+        {/* Technical */}
+        <TabsContent value="technical" className="space-y-4 mt-4">
           {/* API Endpoint */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
-                <Key className="h-4 w-4" /> Endpoint de Produção para Delivery
+                <Globe className="h-4 w-4" /> Endpoint de Produção para Delivery
               </CardTitle>
               <CardDescription>Cole este endpoint diretamente no seu sistema de delivery para envio automático de mensagens via WhatsApp.</CardDescription>
             </CardHeader>
@@ -385,30 +592,22 @@ export default function InstanceDetailPage() {
                   <Globe className="h-3.5 w-3.5" /> Endpoint de Produção (API)
                 </Label>
                 <div className="flex gap-2">
-                  <Input
-                    value={getDeliveryEndpoint(instance.id, instance.access_token)}
-                    readOnly
-                    className="font-mono text-xs"
-                  />
+                  <Input value={getDeliveryEndpoint(instance.id, instance.access_token)} readOnly className="font-mono text-xs" />
                   <Button variant="outline" size="icon" onClick={() => copyToClipboard(getDeliveryEndpoint(instance.id, instance.access_token))}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Aceita <code className="bg-muted px-1 rounded">multipart/form-data</code>, <code className="bg-muted px-1 rounded">JSON</code> e <code className="bg-muted px-1 rounded">form-urlencoded</code>. Campos aceitos: <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code>.
+                  Aceita <code className="bg-muted px-1 rounded">multipart/form-data</code>, <code className="bg-muted px-1 rounded">JSON</code> e <code className="bg-muted px-1 rounded">form-urlencoded</code>. Campos: <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code>.
                 </p>
               </div>
+              <Separator />
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
                   <Key className="h-3.5 w-3.5" /> Token da Sessão
                 </Label>
                 <div className="flex gap-2">
-                  <Input
-                    type={showToken ? 'text' : 'password'}
-                    value={instance.access_token}
-                    readOnly
-                    className="font-mono text-xs"
-                  />
+                  <Input type={showToken ? 'text' : 'password'} value={instance.access_token} readOnly className="font-mono text-xs" />
                   <Button variant="outline" size="icon" onClick={() => setShowToken(!showToken)}>
                     {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
@@ -417,14 +616,11 @@ export default function InstanceDetailPage() {
                   </Button>
                 </div>
               </div>
-              <div className="flex justify-between items-center pt-1">
-                <span className="text-xs text-muted-foreground">Instância na API</span>
-                <Badge variant="outline" className="font-mono text-xs">{instance.name}</Badge>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Webhooks */}
         <TabsContent value="webhooks" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
@@ -439,8 +635,7 @@ export default function InstanceDetailPage() {
                     value={instance.webhook_secret
                       ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
                       : instance.webhook_url || 'Não configurado'}
-                    readOnly
-                    className="font-mono text-xs"
+                    readOnly className="font-mono text-xs"
                   />
                   <Button variant="outline" size="icon" onClick={() => copyToClipboard(
                     instance.webhook_secret
@@ -450,9 +645,6 @@ export default function InstanceDetailPage() {
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  URL configurada automaticamente no provider para receber eventos em tempo real.
-                </p>
               </div>
               <div className="space-y-2">
                 <Label>Secret</Label>
@@ -471,13 +663,14 @@ export default function InstanceDetailPage() {
                   ))}
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={handleTestWebhook} disabled={actionLoading === 'webhook'}>
+              <Button variant="outline" size="sm" onClick={handleTestWebhook} disabled={actionLoading === 'webhook' || actionsBlocked}>
                 {actionLoading === 'webhook' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />} Testar webhook
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Logs */}
         <TabsContent value="logs" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium flex items-center gap-2">
@@ -500,7 +693,7 @@ export default function InstanceDetailPage() {
       </Tabs>
 
       {/* QR Code Dialog */}
-      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
+      <Dialog open={showQrDialog} onOpenChange={v => { if (!v) { setShowQrDialog(false); setConnectionSuccess(false); setQrCode(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
@@ -509,19 +702,57 @@ export default function InstanceDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
-            <div className="w-64 h-64 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
-              {qrCode ? (
-                <img src={qrCode} alt="QR Code" className="w-full h-full object-contain" />
-              ) : (
-                <div className="text-center text-muted-foreground p-4">
-                  <QrCode className="h-16 w-16 mx-auto mb-2" />
-                  <p className="text-sm">Clique para gerar</p>
+            {connectionSuccess ? (
+              <div className="flex flex-col items-center gap-3 py-6">
+                <div className="rounded-full p-4 bg-success/10">
+                  <Check className="h-10 w-10 text-success" />
                 </div>
-              )}
+                <p className="text-lg font-semibold">Conectado com sucesso!</p>
+                {autoCloseCountdown !== null && (
+                  <p className="text-sm text-muted-foreground">Fechando em {autoCloseCountdown}s...</p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="w-64 h-64 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
+                  {qrCode ? (
+                    <img src={qrCode} alt="QR Code" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="text-center text-muted-foreground p-4">
+                      <QrCode className="h-16 w-16 mx-auto mb-2" />
+                      <p className="text-sm">Clique para gerar</p>
+                    </div>
+                  )}
+                </div>
+                <Button onClick={handlePairQR} disabled={actionLoading === 'qr'}>
+                  {actionLoading === 'qr' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                  {qrCode ? 'Atualizar QR' : 'Gerar QR Code'}
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send test message dialog */}
+      <Dialog open={showTestMsg} onOpenChange={setShowTestMsg}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar mensagem de teste</DialogTitle>
+            <DialogDescription>Envie uma mensagem de teste via {instance.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Número (com DDI)</Label>
+              <Input placeholder="5511999999999" value={testNumber} onChange={e => setTestNumber(e.target.value)} />
             </div>
-            <Button onClick={handlePairQR} disabled={actionLoading === 'qr'}>
-              {actionLoading === 'qr' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
-              {qrCode ? 'Atualizar QR' : 'Gerar QR Code'}
+            <div className="space-y-2">
+              <Label>Mensagem</Label>
+              <Input placeholder="Olá, teste!" value={testMessage} onChange={e => setTestMessage(e.target.value)} />
+            </div>
+            <Button onClick={handleSendTest} disabled={sendingTest || !testNumber.trim() || !testMessage.trim()} className="w-full">
+              {sendingTest ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Enviar
             </Button>
           </div>
         </DialogContent>
