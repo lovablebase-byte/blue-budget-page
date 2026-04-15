@@ -3,7 +3,7 @@
  * Points to the webhook-receiver edge function with instance_id and secret as query params.
  */
 
-const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rmswpurvnqqayemvuocv';
+const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
 export function getWebhookEndpoint(
   instanceId: string,
