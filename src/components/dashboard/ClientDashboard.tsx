@@ -295,6 +295,7 @@ export default function ClientDashboard() {
             <p className="text-[11px] text-muted-foreground mt-0.5">taxa</p>
           </CardContent>
         </Card>
+        {hasFeature('invoices_enabled') && (
         <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">Faturas pendentes</CardTitle>
@@ -305,6 +306,7 @@ export default function ClientDashboard() {
             <p className="text-[11px] text-muted-foreground mt-0.5">em aberto</p>
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Instance status cards */}
