@@ -28,6 +28,7 @@ import { ProviderBadge } from '@/components/instances/ProviderBadge';
 import { StatusBadge } from '@/components/instances/StatusBadge';
 import { callProviderProxy } from '@/components/instances/useProviderProxy';
 import { getProviderEvents } from '@/components/instances/constants';
+import { InstanceActivityLog } from '@/components/instances/InstanceActivityLog';
 
 interface InstanceDetail {
   id: string;
