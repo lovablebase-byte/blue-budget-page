@@ -404,24 +404,32 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // --- Auth ---
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Não autorizado");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("Não autorizado");
 
-    const {
-      data: { user },
-      error: authErr,
-    } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (authErr || !user) throw new Error("Não autorizado");
+    const token = authHeader.replace("Bearer ", "");
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claimsData, error: claimsErr } = await authClient.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims?.sub) {
+      console.error("[whatsapp-provider-proxy] ERROR", claimsErr?.message || "Não autorizado");
+      throw new Error("Não autorizado");
+    }
+    const userId = claimsData.claims.sub;
+
+    // Service-role client for DB queries
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // --- Company ---
     const { data: userRole } = await supabase
       .from("user_roles")
       .select("company_id")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
     if (!userRole?.company_id) throw new Error("Empresa não encontrada");
     const companyId = userRole.company_id;
@@ -492,7 +500,7 @@ serve(async (req) => {
     // --- Execute action ---
     console.log(`[whatsapp-provider-proxy] ${resolvedProvider}/${action}`, {
       company_id: companyId,
-      user_id: user.id,
+      user_id: userId,
       instanceName,
     });
 
