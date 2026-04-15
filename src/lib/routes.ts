@@ -9,6 +9,17 @@ import {
   Globe, BarChart3, Heart, FileText, Package,
   type LucideIcon,
 } from 'lucide-react';
+import type { PlanFeatures } from '@/services/plan-enforcement';
+
+/**
+ * Single source of truth: maps module names to plan feature flags.
+ * Used by sidebar, ProtectedRoute, and any guard that checks plan features.
+ */
+export const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
+  instances: 'instances_enabled',
+  campaigns: 'campaigns_enabled',
+  ai_agents: 'ai_agents_enabled',
+};
 
 export interface RouteDefinition {
   path: string;

@@ -2,15 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
-import { routeOrderForRedirect } from '@/lib/routes';
+import { routeOrderForRedirect, moduleFeatureMap } from '@/lib/routes';
 import { toast } from '@/hooks/use-toast';
-import type { PlanFeatures } from '@/services/plan-enforcement';
-
-const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
-  instances: 'instances_enabled',
-  campaigns: 'campaigns_enabled',
-  ai_agents: 'ai_agents_enabled',
-};
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -51,7 +44,10 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     if (!role || role === 'admin' || !requiredModule) return false;
 
     const featureKey = moduleFeatureMap[requiredModule];
-    if (featureKey && plan && !hasFeature(featureKey)) return true;
+    // If there's a feature flag for this module: deny if plan is null OR feature is disabled
+    if (featureKey) {
+      if (!plan || !hasFeature(featureKey)) return true;
+    }
 
     if (permissions.length > 0) return !hasPermission(requiredModule, requiredAction);
 
