@@ -429,7 +429,7 @@ serve(async (req) => {
     const { data: userRole } = await supabase
       .from("user_roles")
       .select("company_id")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
     if (!userRole?.company_id) throw new Error("Empresa não encontrada");
     const companyId = userRole.company_id;
