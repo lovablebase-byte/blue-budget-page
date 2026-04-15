@@ -193,6 +193,9 @@ export default function AIAgents() {
 
   const activeCount = agents.filter((a: any) => a.is_active).length;
 
+  const featureBlocked = !isAdmin && aiFeature.data === false;
+  const limitBlocked = !isAdmin && agentLimit.data && !agentLimit.data.allowed;
+
   const columns: Column<any>[] = [
     { key: 'name', label: 'Nome', sortable: true },
     {
@@ -215,9 +218,6 @@ export default function AIAgents() {
       render: (row) => <Switch checked={row.is_active} disabled={isSuspended || featureBlocked} onCheckedChange={(v) => toggleMutation.mutate({ id: row.id, is_active: v })} />,
     },
   ];
-
-  const featureBlocked = !isAdmin && aiFeature.data === false;
-  const limitBlocked = !isAdmin && agentLimit.data && !agentLimit.data.allowed;
 
   return (
     <div className="space-y-6">
