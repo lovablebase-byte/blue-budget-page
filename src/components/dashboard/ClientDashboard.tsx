@@ -295,6 +295,7 @@ export default function ClientDashboard() {
             <p className="text-[11px] text-muted-foreground mt-0.5">taxa</p>
           </CardContent>
         </Card>
+        {hasFeature('invoices_enabled') && (
         <Card className="group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">Faturas pendentes</CardTitle>
@@ -305,6 +306,7 @@ export default function ClientDashboard() {
             <p className="text-[11px] text-muted-foreground mt-0.5">em aberto</p>
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Instance status cards */}
@@ -392,6 +394,7 @@ export default function ClientDashboard() {
               <>
                 <div className="space-y-1.5">
                   {[
+                    { key: 'instances_enabled' as const, label: 'Instâncias', icon: Smartphone },
                     { key: 'campaigns_enabled' as const, label: 'Campanhas', icon: Megaphone },
                     { key: 'ai_agents_enabled' as const, label: 'Agentes IA', icon: Bot },
                     { key: 'api_access' as const, label: 'Acesso API', icon: Globe },
@@ -436,7 +439,7 @@ export default function ClientDashboard() {
       <Tabs defaultValue="hourly" className="space-y-4">
         <TabsList>
           <TabsTrigger value="hourly">Envios por Hora</TabsTrigger>
-          <TabsTrigger value="campaign">Por Campanha</TabsTrigger>
+          {hasFeature('campaigns_enabled') && <TabsTrigger value="campaign">Por Campanha</TabsTrigger>}
           <TabsTrigger value="status">Status Instâncias</TabsTrigger>
         </TabsList>
         <TabsContent value="hourly">
@@ -455,7 +458,7 @@ export default function ClientDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="campaign">
+        {hasFeature('campaigns_enabled') && <TabsContent value="campaign">
           <Card>
             <CardHeader><CardTitle className="text-sm">Envios por Campanha</CardTitle></CardHeader>
             <CardContent className="h-72">
@@ -475,7 +478,7 @@ export default function ClientDashboard() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
         <TabsContent value="status">
           <Card>
             <CardHeader><CardTitle className="text-sm">Distribuição de Status</CardTitle></CardHeader>
@@ -533,6 +536,7 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
+        {hasFeature('invoices_enabled') && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -560,10 +564,12 @@ export default function ClientDashboard() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Bottom utilities */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {hasFeature('api_access') && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -584,6 +590,7 @@ export default function ClientDashboard() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -609,6 +616,7 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
+        {referralCode && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -624,6 +632,7 @@ export default function ClientDashboard() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

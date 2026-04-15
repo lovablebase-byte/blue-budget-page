@@ -704,19 +704,21 @@ export default function Campaigns() {
         searchPlaceholder="Buscar campanha..."
         loading={isLoading}
         emptyMessage="Nenhuma campanha criada"
-        actions={(row) => (
+        actions={(row) => {
+          const blocked = isSuspended || featureBlocked;
+          return (
           <div className="flex gap-1">
-            {row.status === 'draft' && (
+            {row.status === 'draft' && !blocked && (
               <Button variant="ghost" size="sm" onClick={() => startCampaign(row.id)}>
                 <Play className="h-4 w-4 mr-1" /> Iniciar
               </Button>
             )}
-            {row.status === 'sending' && (
+            {row.status === 'sending' && !blocked && (
               <Button variant="ghost" size="sm" onClick={() => pauseCampaign(row.id)}>
                 <Pause className="h-4 w-4 mr-1" /> Pausar
               </Button>
             )}
-            {row.status === 'paused' && (
+            {row.status === 'paused' && !blocked && (
               <Button variant="ghost" size="sm" onClick={() => resumeCampaign(row.id)}>
                 <Play className="h-4 w-4 mr-1" /> Retomar
               </Button>
@@ -724,9 +726,12 @@ export default function Campaigns() {
             <Button variant="ghost" size="sm" onClick={() => setMonitorCampaignId(row.id)}>
               <BarChart3 className="h-4 w-4 mr-1" /> Monitor
             </Button>
-            <ConfirmDialog title="Excluir campanha?" description="Esta ação é irreversível." onConfirm={() => deleteMutation.mutate(row.id)} trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
+            {!blocked && (
+              <ConfirmDialog title="Excluir campanha?" description="Esta ação é irreversível." onConfirm={() => deleteMutation.mutate(row.id)} trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
+            )}
           </div>
-        )}
+          );
+        }}
       />
 
       {/* Queue Monitor Dialog */}

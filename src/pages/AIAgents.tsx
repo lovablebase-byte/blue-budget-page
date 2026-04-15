@@ -193,6 +193,9 @@ export default function AIAgents() {
 
   const activeCount = agents.filter((a: any) => a.is_active).length;
 
+  const featureBlocked = !isAdmin && aiFeature.data === false;
+  const limitBlocked = !isAdmin && agentLimit.data && !agentLimit.data.allowed;
+
   const columns: Column<any>[] = [
     { key: 'name', label: 'Nome', sortable: true },
     {
@@ -212,12 +215,9 @@ export default function AIAgents() {
     },
     {
       key: 'is_active', label: 'Ativo',
-      render: (row) => <Switch checked={row.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: row.id, is_active: v })} />,
+      render: (row) => <Switch checked={row.is_active} disabled={isSuspended || featureBlocked} onCheckedChange={(v) => toggleMutation.mutate({ id: row.id, is_active: v })} />,
     },
   ];
-
-  const featureBlocked = !isAdmin && aiFeature.data === false;
-  const limitBlocked = !isAdmin && agentLimit.data && !agentLimit.data.allowed;
 
   return (
     <div className="space-y-6">
@@ -426,8 +426,10 @@ export default function AIAgents() {
         emptyMessage="Nenhum agente criado"
         actions={(row) => (
           <div className="flex gap-1">
-            <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>Editar</Button>
-            <ConfirmDialog title="Excluir agente?" description="Esta ação é irreversível." onConfirm={() => deleteMutation.mutate(row.id)} trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
+            <Button variant="ghost" size="sm" disabled={isSuspended || featureBlocked} onClick={() => openEdit(row)}>Editar</Button>
+            {!isSuspended && !featureBlocked && (
+              <ConfirmDialog title="Excluir agente?" description="Esta ação é irreversível." onConfirm={() => deleteMutation.mutate(row.id)} trigger={<Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>} />
+            )}
           </div>
         )}
       />
