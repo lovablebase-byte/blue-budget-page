@@ -75,6 +75,8 @@ export const legacyRedirects: string[] = [
   '/profile',
   '/invoices',
   '/subscription',
+  '/agentes',
+  '/agents',
   '/admin/greetings',
   '/admin/absence',
   '/admin/status',
