@@ -59,11 +59,11 @@ export function AppSidebar() {
       if (!plan || !hasFeature(featureKey)) return false;
     }
 
-    // If user has granular permissions configured, respect them
-    const hasAnyPerms = permissions.length > 0;
-    if (hasAnyPerms) return hasPermission(item.module, 'view');
+    // If user has a specific granular permission for THIS module, respect it
+    const modulePerm = permissions.find(p => p.module === item.module);
+    if (modulePerm) return modulePerm.can_view;
 
-    // No granular permissions set → plan feature is enough to show
+    // No specific permission for this module → plan feature is enough to show
     return true;
   });
 
