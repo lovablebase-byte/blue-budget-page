@@ -21,8 +21,8 @@ const ADMIN_DEFAULT_PERMISSIONS = [
 
 const OPERATOR_DEFAULT_PERMISSIONS = [
   { module: 'dashboard', can_view: true, can_create: false, can_edit: false, can_delete: false, extra: {} },
-  { module: 'instances', can_view: true, can_create: false, can_edit: true, can_delete: false,
-    extra: { pair: true, test_message: true } },
+  { module: 'instances', can_view: true, can_create: true, can_edit: true, can_delete: false,
+    extra: { pair: true, reconnect: true, disconnect: true, test_message: true } },
 ];
 
 serve(async (req) => {
