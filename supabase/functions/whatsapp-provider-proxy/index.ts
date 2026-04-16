@@ -220,7 +220,9 @@ async function handleEvolutionGo(
       return { ok: r.ok, status: r.status, body: r.data };
     }
     case "create": {
+      // Evolution Go expects `name`; keep `instanceName` for cross-version compatibility.
       const b: any = {
+        name: instanceName,
         instanceName,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
