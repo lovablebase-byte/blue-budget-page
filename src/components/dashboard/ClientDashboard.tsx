@@ -15,6 +15,7 @@ import {
   FileText, Zap, Bot, Megaphone, Globe, ExternalLink,
   Activity, Clock, RefreshCw, ChevronRight, Loader2,
 } from 'lucide-react';
+import { PLAN_FEATURES } from '@/lib/plan-features';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -346,13 +347,7 @@ export default function ClientDashboard() {
                 <div className="pt-2 border-t space-y-1.5">
                   <p className="text-xs text-muted-foreground font-medium">Recursos</p>
                   <div className="flex flex-wrap gap-1">
-                    {[
-                      { key: 'instances_enabled' as const, label: 'Instâncias' },
-                      { key: 'campaigns_enabled' as const, label: 'Campanhas' },
-                      { key: 'ai_agents_enabled' as const, label: 'Agentes IA' },
-                      { key: 'api_access' as const, label: 'API' },
-                      { key: 'whitelabel_enabled' as const, label: 'White-label' },
-                    ].map(f => {
+                    {PLAN_FEATURES.map(f => {
                       const enabled = hasFeature(f.key);
                       return (
                         <Badge key={f.key} variant={enabled ? 'default' : 'outline'} className={`text-[10px] ${!enabled ? 'opacity-50' : ''}`}>

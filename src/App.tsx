@@ -19,6 +19,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Account = lazy(() => import("./pages/Account"));
 const Subscription = lazy(() => import("./pages/Subscription"));
 const Instances = lazy(() => import("./pages/Instances"));
+const InstanceDetail = lazy(() => import("./pages/InstanceDetail"));
 
 const AIAgents = lazy(() => import("./pages/AIAgents"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
@@ -74,6 +75,7 @@ const App = () => (
               {/* Operational */}
               <Route path="/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
               <Route path="/instances" element={<ProtectedPage module="instances"><Instances /></ProtectedPage>} />
+              <Route path="/instances/:id" element={<ProtectedPage module="instances"><InstanceDetail /></ProtectedPage>} />
               
               <Route path="/ai-agents" element={<ProtectedPage module="ai_agents"><AIAgents /></ProtectedPage>} />
               <Route path="/campaigns" element={<ProtectedPage module="campaigns"><Campaigns /></ProtectedPage>} />

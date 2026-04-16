@@ -23,6 +23,7 @@ import {
   Bot, Megaphone, Users, FileText, Shield, Zap, Star,
 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
+import { PLAN_FEATURES } from '@/lib/plan-features';
 
 type Invoice = Tables<'invoices'>;
 type Plan = Tables<'plans'>;
@@ -40,18 +41,6 @@ const invoiceStatusMap: Record<string, { label: string; variant: 'default' | 'de
   pending: { label: 'Pendente', variant: 'secondary' },
   overdue: { label: 'Vencida', variant: 'destructive' },
   canceled: { label: 'Cancelada', variant: 'outline' },
-};
-
-const FEATURE_LABELS: Record<string, string> = {
-  instances_enabled: 'Instâncias',
-  campaigns_enabled: 'Campanhas',
-  ai_agents_enabled: 'Agentes IA',
-  invoices_enabled: 'Faturas',
-  branding_enabled: 'Marca própria',
-  api_access: 'API externa',
-  whitelabel_enabled: 'White-label',
-  advanced_logs_enabled: 'Logs avançados',
-  advanced_webhooks_enabled: 'Webhooks avançados',
 };
 
 function formatCurrency(cents: number) {
@@ -192,9 +181,9 @@ export default function Subscription() {
   };
 
   const getEnabledFeatures = (p: Plan) => {
-    return Object.entries(FEATURE_LABELS)
-      .filter(([key]) => (p as any)[key] === true)
-      .map(([, label]) => label);
+    return PLAN_FEATURES
+      .filter(({ key }) => Boolean((p as any)[key]))
+      .map(({ label }) => label);
   };
 
   return (
@@ -306,8 +295,8 @@ export default function Subscription() {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Recursos</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {Object.entries(FEATURE_LABELS).map(([key, label]) => {
-                      const enabled = plan.features[key as keyof typeof plan.features];
+                    {PLAN_FEATURES.map(({ key, label }) => {
+                      const enabled = plan.features[key];
                       return (
                         <div key={key} className="flex items-center gap-2 text-sm">
                           {enabled ? (
@@ -417,8 +406,8 @@ export default function Subscription() {
                       <div className="space-y-1">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recursos</p>
                         <div className="space-y-0.5">
-                          {Object.entries(FEATURE_LABELS).map(([key, label]) => {
-                            const enabled = (p as any)[key] === true;
+                          {PLAN_FEATURES.map(({ key, label }) => {
+                            const enabled = Boolean((p as any)[key]);
                             return (
                               <div key={key} className="flex items-center gap-1.5 text-xs">
                                 {enabled ? (
