@@ -1,6 +1,7 @@
 import type { WhatsAppProvider, ProviderName } from './types';
 import { evolutionProvider } from './evolution';
 import { wuzapiProvider } from './wuzapi';
+import { evolutionGoProvider } from './evolution-go';
 
 export type { WhatsAppProvider, ProviderName, ProviderConfig, ProviderResult } from './types';
 export type {
@@ -14,6 +15,7 @@ export type {
 const providers: Record<ProviderName, WhatsAppProvider> = {
   evolution: evolutionProvider,
   wuzapi: wuzapiProvider,
+  evolution_go: evolutionGoProvider,
 };
 
 export function getProvider(name: ProviderName): WhatsAppProvider {
@@ -23,7 +25,7 @@ export function getProvider(name: ProviderName): WhatsAppProvider {
 }
 
 export function isValidProvider(name: string): name is ProviderName {
-  return name === 'evolution' || name === 'wuzapi';
+  return name === 'evolution' || name === 'wuzapi' || name === 'evolution_go';
 }
 
-export { evolutionProvider, wuzapiProvider };
+export { evolutionProvider, wuzapiProvider, evolutionGoProvider };

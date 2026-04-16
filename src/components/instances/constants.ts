@@ -18,11 +18,13 @@ export const statusConfig: Record<string, StatusConfig> = {
 export const providerLabels: Record<string, string> = {
   evolution: 'Evolution API',
   wuzapi: 'WuzAPI',
+  evolution_go: 'Evolution Go',
 };
 
 export const providerColors: Record<string, string> = {
   evolution: 'border-primary/40 text-primary bg-primary/10',
   wuzapi: 'border-accent/40 text-accent bg-accent/10',
+  evolution_go: 'border-success/40 text-success bg-success/10',
 };
 
 export const TIMEZONES = [
@@ -38,6 +40,10 @@ export const TIMEZONES = [
 export function getProviderEvents(provider: string): string[] {
   if (provider === 'wuzapi') {
     return ['Message'];
+  }
+  if (provider === 'evolution_go') {
+    // Evolution Go (v2) uses UPPERCASE event names per the official docs
+    return ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED', 'MESSAGES_UPDATE', 'PRESENCE_UPDATE'];
   }
   return ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'];
 }
