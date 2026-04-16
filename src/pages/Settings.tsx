@@ -37,6 +37,7 @@ export default function Settings() {
   const [companyName, setCompanyName] = useState('');
   const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
+  const [ego, setEgo] = useState<ProviderState>(defaultProviderState());
 
   const { data: companyData } = useQuery({
     queryKey: ['company-settings', company?.id],
@@ -90,6 +91,7 @@ export default function Settings() {
   useEffect(() => {
     const evoConfig = waConfigs?.find((c: any) => c.provider === 'evolution');
     const wuzConfig = waConfigs?.find((c: any) => c.provider === 'wuzapi');
+    const egoConfig = waConfigs?.find((c: any) => c.provider === 'evolution_go');
     if (evoConfig) {
       setEvo(prev => ({ ...prev, baseUrl: evoConfig.base_url, apiKey: evoConfig.api_key || '', isActive: evoConfig.is_active, isDefault: evoConfig.is_default }));
     } else if (legacyEvoConfig) {
@@ -97,6 +99,9 @@ export default function Settings() {
     }
     if (wuzConfig) {
       setWuz(prev => ({ ...prev, baseUrl: wuzConfig.base_url, apiKey: wuzConfig.api_key || '', isActive: wuzConfig.is_active, isDefault: wuzConfig.is_default }));
+    }
+    if (egoConfig) {
+      setEgo(prev => ({ ...prev, baseUrl: egoConfig.base_url, apiKey: egoConfig.api_key || '', isActive: egoConfig.is_active, isDefault: egoConfig.is_default }));
     }
   }, [waConfigs, legacyEvoConfig]);
 
@@ -113,7 +118,18 @@ export default function Settings() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const saveProvider = async (provider: 'evolution' | 'wuzapi', state: ProviderState) => {
+  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go';
+
+  const providerStateMap: Record<ProviderKey, [ProviderState, React.Dispatch<React.SetStateAction<ProviderState>>]> = {
+    evolution: [evo, setEvo],
+    wuzapi: [wuz, setWuz],
+    evolution_go: [ego, setEgo],
+  };
+
+  const providerLabel = (p: ProviderKey) =>
+    p === 'evolution' ? 'Evolution API' : p === 'wuzapi' ? 'Wuzapi' : 'Evolution Go';
+
+  const saveProvider = async (provider: ProviderKey, state: ProviderState) => {
     if (!company?.id) throw new Error('Conta não identificada');
     if (!state.baseUrl) throw new Error('URL da API é obrigatória');
 
@@ -130,7 +146,6 @@ export default function Settings() {
       await supabase.from('whatsapp_api_configs').update({ is_default: false }).eq('company_id', company.id).neq('provider', provider);
     }
 
-    // Use upsert with the unique constraint on (company_id, provider)
     const { error } = await supabase
       .from('whatsapp_api_configs')
       .upsert(payload, { onConflict: 'company_id,provider' });
@@ -145,18 +160,16 @@ export default function Settings() {
       }
     }
 
-    // Wait for cache to refresh before proceeding (important for test connection)
     await queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
     await queryClient.invalidateQueries({ queryKey: ['evolution-config'] });
   };
 
-  const handleSaveProvider = async (provider: 'evolution' | 'wuzapi') => {
-    const state = provider === 'evolution' ? evo : wuz;
-    const setState = provider === 'evolution' ? setEvo : setWuz;
+  const handleSaveProvider = async (provider: ProviderKey) => {
+    const [state, setState] = providerStateMap[provider];
     setState(prev => ({ ...prev, saving: true }));
     try {
       await saveProvider(provider, state);
-      toast.success(`Integração ${provider === 'evolution' ? 'Evolution API' : 'Wuzapi'} salva`);
+      toast.success(`Integração ${providerLabel(provider)} salva`);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
