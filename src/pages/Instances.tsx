@@ -388,10 +388,13 @@ export default function Instances() {
     if (newStatus === 'offline') {
       try {
         await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
-      } catch {}
-      const { error } = await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
-      if (error) toast.error(error.message);
-      else { notify.instanceDisconnected(instance.name); fetchInstances(); }
+        const { error } = await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
+        if (error) { toast.error(error.message); return; }
+        notify.instanceDisconnected(instance.name);
+        fetchInstances();
+      } catch (e: any) {
+        toast.error(e.message || 'Falha ao desconectar na API do provider');
+      }
       return;
     }
 
