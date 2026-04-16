@@ -701,7 +701,7 @@ export default function Instances() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -728,7 +728,7 @@ export default function Instances() {
                         <DropdownMenuItem onClick={() => { setSelectedInstance(row); setShowTestMsg(true); }}>
                           <Send className="mr-2 h-4 w-4" /> Enviar teste
                         </DropdownMenuItem>
-                        {canDelete && !isReadOnly && (
+                        {!isReadOnly && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive" onClick={() => { setSelectedInstance(row); setShowDelete(true); }}>
