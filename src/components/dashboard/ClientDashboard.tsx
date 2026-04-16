@@ -12,7 +12,7 @@ import {
   Smartphone, AlertTriangle, Plus, ArrowRight,
   Send, CheckCircle2, Wifi, WifiOff, Ban, Signal,
   TrendingUp, BarChart3, Shield, Lock, CreditCard,
-  FileText, Zap, Bot, Megaphone, Globe, ExternalLink,
+  FileText, Globe, ExternalLink,
   Activity, Clock, RefreshCw, ChevronRight, Loader2,
 } from 'lucide-react';
 import { PLAN_FEATURES } from '@/lib/plan-features';
