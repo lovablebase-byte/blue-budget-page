@@ -203,7 +203,9 @@ export default function Settings() {
     }
   };
 
-  const isProviderAllowed = (provider: string) => allowedProviders.length === 0 || allowedProviders.includes(provider);
+  // Admin has unrestricted access to all providers — plan restrictions only apply to client users
+  const isProviderAllowed = (provider: string) =>
+    isAdmin || allowedProviders.length === 0 || allowedProviders.includes(provider);
 
   const effectiveSettings = globalSettings.map((gs: any) => {
     const override = companySettings.find((cs: any) => cs.setting_key === gs.setting_key);
@@ -222,7 +224,7 @@ export default function Settings() {
   ) => {
     const [state, setState] = providerStateMap[provider];
     const allowed = isProviderAllowed(provider);
-    const canEdit = isAdmin && !isSuspended && allowed;
+    const canEdit = isAdmin ? true : (!isSuspended && allowed);
 
     const placeholder =
       provider === 'evolution' ? 'https://sua-evolution-api.com'
