@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +29,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
+import {
+  fetchCompanyActiveProviders,
+  getProviderConfigurationError,
+  hasActiveProviderConfig,
+  type ActiveProvider,
+} from '@/lib/whatsapp-provider-config';
 
 import { ProviderBadge } from '@/components/instances/ProviderBadge';
 import { StatusBadge } from '@/components/instances/StatusBadge';
@@ -54,11 +60,6 @@ interface Instance {
   access_token: string;
   provider: string;
   provider_instance_id: string | null;
-}
-
-interface ActiveProvider {
-  provider: string;
-  is_default: boolean;
 }
 
 const getProviderInstanceName = (instance: Instance): string => {
@@ -96,6 +97,7 @@ export default function Instances() {
 
   // Active providers
   const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
+  const activeProvidersRef = useRef<ActiveProvider[]>([]);
 
   // QR Code states
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
@@ -115,38 +117,32 @@ export default function Instances() {
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
-  const fetchActiveProviders = async () => {
-    if (!company) return;
-    const { data } = await supabase
-      .from('whatsapp_api_configs')
-      .select('provider, is_default')
-      .eq('company_id', company.id)
-      .eq('is_active', true);
+  const fetchActiveProviders = async (): Promise<ActiveProvider[]> => {
+    if (!company) return [];
 
-    const providers = (data || []) as ActiveProvider[];
-
-    if (providers.length === 0) {
-      const { data: legacy } = await supabase
-        .from('evolution_api_config')
-        .select('is_active')
-        .eq('company_id', company.id)
-        .eq('is_active', true)
-        .limit(1);
-      if (legacy?.length) {
-        providers.push({ provider: 'evolution', is_default: true });
-      }
-    }
-
+    const providers = await fetchCompanyActiveProviders(company.id);
     setActiveProviders(providers);
-    if (providers.length === 1) {
-      setNewProvider(providers[0].provider);
-    } else {
-      const def = providers.find(p => p.is_default);
-      if (def) setNewProvider(def.provider);
-    }
+    setNewProvider((current) => {
+      if (current && providers.some((provider) => provider.provider === current)) {
+        return current;
+      }
+
+      const defaultProvider = providers.find((provider) => provider.is_default)?.provider;
+      return defaultProvider || providers[0]?.provider || '';
+    });
+
+    return providers;
   };
 
+  useEffect(() => {
+    activeProvidersRef.current = activeProviders;
+  }, [activeProviders]);
+
   const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
+    if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
+      return instance;
+    }
+
     const providerName = getProviderInstanceName(instance);
     if (!providerName || (providerName === instance.name && !instance.evolution_instance_id && !instance.provider_instance_id)) {
       return instance;
@@ -206,7 +202,7 @@ export default function Instances() {
     const instanceToWatch = showPostCreate ? createdInstance : showQR ? selectedInstance : null;
     if (!instanceToWatch || connectionSuccess) return;
     const providerName = getProviderInstanceName(instanceToWatch);
-    if (!providerName) return;
+    if (!providerName || !hasActiveProviderConfig(activeProviders, instanceToWatch.provider)) return;
 
     const pollInterval = setInterval(async () => {
       try {
@@ -223,7 +219,7 @@ export default function Instances() {
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [showPostCreate, showQR, createdInstance, selectedInstance, connectionSuccess]);
+  }, [showPostCreate, showQR, createdInstance, selectedInstance, connectionSuccess, activeProviders]);
 
   // Auto-close countdown
   useEffect(() => {
@@ -251,18 +247,19 @@ export default function Instances() {
   const resetForm = () => {
     setNewName(''); setNewTags(''); setNewTimezone('America/Sao_Paulo');
     setNewReconnect('auto'); setCopyFromInstance('');
-    if (activeProviders.length === 1) {
-      setNewProvider(activeProviders[0].provider);
-    } else {
-      const def = activeProviders.find(p => p.is_default);
-      setNewProvider(def?.provider || '');
-    }
+    const def = activeProviders.find(p => p.is_default);
+    setNewProvider(def?.provider || activeProviders[0]?.provider || '');
   };
 
   const handleCreate = async () => {
     if (!company || !newName.trim() || !newProvider) return;
     setCreating(true);
     try {
+      const providers = await fetchActiveProviders();
+      if (!hasActiveProviderConfig(providers, newProvider)) {
+        throw new Error(getProviderConfigurationError(newProvider));
+      }
+
       const instanceName = newName.trim();
       const webhookSecret = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
 
@@ -307,12 +304,8 @@ export default function Instances() {
         providerActive = true;
         notify.instanceCreated(instanceName);
       } catch (err: any) {
-        if (err.message?.includes('não configurad') || err.message?.includes('desativad')) {
-          toast.info('Provider não configurado. Instância criada apenas no painel.');
-        } else {
-          await supabase.from('instances').delete().eq('id', instanceRecord.id);
-          throw err;
-        }
+        await supabase.from('instances').delete().eq('id', instanceRecord.id);
+        throw err;
       }
 
       const { data, error } = await supabase.from('instances').update({
@@ -349,7 +342,7 @@ export default function Instances() {
       const instance = freshInstance as Instance;
       const providerName = getProviderInstanceName(instance);
 
-      if (providerName) {
+      if (providerName && hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
         try {
           await callProviderProxy('delete', instance.provider, providerName);
         } catch (err: any) {
@@ -386,6 +379,11 @@ export default function Instances() {
 
   const handleStatusChange = async (instance: Instance, newStatus: string) => {
     if (newStatus === 'offline') {
+      if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
+        toast.error(getProviderConfigurationError(instance.provider));
+        return;
+      }
+
       try {
         await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
         const { error } = await supabase.from('instances').update({ status: 'offline' }).eq('id', instance.id);
@@ -399,6 +397,11 @@ export default function Instances() {
     }
 
     if (newStatus === 'connecting') {
+      if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
+        toast.error(getProviderConfigurationError(instance.provider));
+        return;
+      }
+
       toast.info('Conectando ao provider...');
       try {
         const providerName = getProviderInstanceName(instance);
@@ -444,6 +447,11 @@ export default function Instances() {
   };
 
   const handleRestart = async (instance: Instance) => {
+    if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
+      toast.error(getProviderConfigurationError(instance.provider));
+      return;
+    }
+
     await handleStatusChange(instance, 'connecting');
     try {
       const webhookUrl = instance.webhook_secret
@@ -459,6 +467,11 @@ export default function Instances() {
 
   const handleSendTest = async () => {
     if (!testNumber || !testMessage || !selectedInstance) return;
+    if (!hasActiveProviderConfig(activeProvidersRef.current, selectedInstance.provider)) {
+      toast.error(getProviderConfigurationError(selectedInstance.provider));
+      return;
+    }
+
     setSendingTest(true);
     try {
       await callProviderProxy('sendText', selectedInstance.provider, getProviderInstanceName(selectedInstance), {
@@ -496,6 +509,10 @@ export default function Instances() {
     setQrError(null);
     setQrLoading(true);
     try {
+      if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
+        throw new Error(getProviderConfigurationError(instance.provider));
+      }
+
       const providerName = getProviderInstanceName(instance);
       const webhookUrl = instance.webhook_secret
         ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
@@ -581,20 +598,12 @@ export default function Instances() {
   const limitData = instanceLimit.data;
   const canCreateByPlan = !featureBlocked && (!limitData || limitData.allowed);
 
-  // Fonte de verdade dos providers exibidos no modal "Nova instância":
-  // - Admin: todos os providers liberados (sem restrição de plano).
-  // - Cliente: TODOS os providers liberados pelo plano. As credenciais são
-  //   resolvidas pelo edge function (config da empresa OU global do admin),
-  //   então não exigimos `whatsapp_api_configs` da empresa para listar.
-  //   Se a empresa tiver config própria ativa, mantemos seu `is_default`.
+  // Fonte de verdade do modal "Nova instância":
+  // - o provider precisa estar configurado e ativo para a conta
+  // - admin não sofre filtro de plano
+  // - usuário comum também precisa ter o provider liberado no plano
   const effectiveProviders = useMemo(() => {
-    const list = isAdmin
-      ? ['evolution', 'wuzapi', 'evolution_go']
-      : planProviders;
-    return list.map(provider => {
-      const own = activeProviders.find(p => p.provider === provider);
-      return { provider, is_default: own?.is_default ?? false };
-    });
+    return activeProviders.filter((provider) => isAdmin || planProviders.includes(provider.provider));
   }, [isAdmin, planProviders, activeProviders]);
 
   return (
@@ -774,7 +783,9 @@ export default function Instances() {
               {effectiveProviders.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4" />
-                  Nenhum provider liberado no seu plano. Fale com o suporte.
+                  {activeProviders.length === 0
+                    ? 'Nenhum provider ativo configurado para esta conta.'
+                    : 'Nenhum provider liberado no seu plano. Fale com o suporte.'}
                 </div>
               ) : (
                 <Select value={newProvider} onValueChange={setNewProvider}>

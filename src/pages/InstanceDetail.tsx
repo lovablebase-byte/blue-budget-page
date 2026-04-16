@@ -24,6 +24,12 @@ import {
 } from 'lucide-react';
 import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
+import {
+  fetchCompanyActiveProviders,
+  getProviderConfigurationError,
+  hasActiveProviderConfig,
+  type ActiveProvider,
+} from '@/lib/whatsapp-provider-config';
 
 import { ProviderBadge } from '@/components/instances/ProviderBadge';
 import { StatusBadge } from '@/components/instances/StatusBadge';
@@ -78,6 +84,7 @@ export default function InstanceDetailPage() {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
   const [showQrDialog, setShowQrDialog] = useState(false);
   const [connectionSuccess, setConnectionSuccess] = useState(false);
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
@@ -95,11 +102,41 @@ export default function InstanceDetailPage() {
   const featureBlocked = !isAdmin && instanceFeature.data === false;
   const actionsBlocked = isSuspended || isReadOnly || featureBlocked;
 
+  useEffect(() => {
+    if (!company?.id) return;
+    fetchCompanyActiveProviders(company.id).then(setActiveProviders);
+  }, [company?.id]);
+
   const refreshInstance = useCallback(async () => {
     if (!id) return;
     const { data } = await supabase.from('instances').select('*').eq('id', id).single();
     if (data) setInstance(data as InstanceDetail);
   }, [id]);
+
+  const syncInstanceStatus = useCallback(async (inst: InstanceDetail) => {
+    if (!hasActiveProviderConfig(activeProviders, inst.provider)) return;
+
+    const providerName = getProviderInstanceName(inst);
+    if (!providerName) return;
+
+    try {
+      const res = await callProviderProxy('status', inst.provider, providerName);
+      const state = res?.instance?.state || '';
+      let newStatus = inst.status;
+      if (state === 'open' || state === 'connected') newStatus = 'online';
+      else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
+      else if (state === 'connecting') newStatus = 'connecting';
+
+      if (newStatus !== inst.status) {
+        const updateData: Record<string, any> = { status: newStatus };
+        if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
+        await supabase.from('instances').update(updateData).eq('id', inst.id);
+        setInstance((prev) => prev
+          ? { ...prev, status: newStatus, ...(newStatus === 'online' ? { last_connected_at: new Date().toISOString() } : {}) }
+          : prev);
+      }
+    } catch {}
+  }, [activeProviders]);
 
   useEffect(() => {
     if (!id) { setLoadError('ID da instância não informado'); setLoading(false); return; }
@@ -116,29 +153,14 @@ export default function InstanceDetailPage() {
       }
       setInstance(data as InstanceDetail);
       setLoading(false);
-
-      // Sync status from provider
-      try {
-        const inst = data as InstanceDetail;
-        const providerName = getProviderInstanceName(inst);
-        if (providerName) {
-          const res = await callProviderProxy('status', inst.provider, providerName);
-          const state = res?.instance?.state || '';
-          let newStatus = inst.status;
-          if (state === 'open' || state === 'connected') newStatus = 'online';
-          else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
-          else if (state === 'connecting') newStatus = 'connecting';
-          if (newStatus !== inst.status) {
-            const updateData: Record<string, any> = { status: newStatus };
-            if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
-            await supabase.from('instances').update(updateData).eq('id', inst.id);
-            setInstance(prev => prev ? { ...prev, status: newStatus, ...(newStatus === 'online' ? { last_connected_at: new Date().toISOString() } : {}) } : prev);
-          }
-        }
-      } catch {}
     };
     fetchData();
   }, [id]);
+
+  useEffect(() => {
+    if (!instance) return;
+    void syncInstanceStatus(instance);
+  }, [instance?.id, activeProviders, syncInstanceStatus]);
 
   const fetchEvents = useCallback(async () => {
     if (!id) return;
@@ -157,7 +179,7 @@ export default function InstanceDetailPage() {
 
   // Poll connection when QR dialog is open
   useEffect(() => {
-    if (!showQrDialog || !instance || connectionSuccess) return;
+    if (!showQrDialog || !instance || connectionSuccess || !hasActiveProviderConfig(activeProviders, instance.provider)) return;
     const providerName = getProviderInstanceName(instance);
     if (!providerName) return;
     const poll = setInterval(async () => {
@@ -172,7 +194,7 @@ export default function InstanceDetailPage() {
       } catch {}
     }, 5000);
     return () => clearInterval(poll);
-  }, [showQrDialog, instance, connectionSuccess]);
+  }, [showQrDialog, instance, connectionSuccess, activeProviders]);
 
   // Auto-close on connection success
   useEffect(() => {
@@ -203,6 +225,11 @@ export default function InstanceDetailPage() {
   // --- Actions ---
   const handlePairQR = async () => {
     if (!instance) return;
+    if (!hasActiveProviderConfig(activeProviders, instance.provider)) {
+      toast.error(getProviderConfigurationError(instance.provider));
+      return;
+    }
+
     setActionLoading('qr');
     setQrCode(null);
     setConnectionSuccess(false);
@@ -236,6 +263,11 @@ export default function InstanceDetailPage() {
 
   const handleConnect = async () => {
     if (!instance) return;
+    if (!hasActiveProviderConfig(activeProviders, instance.provider)) {
+      toast.error(getProviderConfigurationError(instance.provider));
+      return;
+    }
+
     setActionLoading('connect');
     try {
       const providerName = getProviderInstanceName(instance);
@@ -257,6 +289,11 @@ export default function InstanceDetailPage() {
 
   const handleDisconnect = async () => {
     if (!instance) return;
+    if (!hasActiveProviderConfig(activeProviders, instance.provider)) {
+      toast.error(getProviderConfigurationError(instance.provider));
+      return;
+    }
+
     setActionLoading('disconnect');
     try {
       await callProviderProxy('logout', instance.provider, getProviderInstanceName(instance));
@@ -272,6 +309,11 @@ export default function InstanceDetailPage() {
 
   const handleRestart = async () => {
     if (!instance) return;
+    if (!hasActiveProviderConfig(activeProviders, instance.provider)) {
+      toast.error(getProviderConfigurationError(instance.provider));
+      return;
+    }
+
     setActionLoading('restart');
     try {
       const providerName = getProviderInstanceName(instance);
