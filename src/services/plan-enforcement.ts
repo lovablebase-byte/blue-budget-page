@@ -147,6 +147,7 @@ export async function getAllowedProviders(companyId: string): Promise<string[]> 
     .select('provider')
     .eq('plan_id', plan.plan_id);
 
-  if (!data || data.length === 0) return ['evolution', 'wuzapi'];
+  // Fallback (plano sem providers explícitos): libera todos os conhecidos
+  if (!data || data.length === 0) return ['evolution', 'wuzapi', 'evolution_go'];
   return data.map((p: any) => p.provider);
 }

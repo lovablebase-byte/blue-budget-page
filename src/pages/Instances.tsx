@@ -581,9 +581,21 @@ export default function Instances() {
   const limitData = instanceLimit.data;
   const canCreateByPlan = !featureBlocked && (!limitData || limitData.allowed);
 
-  const effectiveProviders = planProviders.length > 0
-    ? activeProviders.filter(p => planProviders.includes(p.provider))
-    : activeProviders;
+  // Fonte de verdade dos providers exibidos no modal "Nova instância":
+  // - Admin: todos os providers liberados (sem restrição de plano).
+  // - Cliente: TODOS os providers liberados pelo plano. As credenciais são
+  //   resolvidas pelo edge function (config da empresa OU global do admin),
+  //   então não exigimos `whatsapp_api_configs` da empresa para listar.
+  //   Se a empresa tiver config própria ativa, mantemos seu `is_default`.
+  const effectiveProviders = useMemo(() => {
+    const list = isAdmin
+      ? ['evolution', 'wuzapi', 'evolution_go']
+      : planProviders;
+    return list.map(provider => {
+      const own = activeProviders.find(p => p.provider === provider);
+      return { provider, is_default: own?.is_default ?? false };
+    });
+  }, [isAdmin, planProviders, activeProviders]);
 
   return (
     <div className="space-y-5">
@@ -762,9 +774,7 @@ export default function Instances() {
               {effectiveProviders.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4" />
-                  {activeProviders.length > 0 && planProviders.length > 0
-                    ? 'Nenhum provider disponível é permitido pelo seu plano.'
-                    : 'Nenhum provider ativo. Configure em Configurações.'}
+                  Nenhum provider liberado no seu plano. Fale com o suporte.
                 </div>
               ) : (
                 <Select value={newProvider} onValueChange={setNewProvider}>
