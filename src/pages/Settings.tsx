@@ -224,7 +224,7 @@ export default function Settings() {
   ) => {
     const [state, setState] = providerStateMap[provider];
     const allowed = isProviderAllowed(provider);
-    const canEdit = isAdmin && !isSuspended && allowed;
+    const canEdit = isAdmin ? true : (!isSuspended && allowed);
 
     const placeholder =
       provider === 'evolution' ? 'https://sua-evolution-api.com'
