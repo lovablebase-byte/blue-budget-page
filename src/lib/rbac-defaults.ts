@@ -28,11 +28,12 @@ export const ADMIN_DEFAULT_PERMISSIONS: RolePermissionDefault[] = [
   { module: 'settings', can_view: true, can_create: false, can_edit: true, can_delete: false },
 ];
 
-// Operador (user): acesso limitado
+// Operador (user): pode operar instâncias dentro do limite do plano
+// (criar/editar; exclusão fica restrita ao admin da empresa)
 export const OPERATOR_DEFAULT_PERMISSIONS: RolePermissionDefault[] = [
   { module: 'dashboard', can_view: true, can_create: false, can_edit: false, can_delete: false },
-  { module: 'instances', can_view: true, can_create: false, can_edit: true, can_delete: false,
-    extra_permissions: { pair: true, test_message: true } },
+  { module: 'instances', can_view: true, can_create: true, can_edit: true, can_delete: false,
+    extra_permissions: { pair: true, reconnect: true, disconnect: true, test_message: true } },
 ];
 
 /**
