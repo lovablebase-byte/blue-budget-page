@@ -29,7 +29,7 @@ export function InstanceFilters({
   filterProvider, onProviderChange,
   filterStatus, onStatusChange,
   sortBy, onSortChange,
-  availableProviders = ['evolution', 'wuzapi'],
+  availableProviders = ['evolution', 'evolution_go', 'wuzapi'],
   hasFilters, onClear,
   filterCompany, onCompanyChange, companies,
 }: InstanceFiltersProps) {

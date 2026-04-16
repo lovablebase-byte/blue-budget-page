@@ -165,7 +165,7 @@ export default function Subscription() {
 
   const getProvidersForPlan = (planId: string) => {
     const pp = planProviders.filter((p: any) => p.plan_id === planId);
-    if (pp.length === 0) return ['evolution', 'wuzapi'];
+    if (pp.length === 0) return ['evolution', 'evolution_go', 'wuzapi'];
     return pp.map((p: any) => p.provider);
   };
 

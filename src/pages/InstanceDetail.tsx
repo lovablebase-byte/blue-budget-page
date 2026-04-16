@@ -61,7 +61,7 @@ interface WebhookEvent {
 }
 
 const getProviderInstanceName = (inst: InstanceDetail): string => {
-  if (inst.provider === 'evolution') return inst.name;
+  if (inst.provider === 'evolution' || inst.provider === 'evolution_go') return inst.name;
   return inst.provider_instance_id || inst.name;
 };
 
