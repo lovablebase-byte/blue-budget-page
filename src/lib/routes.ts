@@ -10,15 +10,14 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { PlanFeatures } from '@/services/plan-enforcement';
+import { MODULE_FEATURE_KEYS } from '@/lib/plan-features';
 
 /**
  * Single source of truth: maps module names to plan feature flags.
  * Used by sidebar, ProtectedRoute, and any guard that checks plan features.
  */
 export const moduleFeatureMap: Record<string, keyof PlanFeatures> = {
-  instances: 'instances_enabled',
-  campaigns: 'campaigns_enabled',
-  ai_agents: 'ai_agents_enabled',
+  ...MODULE_FEATURE_KEYS,
 };
 
 export interface RouteDefinition {

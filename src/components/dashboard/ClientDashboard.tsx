@@ -15,6 +15,7 @@ import {
   FileText, Zap, Bot, Megaphone, Globe, ExternalLink,
   Activity, Clock, RefreshCw, ChevronRight, Loader2,
 } from 'lucide-react';
+import { PLAN_FEATURES } from '@/lib/plan-features';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
