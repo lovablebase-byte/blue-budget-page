@@ -74,14 +74,6 @@ function KpiCard({ label, value, sub, icon: Icon, iconColor = 'text-primary', ic
   );
 }
 
-function QuickAction({ label, icon: Icon, onClick, disabled }: { label: string; icon: any; onClick: () => void; disabled?: boolean }) {
-  return (
-    <Button variant="outline" className="h-auto flex-col gap-1.5 py-3 px-4 flex-1 min-w-[120px]" onClick={onClick} disabled={disabled}>
-      <Icon className="h-5 w-5 text-primary" />
-      <span className="text-xs font-medium">{label}</span>
-    </Button>
-  );
-}
 
 /* ── Main Component ── */
 export default function ClientDashboard() {
