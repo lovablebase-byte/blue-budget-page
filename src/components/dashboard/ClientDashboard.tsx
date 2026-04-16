@@ -12,7 +12,7 @@ import {
   Smartphone, AlertTriangle, Plus, ArrowRight,
   Send, CheckCircle2, Wifi, WifiOff, Ban, Signal,
   TrendingUp, BarChart3, Shield, Lock, CreditCard,
-  FileText, Zap, Bot, Megaphone, Globe, ExternalLink,
+  FileText, Globe, ExternalLink,
   Activity, Clock, RefreshCw, ChevronRight, Loader2,
 } from 'lucide-react';
 import { PLAN_FEATURES } from '@/lib/plan-features';
@@ -74,14 +74,6 @@ function KpiCard({ label, value, sub, icon: Icon, iconColor = 'text-primary', ic
   );
 }
 
-function QuickAction({ label, icon: Icon, onClick, disabled }: { label: string; icon: any; onClick: () => void; disabled?: boolean }) {
-  return (
-    <Button variant="outline" className="h-auto flex-col gap-1.5 py-3 px-4 flex-1 min-w-[120px]" onClick={onClick} disabled={disabled}>
-      <Icon className="h-5 w-5 text-primary" />
-      <span className="text-xs font-medium">{label}</span>
-    </Button>
-  );
-}
 
 /* ── Main Component ── */
 export default function ClientDashboard() {
@@ -277,32 +269,6 @@ export default function ClientDashboard() {
         />
       </div>
 
-      {/* ── Quick Actions ── */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" /> Ações rápidas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {hasFeature('instances_enabled') && !instancesAtLimit && !isReadOnly && (
-              <QuickAction label="Nova instância" icon={Plus} onClick={() => navigate('/instances')} />
-            )}
-            <QuickAction label="Instâncias" icon={Smartphone} onClick={() => navigate('/instances')} />
-            <QuickAction label="Assinatura" icon={CreditCard} onClick={() => navigate('/subscription')} />
-            {hasFeature('invoices_enabled') && (
-              <QuickAction label="Faturas" icon={FileText} onClick={() => navigate('/subscription')} />
-            )}
-            {hasFeature('ai_agents_enabled') && (
-              <QuickAction label="Agentes IA" icon={Bot} onClick={() => navigate('/ai-agents')} />
-            )}
-            {hasFeature('campaigns_enabled') && (
-              <QuickAction label="Campanhas" icon={Megaphone} onClick={() => navigate('/campaigns')} />
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* ── Main Grid: Plan + Usage + Instance Status ── */}
       <div className="grid gap-4 md:grid-cols-3">
