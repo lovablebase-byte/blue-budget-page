@@ -118,6 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isAdmin) return true;
     if (isReadOnly && action !== 'view') return false;
 
+    // If the user has NO granular permissions configured at all, fall back to allowing
+    // (plan-level features are the gate). This mirrors ProtectedRoute behavior and
+    // prevents UI actions from being hidden for clients without explicit RBAC rows.
+    if (permissions.length === 0) return true;
+
     const perm = permissions.find(p => p.module === module);
     if (!perm) return false;
 
