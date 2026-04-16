@@ -37,6 +37,7 @@ export default function Settings() {
   const [companyName, setCompanyName] = useState('');
   const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
+  const [ego, setEgo] = useState<ProviderState>(defaultProviderState());
 
   const { data: companyData } = useQuery({
     queryKey: ['company-settings', company?.id],
@@ -90,6 +91,7 @@ export default function Settings() {
   useEffect(() => {
     const evoConfig = waConfigs?.find((c: any) => c.provider === 'evolution');
     const wuzConfig = waConfigs?.find((c: any) => c.provider === 'wuzapi');
+    const egoConfig = waConfigs?.find((c: any) => c.provider === 'evolution_go');
     if (evoConfig) {
       setEvo(prev => ({ ...prev, baseUrl: evoConfig.base_url, apiKey: evoConfig.api_key || '', isActive: evoConfig.is_active, isDefault: evoConfig.is_default }));
     } else if (legacyEvoConfig) {
@@ -97,6 +99,9 @@ export default function Settings() {
     }
     if (wuzConfig) {
       setWuz(prev => ({ ...prev, baseUrl: wuzConfig.base_url, apiKey: wuzConfig.api_key || '', isActive: wuzConfig.is_active, isDefault: wuzConfig.is_default }));
+    }
+    if (egoConfig) {
+      setEgo(prev => ({ ...prev, baseUrl: egoConfig.base_url, apiKey: egoConfig.api_key || '', isActive: egoConfig.is_active, isDefault: egoConfig.is_default }));
     }
   }, [waConfigs, legacyEvoConfig]);
 
@@ -113,7 +118,18 @@ export default function Settings() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const saveProvider = async (provider: 'evolution' | 'wuzapi', state: ProviderState) => {
+  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go';
+
+  const providerStateMap: Record<ProviderKey, [ProviderState, React.Dispatch<React.SetStateAction<ProviderState>>]> = {
+    evolution: [evo, setEvo],
+    wuzapi: [wuz, setWuz],
+    evolution_go: [ego, setEgo],
+  };
+
+  const providerLabel = (p: ProviderKey) =>
+    p === 'evolution' ? 'Evolution API' : p === 'wuzapi' ? 'Wuzapi' : 'Evolution Go';
+
+  const saveProvider = async (provider: ProviderKey, state: ProviderState) => {
     if (!company?.id) throw new Error('Conta não identificada');
     if (!state.baseUrl) throw new Error('URL da API é obrigatória');
 
@@ -130,7 +146,6 @@ export default function Settings() {
       await supabase.from('whatsapp_api_configs').update({ is_default: false }).eq('company_id', company.id).neq('provider', provider);
     }
 
-    // Use upsert with the unique constraint on (company_id, provider)
     const { error } = await supabase
       .from('whatsapp_api_configs')
       .upsert(payload, { onConflict: 'company_id,provider' });
@@ -145,18 +160,16 @@ export default function Settings() {
       }
     }
 
-    // Wait for cache to refresh before proceeding (important for test connection)
     await queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
     await queryClient.invalidateQueries({ queryKey: ['evolution-config'] });
   };
 
-  const handleSaveProvider = async (provider: 'evolution' | 'wuzapi') => {
-    const state = provider === 'evolution' ? evo : wuz;
-    const setState = provider === 'evolution' ? setEvo : setWuz;
+  const handleSaveProvider = async (provider: ProviderKey) => {
+    const [state, setState] = providerStateMap[provider];
     setState(prev => ({ ...prev, saving: true }));
     try {
       await saveProvider(provider, state);
-      toast.success(`Integração ${provider === 'evolution' ? 'Evolution API' : 'Wuzapi'} salva`);
+      toast.success(`Integração ${providerLabel(provider)} salva`);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -164,9 +177,8 @@ export default function Settings() {
     }
   };
 
-  const testConnection = async (provider: 'evolution' | 'wuzapi') => {
-    const state = provider === 'evolution' ? evo : wuz;
-    const setState = provider === 'evolution' ? setEvo : setWuz;
+  const testConnection = async (provider: ProviderKey) => {
+    const [state, setState] = providerStateMap[provider];
     if (!state.baseUrl || !state.apiKey) { toast.error('Preencha a URL e a API Key'); return; }
     setState(prev => ({ ...prev, testing: true, testStatus: 'idle' }));
     try {
@@ -204,14 +216,19 @@ export default function Settings() {
   });
 
   const renderProviderCard = (
-    provider: 'evolution' | 'wuzapi',
+    provider: ProviderKey,
     label: string,
     description: string,
-    state: ProviderState,
-    setState: React.Dispatch<React.SetStateAction<ProviderState>>,
   ) => {
+    const [state, setState] = providerStateMap[provider];
     const allowed = isProviderAllowed(provider);
     const canEdit = isAdmin && !isSuspended && allowed;
+
+    const placeholder =
+      provider === 'evolution' ? 'https://sua-evolution-api.com'
+      : provider === 'wuzapi' ? 'https://sua-wuzapi.com:8080'
+      : 'https://sua-evolution-go.com:8080';
+    const apiKeyLabel = provider === 'wuzapi' ? 'Admin Token' : 'API Key (GLOBAL_API_KEY)';
 
     return (
       <Card key={provider} className={`border-border/40 bg-card/80 ${!allowed ? 'opacity-60' : ''}`}>
@@ -252,10 +269,10 @@ export default function Settings() {
           )}
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">URL da API</Label>
-            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} placeholder={provider === 'evolution' ? 'https://sua-evolution-api.com' : 'https://sua-wuzapi.com:8080'} disabled={!canEdit} />
+            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} placeholder={placeholder} disabled={!canEdit} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">{provider === 'evolution' ? 'API Key' : 'Admin Token'}</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">{apiKeyLabel}</Label>
             <Input type="password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
           </div>
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
@@ -266,7 +283,12 @@ export default function Settings() {
             <p className="text-sm font-medium">Provider padrão</p>
             <Switch checked={state.isDefault} onCheckedChange={v => {
               setState(prev => ({ ...prev, isDefault: v }));
-              if (v) { const otherSet = provider === 'evolution' ? setWuz : setEvo; otherSet(prev => ({ ...prev, isDefault: false })); }
+              if (v) {
+                // Clear "default" on all other providers locally for instant UI feedback
+                (Object.keys(providerStateMap) as ProviderKey[])
+                  .filter(p => p !== provider)
+                  .forEach(p => providerStateMap[p][1](prev => ({ ...prev, isDefault: false })));
+              }
             }} disabled={!canEdit} />
           </div>
           {canEdit && (
@@ -359,8 +381,9 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground">Configure os provedores de API WhatsApp disponíveis para sua conta</p>
         </div>
 
-        {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API para gerenciamento de WhatsApp', evo, setEvo)}
-        {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp', wuz, setWuz)}
+        {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API v1 para gerenciamento de WhatsApp')}
+        {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
+        {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
 
         <Card className="border-border/40 bg-card/80">
           <CardHeader>

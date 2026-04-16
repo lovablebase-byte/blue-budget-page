@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// ---------- Evolution event normalization ----------
+// ---------- Evolution event normalization (v1 lowercase, v2/Go UPPERCASE) ----------
 
 function normalizeEvolutionEvent(body: any): {
   eventType: string;
@@ -17,7 +17,9 @@ function normalizeEvolutionEvent(body: any): {
   connectionState: string | null;
   qrCode: string | null;
 } {
-  const event = body?.event || "";
+  const rawEvent = body?.event || "";
+  // Normalize Evolution Go uppercase events to v1 dot-notation for downstream consistency
+  const event = String(rawEvent).toLowerCase().replace(/_/g, ".");
 
   const eventMap: Record<string, string> = {
     "messages.upsert": "message.received",
@@ -26,6 +28,7 @@ function normalizeEvolutionEvent(body: any): {
     "qrcode.updated": "qr.updated",
     "messages.update": "delivery.status",
     "status.instance": "instance.status",
+    "presence.update": "presence.update",
   };
 
   const eventType = eventMap[event] || event || "unknown";
@@ -196,6 +199,7 @@ serve(async (req) => {
     if (provider === "wuzapi") {
       normalized = normalizeWuzapiEvent(body);
     } else {
+      // evolution + evolution_go share normalization (v2 events are uppercased upstream)
       normalized = normalizeEvolutionEvent(body);
     }
 

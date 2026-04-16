@@ -62,8 +62,8 @@ interface ActiveProvider {
 }
 
 const getProviderInstanceName = (instance: Instance): string => {
-  // Evolution API uses the human-readable instance name, not the UUID
-  if (instance.provider === 'evolution') {
+  // Evolution APIs (v1 and Go/v2) use the human-readable instance name
+  if (instance.provider === 'evolution' || instance.provider === 'evolution_go') {
     return instance.name;
   }
   // Wuzapi uses the token stored in provider_instance_id
@@ -295,7 +295,7 @@ export default function Instances() {
           events: getProviderEvents(newProvider),
         });
 
-        if (newProvider === 'evolution') {
+        if (newProvider === 'evolution' || newProvider === 'evolution_go') {
           providerInstanceId = createData?.instanceId || createData?.instanceName || instanceName;
           evolutionInstanceId = providerInstanceId;
         } else if (newProvider === 'wuzapi') {

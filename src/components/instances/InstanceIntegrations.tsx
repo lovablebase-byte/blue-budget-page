@@ -84,7 +84,9 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          event: instance.provider === 'wuzapi' ? 'Connected' : 'connection.update',
+          event: instance.provider === 'wuzapi' ? 'Connected'
+               : instance.provider === 'evolution_go' ? 'CONNECTION_UPDATE'
+               : 'connection.update',
           type: instance.provider === 'wuzapi' ? 'Connected' : undefined,
           instance: instance.name,
           data: { state: 'open', statusReason: 200, _test: true },
