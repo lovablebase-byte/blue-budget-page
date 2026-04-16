@@ -774,9 +774,7 @@ export default function Instances() {
               {effectiveProviders.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4" />
-                  {activeProviders.length > 0 && planProviders.length > 0
-                    ? 'Nenhum provider disponível é permitido pelo seu plano.'
-                    : 'Nenhum provider ativo. Configure em Configurações.'}
+                  Nenhum provider liberado no seu plano. Fale com o suporte.
                 </div>
               ) : (
                 <Select value={newProvider} onValueChange={setNewProvider}>
