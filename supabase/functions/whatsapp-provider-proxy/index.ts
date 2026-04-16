@@ -203,7 +203,130 @@ async function handleEvolution(
   }
 }
 
-// ---------- Wuzapi action handlers ----------
+// ---------- Evolution Go (v2) action handlers ----------
+// Same endpoint surface as Evolution v1 with apikey header,
+// but sendText uses { number, textMessage:{text}, options:{...} }.
+
+async function handleEvolutionGo(
+  baseUrl: string,
+  apiKey: string,
+  action: string,
+  instanceName: string | undefined,
+  payload: any
+) {
+  switch (action) {
+    case "testConnection": {
+      const r = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
+      return { ok: r.ok, status: r.status, body: r.data };
+    }
+    case "create": {
+      const b: any = {
+        instanceName,
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS",
+      };
+      if (payload?.token) b.token = payload.token;
+      if (payload?.number) b.number = payload.number;
+      if (payload?.webhook) {
+        b.webhook = {
+          url: payload.webhook,
+          byEvents: payload.webhookByEvents ?? true,
+          base64: true,
+          events: payload.events || [],
+        };
+      }
+      const r = await evoFetch(baseUrl, apiKey, "POST", "/instance/create", b);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          instanceId: r.data?.instance?.instanceId || r.data?.instanceId || "",
+          instanceName: r.data?.instance?.instanceName || instanceName,
+          qrCode: r.data?.qrcode?.base64 || r.data?.base64 || null,
+          status: r.data?.instance?.status || "created",
+          raw: r.data,
+        },
+      };
+    }
+    case "connect": {
+      if (payload?.webhook) {
+        await evoFetch(baseUrl, apiKey, "POST", `/webhook/set/${instanceName}`, {
+          url: payload.webhook,
+          webhook_by_events: true,
+          webhook_base64: true,
+          events: payload.events || [],
+        }).catch(() => {});
+      }
+      const r = await evoFetch(baseUrl, apiKey, "GET", `/instance/connect/${instanceName}`);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          qrCode: r.data?.base64 || r.data?.qrcode?.base64 || null,
+          pairingCode: r.data?.pairingCode || null,
+          raw: r.data,
+        },
+      };
+    }
+    case "status": {
+      const r = await evoFetch(baseUrl, apiKey, "GET", `/instance/connectionState/${instanceName}`);
+      if (r.status === 404) {
+        return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
+      }
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      const raw = r.data?.instance || r.data;
+      let state = "close";
+      const s = (raw?.state || raw?.status || "").toLowerCase();
+      if (s === "open" || s === "connected") state = "open";
+      else if (s === "connecting") state = "connecting";
+      return {
+        ok: true, status: 200,
+        body: { instance: { state, instanceName, phoneNumber: raw?.phoneNumber }, raw: r.data },
+      };
+    }
+    case "delete": {
+      const r = await evoFetch(baseUrl, apiKey, "DELETE", `/instance/delete/${instanceName}`);
+      if (r.status === 404) return { ok: true, status: 200, body: { status: "deleted_already", instanceName } };
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    case "logout": {
+      const r = await evoFetch(baseUrl, apiKey, "DELETE", `/instance/logout/${instanceName}`);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    case "fetchInstances": {
+      const r = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: { data: r.data } };
+    }
+    case "sendText": {
+      // v2 payload shape
+      const number = payload?.number || payload?.phone || "";
+      const text = payload?.text || payload?.textMessage?.text || payload?.body || "";
+      const r = await evoFetch(baseUrl, apiKey, "POST", `/message/sendText/${instanceName}`, {
+        number,
+        textMessage: { text },
+        options: { delay: payload?.delay ?? 1200, presence: payload?.presence || "composing" },
+      });
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    case "sendPresence": {
+      const r = await evoFetch(baseUrl, apiKey, "POST", `/chat/updatePresence/${instanceName}`, {
+        number: payload?.number,
+        presence: payload?.presence || "composing",
+        delay: payload?.delay || 3000,
+      });
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    default:
+      return { ok: false, status: 400, body: { error: `Ação não suportada para Evolution Go: ${action}` } };
+  }
+}
 
 async function handleWuzapi(
   baseUrl: string,
@@ -458,7 +581,7 @@ serve(async (req) => {
       }
     }
 
-    if (resolvedProvider !== "evolution" && resolvedProvider !== "wuzapi") {
+    if (resolvedProvider !== "evolution" && resolvedProvider !== "wuzapi" && resolvedProvider !== "evolution_go") {
       throw new Error(`Provider desconhecido: ${resolvedProvider}`);
     }
 
@@ -508,6 +631,8 @@ serve(async (req) => {
 
     if (resolvedProvider === "evolution") {
       result = await handleEvolution(baseUrl, apiKey, action, instanceName, payload);
+    } else if (resolvedProvider === "evolution_go") {
+      result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload);
     } else {
       result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
     }
