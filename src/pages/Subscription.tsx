@@ -23,7 +23,7 @@ import {
   Bot, Megaphone, Users, FileText, Shield, Zap, Star,
 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
-import { PLAN_FEATURE_LABELS, PLAN_FEATURES } from '@/lib/plan-features';
+import { PLAN_FEATURES } from '@/lib/plan-features';
 
 type Invoice = Tables<'invoices'>;
 type Plan = Tables<'plans'>;
