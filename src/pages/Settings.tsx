@@ -177,9 +177,8 @@ export default function Settings() {
     }
   };
 
-  const testConnection = async (provider: 'evolution' | 'wuzapi') => {
-    const state = provider === 'evolution' ? evo : wuz;
-    const setState = provider === 'evolution' ? setEvo : setWuz;
+  const testConnection = async (provider: ProviderKey) => {
+    const [state, setState] = providerStateMap[provider];
     if (!state.baseUrl || !state.apiKey) { toast.error('Preencha a URL e a API Key'); return; }
     setState(prev => ({ ...prev, testing: true, testStatus: 'idle' }));
     try {
@@ -217,14 +216,19 @@ export default function Settings() {
   });
 
   const renderProviderCard = (
-    provider: 'evolution' | 'wuzapi',
+    provider: ProviderKey,
     label: string,
     description: string,
-    state: ProviderState,
-    setState: React.Dispatch<React.SetStateAction<ProviderState>>,
   ) => {
+    const [state, setState] = providerStateMap[provider];
     const allowed = isProviderAllowed(provider);
     const canEdit = isAdmin && !isSuspended && allowed;
+
+    const placeholder =
+      provider === 'evolution' ? 'https://sua-evolution-api.com'
+      : provider === 'wuzapi' ? 'https://sua-wuzapi.com:8080'
+      : 'https://sua-evolution-go.com:8080';
+    const apiKeyLabel = provider === 'wuzapi' ? 'Admin Token' : 'API Key (GLOBAL_API_KEY)';
 
     return (
       <Card key={provider} className={`border-border/40 bg-card/80 ${!allowed ? 'opacity-60' : ''}`}>
@@ -265,10 +269,10 @@ export default function Settings() {
           )}
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">URL da API</Label>
-            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} placeholder={provider === 'evolution' ? 'https://sua-evolution-api.com' : 'https://sua-wuzapi.com:8080'} disabled={!canEdit} />
+            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} placeholder={placeholder} disabled={!canEdit} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">{provider === 'evolution' ? 'API Key' : 'Admin Token'}</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">{apiKeyLabel}</Label>
             <Input type="password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
           </div>
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
@@ -279,7 +283,12 @@ export default function Settings() {
             <p className="text-sm font-medium">Provider padrão</p>
             <Switch checked={state.isDefault} onCheckedChange={v => {
               setState(prev => ({ ...prev, isDefault: v }));
-              if (v) { const otherSet = provider === 'evolution' ? setWuz : setEvo; otherSet(prev => ({ ...prev, isDefault: false })); }
+              if (v) {
+                // Clear "default" on all other providers locally for instant UI feedback
+                (Object.keys(providerStateMap) as ProviderKey[])
+                  .filter(p => p !== provider)
+                  .forEach(p => providerStateMap[p][1](prev => ({ ...prev, isDefault: false })));
+              }
             }} disabled={!canEdit} />
           </div>
           {canEdit && (
@@ -372,8 +381,9 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground">Configure os provedores de API WhatsApp disponíveis para sua conta</p>
         </div>
 
-        {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API para gerenciamento de WhatsApp', evo, setEvo)}
-        {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp', wuz, setWuz)}
+        {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API v1 para gerenciamento de WhatsApp')}
+        {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
+        {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
 
         <Card className="border-border/40 bg-card/80">
           <CardHeader>
