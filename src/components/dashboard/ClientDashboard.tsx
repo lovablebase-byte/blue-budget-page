@@ -269,32 +269,6 @@ export default function ClientDashboard() {
         />
       </div>
 
-      {/* ── Quick Actions ── */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" /> Ações rápidas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {hasFeature('instances_enabled') && !instancesAtLimit && !isReadOnly && (
-              <QuickAction label="Nova instância" icon={Plus} onClick={() => navigate('/instances')} />
-            )}
-            <QuickAction label="Instâncias" icon={Smartphone} onClick={() => navigate('/instances')} />
-            <QuickAction label="Assinatura" icon={CreditCard} onClick={() => navigate('/subscription')} />
-            {hasFeature('invoices_enabled') && (
-              <QuickAction label="Faturas" icon={FileText} onClick={() => navigate('/subscription')} />
-            )}
-            {hasFeature('ai_agents_enabled') && (
-              <QuickAction label="Agentes IA" icon={Bot} onClick={() => navigate('/ai-agents')} />
-            )}
-            {hasFeature('campaigns_enabled') && (
-              <QuickAction label="Campanhas" icon={Megaphone} onClick={() => navigate('/campaigns')} />
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* ── Main Grid: Plan + Usage + Instance Status ── */}
       <div className="grid gap-4 md:grid-cols-3">
