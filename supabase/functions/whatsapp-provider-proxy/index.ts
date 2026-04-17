@@ -37,6 +37,92 @@ function getProviderErrorText(data: any) {
   return String(data?.error || data?.message || data?.raw || "").toLowerCase();
 }
 
+function normalizeEvolutionGoSubscribe(events: any): string[] {
+  if (Array.isArray(events) && events.length > 0) return events;
+  return ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED", "MESSAGES_UPDATE", "PRESENCE_UPDATE"];
+}
+
+async function getEvolutionGoDbInstance(
+  supabase: any,
+  companyId: string,
+  identifier?: string,
+) {
+  if (!identifier) return null;
+
+  const { data } = await supabase
+    .from("instances")
+    .select("id, name, provider_instance_id, evolution_instance_id, webhook_url, webhook_secret")
+    .eq("company_id", companyId)
+    .eq("provider", "evolution_go")
+    .or(`name.eq.${identifier},provider_instance_id.eq.${identifier},evolution_instance_id.eq.${identifier}`)
+    .limit(1)
+    .maybeSingle();
+
+  return data || null;
+}
+
+async function listEvolutionGoInstances(baseUrl: string, apiKey: string) {
+  const r = await evoFetch(baseUrl, apiKey, "GET", "/instance/all");
+  if (!r.ok) return { ok: false, status: r.status, body: r.data, data: [] as any[] };
+  const list = Array.isArray(r.data?.data) ? r.data.data : Array.isArray(r.data) ? r.data : [];
+  return { ok: true, status: 200, body: r.data, data: list };
+}
+
+async function persistEvolutionGoIdentifiers(
+  supabase: any,
+  instanceId: string,
+  remote: { id?: string | null; token?: string | null },
+) {
+  const update: Record<string, any> = {};
+  if (remote.token) update.provider_instance_id = remote.token;
+  if (remote.id) update.evolution_instance_id = remote.id;
+  if (Object.keys(update).length === 0) return;
+  await supabase.from("instances").update(update).eq("id", instanceId);
+}
+
+async function resolveEvolutionGoRemote(
+  supabase: any,
+  companyId: string,
+  baseUrl: string,
+  apiKey: string,
+  identifier?: string,
+) {
+  const dbInstance = await getEvolutionGoDbInstance(supabase, companyId, identifier);
+  const list = await listEvolutionGoInstances(baseUrl, apiKey);
+
+  if (!list.ok) {
+    return { dbInstance, remote: null, listError: { ok: false, status: list.status, body: list.body } };
+  }
+
+  const remote = list.data.find((item: any) => {
+    const candidates = [
+      identifier,
+      dbInstance?.name,
+      dbInstance?.provider_instance_id,
+      dbInstance?.evolution_instance_id,
+    ].filter(Boolean);
+
+    return candidates.some(
+      (candidate) => item?.id === candidate || item?.token === candidate || item?.name === candidate,
+    );
+  }) || null;
+
+  if (dbInstance && remote) {
+    await persistEvolutionGoIdentifiers(supabase, dbInstance.id, {
+      id: remote.id || null,
+      token: remote.token || null,
+    });
+  }
+
+  return { dbInstance, remote, listError: null };
+}
+
+function mapEvolutionGoStatus(remote: any) {
+  if (remote?.connected === true || remote?.jid) return "open";
+  if (remote?.qrcode || remote?.qrCode) return "connecting";
+  return "close";
+}
+
 async function testEvolutionGoConnection(baseUrl: string, apiKey: string) {
   const list = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
 
@@ -263,105 +349,197 @@ async function handleEvolutionGo(
   apiKey: string,
   action: string,
   instanceName: string | undefined,
-  payload: any
+  payload: any,
+  supabase: any,
+  companyId: string,
 ) {
   switch (action) {
     case "testConnection": {
       return await testEvolutionGoConnection(baseUrl, apiKey);
     }
     case "create": {
-      // Evolution Go expects `name`; keep `instanceName` for cross-version compatibility.
+      const instanceToken = payload?.token || crypto.randomUUID();
       const b: any = {
         name: instanceName,
-        instanceName,
-        qrcode: true,
-        integration: "WHATSAPP-BAILEYS",
+        token: instanceToken,
       };
-      if (payload?.token) b.token = payload.token;
       if (payload?.number) b.number = payload.number;
-      if (payload?.webhook) {
-        b.webhook = {
-          url: payload.webhook,
-          byEvents: payload.webhookByEvents ?? true,
-          base64: true,
-          events: payload.events || [],
-        };
-      }
       const r = await evoFetch(baseUrl, apiKey, "POST", "/instance/create", b);
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
       return {
         ok: true,
         status: 200,
         body: {
-          instanceId: r.data?.instance?.instanceId || r.data?.instanceId || "",
-          instanceName: r.data?.instance?.instanceName || instanceName,
-          qrCode: r.data?.qrcode?.base64 || r.data?.base64 || null,
-          status: r.data?.instance?.status || "created",
+          instanceId: r.data?.data?.id || r.data?.instance?.instanceId || r.data?.instanceId || "",
+          instanceToken: r.data?.data?.token || instanceToken,
+          instanceName: r.data?.data?.name || r.data?.instance?.instanceName || instanceName,
+          qrCode: r.data?.data?.qrcode || r.data?.qrcode?.base64 || r.data?.base64 || null,
+          status: r.data?.data?.connected ? "connected" : "created",
           raw: r.data,
         },
       };
     }
     case "connect": {
-      if (payload?.webhook) {
-        await evoFetch(baseUrl, apiKey, "POST", `/webhook/set/${instanceName}`, {
-          url: payload.webhook,
-          webhook_by_events: true,
-          webhook_base64: true,
-          events: payload.events || [],
-        }).catch(() => {});
+      let { dbInstance, remote, listError } = await resolveEvolutionGoRemote(
+        supabase,
+        companyId,
+        baseUrl,
+        apiKey,
+        instanceName,
+      );
+
+      if (listError) {
+        return listError;
       }
-      const r = await evoFetch(baseUrl, apiKey, "GET", `/instance/connect/${instanceName}`);
+
+      if (!remote) {
+        const generatedToken = dbInstance?.provider_instance_id || crypto.randomUUID();
+        const createR = await evoFetch(baseUrl, apiKey, "POST", "/instance/create", {
+          name: dbInstance?.name || instanceName,
+          token: generatedToken,
+        });
+
+        if (!createR.ok) return { ok: false, status: createR.status, body: createR.data };
+
+        remote = createR.data?.data || null;
+        if (dbInstance && remote) {
+          await persistEvolutionGoIdentifiers(supabase, dbInstance.id, {
+            id: remote.id || null,
+            token: remote.token || generatedToken,
+          });
+        }
+      }
+
+      const instanceToken = remote?.token || dbInstance?.provider_instance_id;
+      if (!instanceToken) {
+        return { ok: false, status: 400, body: { error: "Token da instância Evolution Go não encontrado" } };
+      }
+
+      const subscribe = normalizeEvolutionGoSubscribe(payload?.events);
+      const r = await evoFetch(baseUrl, instanceToken, "POST", "/instance/connect", {
+        webhookUrl: payload?.webhook || "",
+        subscribe,
+        rabbitmqEnable: "",
+        websocketEnable: "",
+        natsEnable: "",
+      });
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
+
+      const qrR = await evoFetch(baseUrl, instanceToken, "GET", "/instance/qr");
+      const qrCode = qrR.ok ? qrR.data?.data?.Qrcode || qrR.data?.qrcode || null : null;
+      const pairingCode = qrR.ok ? qrR.data?.data?.Code || qrR.data?.pairingCode || null : null;
+
       return {
         ok: true,
         status: 200,
         body: {
-          qrCode: r.data?.base64 || r.data?.qrcode?.base64 || null,
-          pairingCode: r.data?.pairingCode || null,
-          raw: r.data,
+          qrCode,
+          pairingCode,
+          connected: Boolean(r.data?.data?.jid || remote?.jid),
+          raw: { connect: r.data, qr: qrR.ok ? qrR.data : null },
         },
       };
     }
     case "status": {
-      const r = await evoFetch(baseUrl, apiKey, "GET", `/instance/connectionState/${instanceName}`);
+      const { remote, listError } = await resolveEvolutionGoRemote(
+        supabase,
+        companyId,
+        baseUrl,
+        apiKey,
+        instanceName,
+      );
+
+      if (listError) return listError;
+      if (!remote?.id) {
+        return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
+      }
+
+      const r = await evoFetch(baseUrl, apiKey, "GET", `/instance/info/${remote.id}`);
       if (r.status === 404) {
         return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
       }
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
-      const raw = r.data?.instance || r.data;
-      let state = "close";
-      const s = (raw?.state || raw?.status || "").toLowerCase();
-      if (s === "open" || s === "connected") state = "open";
-      else if (s === "connecting") state = "connecting";
+
+      const raw = r.data?.data || r.data?.instance || r.data;
+      const state = mapEvolutionGoStatus(raw);
       return {
         ok: true, status: 200,
-        body: { instance: { state, instanceName, phoneNumber: raw?.phoneNumber }, raw: r.data },
+        body: { instance: { state, instanceName, phoneNumber: raw?.jid || raw?.phoneNumber || null }, raw: r.data },
       };
     }
     case "delete": {
-      const r = await evoFetch(baseUrl, apiKey, "DELETE", `/instance/delete/${instanceName}`);
+      const { dbInstance, remote, listError } = await resolveEvolutionGoRemote(
+        supabase,
+        companyId,
+        baseUrl,
+        apiKey,
+        instanceName,
+      );
+
+      if (listError) return listError;
+      if (!remote?.id) {
+        return { ok: true, status: 200, body: { status: "deleted_already", instanceName } };
+      }
+
+      const instanceToken = remote?.token || dbInstance?.provider_instance_id;
+      if (instanceToken) {
+        await evoFetch(baseUrl, instanceToken, "DELETE", "/instance/logout").catch(() => null);
+      }
+
+      const r = await evoFetch(baseUrl, apiKey, "DELETE", `/instance/delete/${remote.id}`);
       if (r.status === 404) return { ok: true, status: 200, body: { status: "deleted_already", instanceName } };
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
       return { ok: true, status: 200, body: r.data };
     }
     case "logout": {
-      const r = await evoFetch(baseUrl, apiKey, "DELETE", `/instance/logout/${instanceName}`);
+      const { dbInstance, remote, listError } = await resolveEvolutionGoRemote(
+        supabase,
+        companyId,
+        baseUrl,
+        apiKey,
+        instanceName,
+      );
+
+      if (listError) return listError;
+      const instanceToken = remote?.token || dbInstance?.provider_instance_id;
+      if (!instanceToken) return { ok: true, status: 200, body: { status: "logged_out_already", instanceName } };
+
+      const r = await evoFetch(baseUrl, instanceToken, "DELETE", "/instance/logout");
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
       return { ok: true, status: 200, body: r.data };
     }
     case "fetchInstances": {
-      const r = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
-      if (!r.ok) return { ok: false, status: r.status, body: r.data };
-      return { ok: true, status: 200, body: { data: r.data } };
+      const r = await listEvolutionGoInstances(baseUrl, apiKey);
+      if (!r.ok) return { ok: false, status: r.status, body: r.body };
+      const items = r.data.map((item: any) => ({
+        instanceName: item?.name || null,
+        instanceId: item?.id || null,
+        status: mapEvolutionGoStatus(item),
+        token: item?.token || null,
+        raw: item,
+      }));
+      return { ok: true, status: 200, body: { data: items } };
     }
     case "sendText": {
-      // v2 payload shape
+      const { dbInstance, remote, listError } = await resolveEvolutionGoRemote(
+        supabase,
+        companyId,
+        baseUrl,
+        apiKey,
+        instanceName,
+      );
+
+      if (listError) return listError;
+      const instanceToken = remote?.token || dbInstance?.provider_instance_id;
+      if (!instanceToken) {
+        return { ok: false, status: 400, body: { error: "Token da instância Evolution Go não encontrado" } };
+      }
+
       const number = payload?.number || payload?.phone || "";
       const text = payload?.text || payload?.textMessage?.text || payload?.body || "";
-      const r = await evoFetch(baseUrl, apiKey, "POST", `/message/sendText/${instanceName}`, {
+      const r = await evoFetch(baseUrl, instanceToken, "POST", "/send/text", {
         number,
-        textMessage: { text },
-        options: { delay: payload?.delay ?? 1200, presence: payload?.presence || "composing" },
+        text,
       });
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
       return { ok: true, status: 200, body: r.data };
@@ -684,7 +862,7 @@ serve(async (req) => {
     if (resolvedProvider === "evolution") {
       result = await handleEvolution(baseUrl, apiKey, action, instanceName, payload);
     } else if (resolvedProvider === "evolution_go") {
-      result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload);
+      result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload, supabase, companyId);
     } else {
       result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
     }
