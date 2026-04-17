@@ -28,6 +28,57 @@ async function evoFetch(
   return { ok: res.ok, status: res.status, data };
 }
 
+function responseLooksLikeHtml(data: any) {
+  const raw = typeof data === "string" ? data : data?.raw;
+  return typeof raw === "string" && /^\s*<(?:!doctype|html|head|body)\b/i.test(raw);
+}
+
+function getProviderErrorText(data: any) {
+  return String(data?.error || data?.message || data?.raw || "").toLowerCase();
+}
+
+async function testEvolutionGoConnection(baseUrl: string, apiKey: string) {
+  const list = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
+
+  if (list.ok && !responseLooksLikeHtml(list.data)) {
+    return { ok: true, status: 200, body: list.data };
+  }
+
+  if (list.status === 404 || responseLooksLikeHtml(list.data)) {
+    const probe = await evoFetch(baseUrl, apiKey, "POST", "/instance/create", {});
+    const probeError = getProviderErrorText(probe.data);
+    const isValidationProbeSuccess =
+      probe.status === 400 &&
+      (probeError.includes("name is required") ||
+        probeError.includes("token is required") ||
+        probeError.includes("instance name is required"));
+
+    if (isValidationProbeSuccess) {
+      return {
+        ok: true,
+        status: 200,
+        body: { success: true, mode: "create_probe", raw: probe.data },
+      };
+    }
+
+    if (responseLooksLikeHtml(probe.data)) {
+      return {
+        ok: false,
+        status: 400,
+        body: {
+          error:
+            "Evolution Go respondeu HTML em vez da API JSON. Verifique se a Base URL aponta para a raiz da API, não para o painel Manager.",
+          raw: typeof probe.data === "string" ? probe.data : probe.data?.raw,
+        },
+      };
+    }
+
+    return { ok: probe.ok, status: probe.status, body: probe.data };
+  }
+
+  return { ok: list.ok, status: list.status, body: list.data };
+}
+
 // Admin endpoints use "Authorization" header, session endpoints use "Token" header
 async function wuzFetchAdmin(
   baseUrl: string,
@@ -216,8 +267,7 @@ async function handleEvolutionGo(
 ) {
   switch (action) {
     case "testConnection": {
-      const r = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
-      return { ok: r.ok, status: r.status, body: r.data };
+      return await testEvolutionGoConnection(baseUrl, apiKey);
     }
     case "create": {
       // Evolution Go expects `name`; keep `instanceName` for cross-version compatibility.

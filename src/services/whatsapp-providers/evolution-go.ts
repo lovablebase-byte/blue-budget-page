@@ -16,6 +16,9 @@ import type {
  *  - Endpoints mirror Evolution v1: /instance/create, /instance/connect/{name},
  *    /instance/connectionState/{name}, /instance/logout/{name},
  *    /instance/delete/{name}, /instance/fetchInstances.
+ *  - Some Go deployments do not expose `/instance/fetchInstances`; in that case
+ *    connection testing falls back to a validation-only POST `/instance/create`
+ *    probe that must fail with a 400 validation error when auth is valid.
  *  - sendText payload differs: { number, textMessage: { text }, options: { delay, presence } }.
  *  - Webhook events arrive UPPERCASE (MESSAGES_UPSERT, CONNECTION_UPDATE, ...) and
  *    are normalized in the webhook-receiver edge function.
@@ -40,13 +43,55 @@ async function egoFetch(
   return { ok: res.ok, status: res.status, data };
 }
 
+function responseLooksLikeHtml(data: any) {
+  const raw = typeof data === 'string' ? data : data?.raw;
+  return typeof raw === 'string' && /^\s*<(?:!doctype|html|head|body)\b/i.test(raw);
+}
+
+function getProviderErrorText(data: any) {
+  return String(data?.error || data?.message || data?.raw || '').toLowerCase();
+}
+
+async function testEvolutionGoConnection(config: ProviderConfig) {
+  const list = await egoFetch(config, 'GET', '/instance/fetchInstances');
+
+  if (list.ok && !responseLooksLikeHtml(list.data)) {
+    return { success: true, data: true, raw: list.data };
+  }
+
+  if (list.status === 404 || responseLooksLikeHtml(list.data)) {
+    const probe = await egoFetch(config, 'POST', '/instance/create', {});
+    const probeError = getProviderErrorText(probe.data);
+    const isValidationProbeSuccess =
+      probe.status === 400 &&
+      (probeError.includes('name is required') ||
+        probeError.includes('token is required') ||
+        probeError.includes('instance name is required'));
+
+    if (isValidationProbeSuccess) {
+      return { success: true, data: true, raw: probe.data };
+    }
+
+    if (responseLooksLikeHtml(probe.data)) {
+      return {
+        success: false,
+        error: 'Evolution Go respondeu HTML em vez da API JSON. Verifique se a Base URL aponta para a raiz da API, não para o painel Manager.',
+        raw: probe.data,
+      };
+    }
+
+    return { success: false, error: probe.data?.message || `HTTP ${probe.status}`, raw: probe.data };
+  }
+
+  return { success: false, error: list.data?.message || `HTTP ${list.status}`, raw: list.data };
+}
+
 export const evolutionGoProvider: WhatsAppProvider = {
   name: 'evolution_go',
 
   async testConnection(config) {
     try {
-      const r = await egoFetch(config, 'GET', '/instance/fetchInstances');
-      return { success: r.ok, data: r.ok, raw: r.data };
+      return await testEvolutionGoConnection(config);
     } catch (e: any) {
       return { success: false, error: e.message };
     }
