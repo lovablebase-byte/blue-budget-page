@@ -46,8 +46,8 @@ function calcRiskLevel(ratePerMin: number, totalContacts: number, instanceCount:
   if (totalContacts > 500 && instanceCount < 3) { score += 15; tips.push('Adicione mais instâncias para esta quantidade de contatos'); }
 
   const percent = Math.min(score, 100);
-  if (percent <= 30) return { level: 'Baixo', color: 'text-green-500', percent, tips };
-  if (percent <= 60) return { level: 'Médio', color: 'text-yellow-500', percent, tips };
+  if (percent <= 30) return { level: 'Baixo', color: 'text-success', percent, tips };
+  if (percent <= 60) return { level: 'Médio', color: 'text-warning', percent, tips };
   return { level: 'Alto', color: 'text-destructive', percent, tips };
 }
 
@@ -602,8 +602,8 @@ export default function Campaigns() {
                     <Progress value={risk.percent} className="h-3" />
 
                     {form.human_mode && (
-                      <div className="flex items-center gap-2 p-2 rounded border border-green-500/30 bg-green-500/10 text-sm">
-                        <Bot className="h-4 w-4 text-green-500 shrink-0" />
+                      <div className="flex items-center gap-2 p-2 rounded border border-success/30 bg-success/10 text-sm">
+                        <Bot className="h-4 w-4 text-success shrink-0" />
                         <span className="text-xs">Modo humano ativado — risco reduzido</span>
                       </div>
                     )}
@@ -764,7 +764,7 @@ function QueueMonitor({ campaignId, onClose }: { campaignId: string | null; onCl
 
   if (!campaignId) return null;
 
-  const riskColor = stats?.risk === 'alto' ? 'text-destructive' : stats?.risk === 'moderado' ? 'text-yellow-500' : 'text-green-500';
+  const riskColor = stats?.risk === 'alto' ? 'text-destructive' : stats?.risk === 'moderado' ? 'text-warning' : 'text-success';
   const hb = stats?.human_behavior;
 
   return (
@@ -799,7 +799,7 @@ function QueueMonitor({ campaignId, onClose }: { campaignId: string | null; onCl
               <Card>
                 <CardContent className="p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Bot className="h-4 w-4 text-green-500" />
+                    <Bot className="h-4 w-4 text-success" />
                     <span className="text-sm font-medium">Modo Humano Ativado</span>
                   </div>
                   {hb && (
