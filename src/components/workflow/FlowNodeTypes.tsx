@@ -117,13 +117,13 @@ export const nodeTypes = {
 };
 
 export const BLOCK_TYPES = [
-  { type: 'start', label: 'Início', icon: Play, color: 'text-emerald-600' },
+  { type: 'start', label: 'Início', icon: Play, color: 'text-success' },
   { type: 'message', label: 'Mensagem', icon: MessageSquare, color: 'text-blue-500' },
   { type: 'question', label: 'Pergunta', icon: HelpCircle, color: 'text-amber-500' },
   { type: 'menu', label: 'Menu', icon: List, color: 'text-cyan-500' },
   { type: 'condition', label: 'Condição', icon: GitBranch, color: 'text-purple-500' },
   { type: 'delay', label: 'Delay', icon: Clock, color: 'text-orange-500' },
-  { type: 'forward', label: 'Transferir', icon: UserCheck, color: 'text-green-500' },
+  { type: 'forward', label: 'Transferir', icon: UserCheck, color: 'text-success' },
   { type: 'media', label: 'Enviar Mídia', icon: Image, color: 'text-pink-500' },
   { type: 'end', label: 'Finalizar', icon: XCircle, color: 'text-red-500' },
 ];
