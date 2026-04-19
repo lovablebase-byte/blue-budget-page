@@ -66,7 +66,7 @@ export default function AdminReports() {
 
   const row1 = [
     { icon: UserCheck, label: 'Contas Ativas', value: stats?.clients ?? 0, color: 'text-primary' },
-    { icon: CreditCard, label: 'Assinaturas Ativas', value: stats?.activeSubscriptions ?? 0, color: 'text-emerald-500' },
+    { icon: CreditCard, label: 'Assinaturas Ativas', value: stats?.activeSubscriptions ?? 0, color: 'text-success' },
     { icon: Users, label: 'Usuários', value: stats?.users ?? 0, color: 'text-blue-500' },
     { icon: Smartphone, label: 'Instâncias Ativas', value: `${stats?.activeInstances ?? 0} / ${stats?.totalInstances ?? 0}`, color: 'text-cyan-500' },
     { icon: Bot, label: 'Agentes IA Ativos', value: stats?.activeAgents ?? 0, color: 'text-violet-500' },
@@ -76,8 +76,8 @@ export default function AdminReports() {
     { icon: Megaphone, label: 'Campanhas Ativas', value: stats?.activeCampaigns ?? 0, color: 'text-amber-500' },
     { icon: AlertTriangle, label: 'Assinaturas Vencidas', value: stats?.expiredSubscriptions ?? 0, color: 'text-destructive' },
     { icon: Activity, label: 'Contas sem Assinatura', value: stats?.clientsWithoutSubscription ?? 0, color: 'text-orange-500' },
-    { icon: MessageCircle, label: 'Mensagens no Período', value: stats?.messagesThisMonth ?? 0, color: 'text-teal-500' },
-    { icon: TrendingUp, label: 'Taxa de Atividade', value: stats && stats.clients > 0 ? `${Math.round((stats.activeSubscriptions / stats.clients) * 100)}%` : '0%', color: 'text-emerald-400' },
+    { icon: MessageCircle, label: 'Mensagens no Período', value: stats?.messagesThisMonth ?? 0, color: 'text-info' },
+    { icon: TrendingUp, label: 'Taxa de Atividade', value: stats && stats.clients > 0 ? `${Math.round((stats.activeSubscriptions / stats.clients) * 100)}%` : '0%', color: 'text-success' },
   ];
 
   if (isLoading) {

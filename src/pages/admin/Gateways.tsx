@@ -235,12 +235,12 @@ export default function AdminGateways() {
             </div>
             <div className="flex items-center gap-2">
               {gateway?.is_active ? (
-                <Badge variant="default" className="bg-green-600">Ativo</Badge>
+                <Badge className="bg-success text-success-foreground hover:bg-success/90">Ativo</Badge>
               ) : (
                 <Badge variant="secondary">Inativo</Badge>
               )}
               {lastTestStatus === 'connected' && (
-                <Badge variant="outline" className="text-green-600 border-green-600">
+                <Badge variant="outline" className="text-success border-success">
                   <CheckCircle2 className="h-3 w-3 mr-1" /> Conectado
                 </Badge>
               )}

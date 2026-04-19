@@ -201,7 +201,7 @@ export function FlowCanvas({ initialNodes = [], initialEdges = [], onSave, savin
               </div>
             ))}
             {simulateFlow().length === 0 && <p className="text-sm text-muted-foreground">Nenhum passo encontrado.</p>}
-            <div className="flex items-center gap-1 text-green-600 text-sm pt-2">
+            <div className="flex items-center gap-1 text-success text-sm pt-2">
               <CheckCircle2 className="h-4 w-4" /> Simulação concluída
             </div>
           </div>
