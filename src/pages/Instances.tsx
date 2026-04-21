@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import {
   Plus, RefreshCw, Trash2, QrCode, Send, Power, PowerOff,
   MoreHorizontal, Eye, Loader2, AlertCircle, Smartphone,
-  Copy, RotateCcw, Link, Key, CheckCircle2,
+  Copy, RotateCcw, Link, Key, CheckCircle2, Phone,
 } from 'lucide-react';
 import { notify } from '@/lib/notifications';
 import {
