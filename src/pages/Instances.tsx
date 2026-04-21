@@ -152,6 +152,8 @@ export default function Instances() {
     try {
       const res = await callProviderProxy('status', instance.provider, providerName);
       const state = res?.instance?.state || '';
+      const rawPhone = res?.instance?.phoneNumber;
+      const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
       let newStatus = instance.status;
       if (state === 'open' || state === 'connected') newStatus = 'online';
       else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
@@ -162,11 +164,16 @@ export default function Instances() {
         }
         return { ...instance, status: 'error' };
       }
-      if (newStatus !== instance.status) {
-        const updateData: Record<string, any> = { status: newStatus };
+      const phoneChanged = cleanPhone && cleanPhone !== (instance.phone_number || '').replace(/\D/g, '');
+      if (newStatus !== instance.status || phoneChanged) {
+        const updateData: Record<string, any> = {};
+        if (newStatus !== instance.status) updateData.status = newStatus;
         if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
-        await supabase.from('instances').update(updateData).eq('id', instance.id);
-        return { ...instance, status: newStatus };
+        if (phoneChanged) updateData.phone_number = cleanPhone;
+        if (Object.keys(updateData).length > 0) {
+          await supabase.from('instances').update(updateData).eq('id', instance.id);
+        }
+        return { ...instance, status: newStatus, phone_number: phoneChanged ? cleanPhone : instance.phone_number };
       }
       return instance;
     } catch {
@@ -210,12 +217,16 @@ export default function Instances() {
       try {
         const res = await callProviderProxy('status', instanceToWatch.provider, providerName);
         const state = res?.instance?.state || '';
+        const rawPhone = res?.instance?.phoneNumber;
+        const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
         if (state === 'open' || state === 'connected') {
           setConnectionSuccess(true);
-          await supabase.from('instances').update({
+          const updateData: Record<string, any> = {
             status: 'online',
             last_connected_at: new Date().toISOString(),
-          }).eq('id', instanceToWatch.id);
+          };
+          if (cleanPhone) updateData.phone_number = cleanPhone;
+          await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
         }
       } catch {}
     }, 5000);
