@@ -443,23 +443,46 @@ export default function ClientDashboard() {
           <CardContent>
             {recentInstances.length > 0 ? (
               <div className="space-y-2">
-                {recentInstances.map((inst: any) => (
+                {recentInstances.map((inst: any) => {
+                  const isOnline = inst.status === 'online' || inst.status === 'connected';
+                  const digits = (inst.phone_number || '').replace(/\D/g, '');
+                  let phone: string | null = null;
+                  if (digits) {
+                    if (digits.length === 13 && digits.startsWith('55')) {
+                      phone = `+${digits.slice(0,2)} (${digits.slice(2,4)}) ${digits.slice(4,9)}-${digits.slice(9)}`;
+                    } else if (digits.length === 12 && digits.startsWith('55')) {
+                      phone = `+${digits.slice(0,2)} (${digits.slice(2,4)}) ${digits.slice(4,8)}-${digits.slice(8)}`;
+                    } else {
+                      phone = `+${digits}`;
+                    }
+                  }
+                  return (
                   <div
                     key={inst.id}
-                    className="flex items-center justify-between text-sm py-1.5 border-b last:border-0 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded transition-colors"
+                    className="flex items-start justify-between text-sm py-1.5 border-b last:border-0 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded transition-colors gap-2"
                     onClick={() => navigate(`/instances/${inst.id}`)}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {inst.status === 'online' || inst.status === 'connected'
-                        ? <Wifi className="h-3.5 w-3.5 text-primary shrink-0" />
-                        : <WifiOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                      <span className="font-medium truncate">{inst.name}</span>
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                      {isOnline
+                        ? <Wifi className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        : <WifiOff className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{inst.name}</p>
+                        {phone ? (
+                          <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'text-success' : 'text-muted-foreground'}`}>
+                            {phone}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground/60 italic">Sem número</p>
+                        )}
+                      </div>
                     </div>
-                    <Badge variant={inst.status === 'online' || inst.status === 'connected' ? 'default' : 'secondary'} className="text-[10px] capitalize shrink-0">
+                    <Badge variant={isOnline ? 'default' : 'secondary'} className="text-[10px] capitalize shrink-0">
                       {inst.status}
                     </Badge>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">Nenhuma instância</p>

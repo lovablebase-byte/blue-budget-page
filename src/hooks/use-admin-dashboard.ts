@@ -30,6 +30,7 @@ export interface RecentInstance {
   name: string;
   provider: string;
   status: string;
+  phone_number: string | null;
   created_at: string;
   company_name: string;
 }
@@ -125,7 +126,7 @@ export function useAdminDashboard() {
     queryFn: async (): Promise<RecentInstance[]> => {
       const { data } = await supabase
         .from('instances')
-        .select('id, name, provider, status, created_at, companies(name)')
+        .select('id, name, provider, status, phone_number, created_at, companies(name)')
         .order('created_at', { ascending: false })
         .limit(5);
       return (data || []).map((i: any) => ({
@@ -133,6 +134,7 @@ export function useAdminDashboard() {
         name: i.name,
         provider: i.provider,
         status: i.status,
+        phone_number: i.phone_number ?? null,
         created_at: i.created_at,
         company_name: i.companies?.name || '—',
       }));

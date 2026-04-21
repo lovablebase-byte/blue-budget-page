@@ -5,8 +5,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Building2, Users, Smartphone, Wifi, WifiOff, Signal,
   CreditCard, AlertTriangle, Ban, DollarSign, FileText,
-  TrendingUp, Server, Info,
+  TrendingUp, Server, Info, Phone,
 } from 'lucide-react';
+
+function formatPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  // BR pattern: +55 (11) 91234-5678
+  if (digits.length === 13 && digits.startsWith('55')) {
+    return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length === 12 && digits.startsWith('55')) {
+    return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
+  }
+  return `+${digits}`;
+}
 
 function StatCard({ title, value, icon: Icon, subtitle, color }: {
   title: string; value: number | string; icon: any; subtitle?: string; color?: string;
@@ -192,15 +206,27 @@ export default function AdminDashboard() {
                <p className="text-sm text-muted-foreground">Nenhuma instância</p>
              ) : (
                <div className="space-y-3">
-                 {recentInstances.data!.map((inst) => (
-                   <div key={inst.id} className="flex items-center justify-between">
+                 {recentInstances.data!.map((inst) => {
+                   const phone = formatPhone(inst.phone_number);
+                   const isOnline = inst.status === 'online' || inst.status === 'connected';
+                   return (
+                   <div key={inst.id} className="flex items-center justify-between gap-2">
                      <div className="min-w-0">
                        <p className="text-sm font-medium truncate">{inst.name}</p>
-                       <p className="text-xs text-muted-foreground">{inst.company_name} · {inst.provider}</p>
+                       <p className="text-xs text-muted-foreground truncate">{inst.company_name} · {inst.provider}</p>
+                       {phone ? (
+                         <p className={`text-xs font-medium tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'text-success' : 'text-muted-foreground'}`}>
+                           <Phone className="h-3 w-3" />
+                           {phone}
+                         </p>
+                       ) : (
+                         <p className="text-xs text-muted-foreground/60 italic mt-0.5">Sem número</p>
+                       )}
                      </div>
                      <StatusBadge status={inst.status} />
                    </div>
-                 ))}
+                   );
+                 })}
                </div>
              )}
           </CardContent>

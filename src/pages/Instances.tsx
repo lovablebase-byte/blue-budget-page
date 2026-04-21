@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import {
   Plus, RefreshCw, Trash2, QrCode, Send, Power, PowerOff,
   MoreHorizontal, Eye, Loader2, AlertCircle, Smartphone,
-  Copy, RotateCcw, Link, Key, CheckCircle2,
+  Copy, RotateCcw, Link, Key, CheckCircle2, Phone,
 } from 'lucide-react';
 import { notify } from '@/lib/notifications';
 import {
@@ -716,7 +716,29 @@ export default function Instances() {
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">{row.name}</span>
-                      <span className="text-xs text-muted-foreground">{row.phone_number || 'Sem número'}</span>
+                      {(() => {
+                        const isOnline = row.status === 'online' || row.status === 'connected';
+                        const digits = (row.phone_number || '').replace(/\D/g, '');
+                        let phone: string | null = null;
+                        if (digits) {
+                          if (digits.length === 13 && digits.startsWith('55')) {
+                            phone = `+${digits.slice(0,2)} (${digits.slice(2,4)}) ${digits.slice(4,9)}-${digits.slice(9)}`;
+                          } else if (digits.length === 12 && digits.startsWith('55')) {
+                            phone = `+${digits.slice(0,2)} (${digits.slice(2,4)}) ${digits.slice(4,8)}-${digits.slice(8)}`;
+                          } else {
+                            phone = `+${digits}`;
+                          }
+                        }
+                        if (!phone) {
+                          return <span className="text-xs text-muted-foreground/60 italic">Sem número</span>;
+                        }
+                        return (
+                          <span className={`text-xs tabular-nums font-medium inline-flex items-center gap-1 ${isOnline ? 'text-success' : 'text-muted-foreground'}`}>
+                            <Phone className="h-3 w-3" />
+                            {phone}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </TableCell>
                   <TableCell><ProviderBadge provider={row.provider} /></TableCell>
