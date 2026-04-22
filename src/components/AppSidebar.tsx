@@ -82,10 +82,10 @@ export function AppSidebar() {
         <SidebarMenuItem key={item.path}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <SidebarMenuButton className="opacity-50 cursor-not-allowed border border-white/5 bg-white/[0.03] text-sidebar-foreground/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <SidebarMenuButton className="opacity-50 cursor-not-allowed border border-white/5 bg-white/[0.03] text-muted-foreground dark:text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <Icon className="h-4 w-4" />
                 {!collapsed && <span>{item.label}</span>}
-                {!collapsed && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                {!collapsed && <Lock className="h-3 w-3 ml-auto text-muted-foreground dark:text-white/70" />}
               </SidebarMenuButton>
             </TooltipTrigger>
             <TooltipContent side="right">Recurso bloqueado pelo plano</TooltipContent>
@@ -100,10 +100,10 @@ export function AppSidebar() {
           <NavLink
             to={item.path}
             end
-            className="rounded-xl border border-transparent bg-white/[0.03] text-sidebar-foreground/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[hsl(var(--glow)/0.22)] hover:bg-white/[0.07] hover:text-foreground hover:shadow-[0_0_0_1px_hsl(var(--glow)/0.14),0_0_20px_-10px_hsl(var(--glow)/0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-200"
-            activeClassName="border-[hsl(var(--glow)/0.3)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--glow)/0.1))] text-foreground font-semibold shadow-[0_0_0_1px_hsl(var(--glow)/0.18),0_0_26px_-10px_hsl(var(--glow)/0.5),inset_0_1px_0_rgba(255,255,255,0.12)]"
+            className="rounded-xl border border-transparent bg-white/[0.03] text-muted-foreground dark:text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[hsl(var(--glow)/0.22)] hover:bg-white/[0.07] hover:text-foreground dark:hover:text-white hover:shadow-[0_0_0_1px_hsl(var(--glow)/0.14),0_0_20px_-10px_hsl(var(--glow)/0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-200"
+            activeClassName="border-[hsl(var(--glow)/0.3)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--glow)/0.1))] text-foreground dark:text-white font-semibold shadow-[0_0_0_1px_hsl(var(--glow)/0.18),0_0_26px_-10px_hsl(var(--glow)/0.5),inset_0_1px_0_rgba(255,255,255,0.12)]"
           >
-            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_8px_hsl(var(--glow)/0.7)]' : 'text-sidebar-foreground/80'}`} />
+            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_8px_hsl(var(--glow)/0.7)]' : 'text-muted-foreground dark:text-white/80'}`} />
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         </SidebarMenuButton>
@@ -112,7 +112,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-white/8 bg-[linear-gradient(180deg,hsl(var(--sidebar)/0.98),hsl(var(--sidebar)/0.94))] shadow-[inset_-1px_0_0_rgba(255,255,255,0.05),0_0_40px_-24px_hsl(var(--glow)/0.35)]">
+    <Sidebar collapsible="icon" className="border-r border-white/8 bg-[linear-gradient(180deg,hsl(var(--sidebar)/0.98),hsl(var(--sidebar)/0.94))] text-muted-foreground dark:text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.05),0_0_40px_-24px_hsl(var(--glow)/0.35)]">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark shadow-[0_0_16px_-3px_hsl(var(--primary)/0.5)]">
@@ -120,7 +120,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-foreground tracking-tight">WA Manager</span>
+              <span className="text-sm font-bold text-foreground dark:text-white tracking-tight">WA Manager</span>
             </div>
           )}
         </div>
@@ -179,14 +179,14 @@ export function AppSidebar() {
       <SidebarFooter>
         <div className="px-2 py-2">
           {!collapsed && (
-            <p className="mb-2 truncate text-xs text-muted-foreground">
+            <p className="mb-2 truncate text-xs text-muted-foreground dark:text-white/70">
               {user?.email}
             </p>
           )}
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="w-full justify-start rounded-xl text-muted-foreground dark:text-white/80 hover:text-destructive hover:bg-destructive/10"
             onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4" />
