@@ -59,9 +59,9 @@ function KpiCard({ label, value, sub, icon: Icon, iconColor = 'text-primary', ic
   label: string; value: string | number; sub?: string; icon: any; iconColor?: string; iconBg?: string;
 }) {
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-hidden bg-gradient-to-br from-card via-card to-primary/5">
       <CardContent className="p-4 flex items-center gap-3">
-        <div className={`rounded-lg p-2.5 ${iconBg} shrink-0`}>
+        <div className={`rounded-lg p-2.5 shadow-[0_0_20px_-8px_currentColor] ${iconBg} shrink-0`}>
           <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
         <div className="min-w-0">
@@ -273,10 +273,10 @@ export default function ClientDashboard() {
       {/* ── Main Grid: Plan + Usage + Instance Status ── */}
       <div className="grid gap-4 md:grid-cols-3">
         {/* Plan Summary */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-primary/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4" /> Plano atual
+              <Shield className="h-4 w-4 text-primary" /> Plano atual
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -335,10 +335,10 @@ export default function ClientDashboard() {
         </Card>
 
         {/* Usage / Limits */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-accent/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" /> Consumo
+              <BarChart3 className="h-4 w-4 text-accent-foreground" /> Consumo
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -364,10 +364,10 @@ export default function ClientDashboard() {
         </Card>
 
         {/* Instance Fleet Status */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-info/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4" /> Status das instâncias
+              <Activity className="h-4 w-4 text-info" /> Status das instâncias
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -381,7 +381,7 @@ export default function ClientDashboard() {
                 ].filter(s => s.value > 0).map(s => (
                   <div key={s.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-full p-1.5 ${s.bg}`}>
+                      <div className={`rounded-full p-1.5 shadow-[0_0_14px_-6px_currentColor] ${s.bg}`}>
                         <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
                       </div>
                       <span className="text-sm">{s.label}</span>
@@ -411,7 +411,7 @@ export default function ClientDashboard() {
       </div>
 
       {/* ── Chart: Hourly sends ── */}
-      <Card>
+      <Card className="bg-gradient-to-br from-card via-card to-primary/5">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Envios por hora — Hoje</CardTitle>
         </CardHeader>
@@ -431,10 +431,10 @@ export default function ClientDashboard() {
       {/* ── Bottom Grid: Recent Instances + Invoices + Activity ── */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Recent Instances */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-primary/5">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Smartphone className="h-4 w-4" /> Instâncias
+              <Smartphone className="h-4 w-4 text-primary" /> Instâncias
             </CardTitle>
             <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/instances')}>
               Ver todas <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
@@ -492,10 +492,10 @@ export default function ClientDashboard() {
 
         {/* Recent Invoices */}
         {hasFeature('invoices_enabled') && (
-          <Card>
+          <Card className="bg-gradient-to-br from-card via-card to-warning/5">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4" /> Últimas faturas
+                <FileText className="h-4 w-4 text-warning" /> Últimas faturas
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/subscription')}>
                 Ver todas <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
@@ -529,10 +529,10 @@ export default function ClientDashboard() {
         )}
 
         {/* Recent Activity */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-accent/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4" /> Atividade recente
+              <Activity className="h-4 w-4 text-accent-foreground" /> Atividade recente
             </CardTitle>
           </CardHeader>
           <CardContent>

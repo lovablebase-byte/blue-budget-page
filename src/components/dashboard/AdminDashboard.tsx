@@ -26,10 +26,10 @@ function StatCard({ title, value, icon: Icon, subtitle, color }: {
   title: string; value: number | string; icon: any; subtitle?: string; color?: string;
 }) {
   return (
-    <Card className="group">
+    <Card className="group bg-gradient-to-br from-card via-card to-primary/5">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
-        <div className={`rounded-md p-1.5 ${color ? 'bg-current/10' : 'bg-primary/10'}`}>
+        <div className={`rounded-lg p-2 shadow-[0_0_18px_-6px_currentColor] ${color ? 'bg-current/10' : 'bg-primary/10'}`}>
           <Icon className={`h-4 w-4 ${color || 'text-primary'}`} />
         </div>
       </CardHeader>
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
       {/* Instance Status + Providers */}
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+          <Card className="bg-gradient-to-br from-card via-card to-primary/5">
             <CardHeader><CardTitle className="text-sm">Status das Instâncias</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
                   <div><p className="text-xl font-bold text-foreground">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-muted/60 p-2"><WifiOff className="h-5 w-5 text-muted-foreground" /></div>
+                  <div className="rounded-full bg-muted/60 p-2 shadow-[0_0_10px_-4px_hsl(var(--muted-foreground)/0.25)]"><WifiOff className="h-5 w-5 text-muted-foreground" /></div>
                   <div><p className="text-xl font-bold text-foreground">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Offline</p></div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-card via-card to-accent/5">
             <CardHeader><CardTitle className="text-sm">Instâncias por Provider</CardTitle></CardHeader>
             <CardContent>
               {s.instancesByProvider.length > 0 ? (
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
       {/* Recent lists */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Recent Companies */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-primary/5">
           <CardHeader><CardTitle className="text-sm">Últimos Clientes</CardTitle></CardHeader>
           <CardContent>
             {recentCompanies.isLoading ? <SectionSkeleton /> :
@@ -198,7 +198,7 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Recent Instances */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-info/5">
           <CardHeader><CardTitle className="text-sm">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
             {recentInstances.isLoading ? <SectionSkeleton /> :
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Recent Invoices */}
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-warning/5">
           <CardHeader><CardTitle className="text-sm">Últimas Faturas</CardTitle></CardHeader>
           <CardContent>
             {recentInvoices.isLoading ? <SectionSkeleton /> :
