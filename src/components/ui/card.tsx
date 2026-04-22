@@ -6,7 +6,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--card))_0%,hsl(var(--card))_55%,hsl(var(--primary)/0.08)_100%)] text-muted-foreground dark:text-white shadow-[0_10px_30px_-18px_hsl(var(--primary)/0.45),0_0_0_1px_hsl(var(--background)/0.4)_inset] dark:shadow-[0_14px_40px_-20px_hsl(var(--primary)/0.45),0_0_0_1px_hsl(var(--primary)/0.08)_inset] shadow-black/8 hover:border-primary/35 hover:shadow-[0_16px_38px_-20px_hsl(var(--primary)/0.55),0_0_22px_-16px_hsl(var(--accent)/0.45)] hover:-translate-y-0.5 transition-all duration-300 backdrop-blur-sm",
+      "rounded-xl border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--card))_0%,hsl(var(--card))_55%,hsl(var(--primary)/0.08)_100%)] text-muted-foreground dark:text-white shadow-[0_10px_30px_-18px_hsl(var(--primary)/0.45),0_0_0_1px_hsl(var(--background)/0.4)_inset] dark:shadow-[0_14px_40px_-20px_hsl(var(--primary)/0.45),0_0_0_1px_hsl(var(--primary)/0.08)_inset] shadow-black/8 hover:border-sky-300/70 dark:hover:border-sky-400/45 hover:shadow-[0_18px_42px_-20px_rgba(125,211,252,0.55),0_0_30px_-12px_rgba(186,230,253,0.95)] dark:hover:shadow-[0_20px_46px_-22px_rgba(56,189,248,0.45),0_0_34px_-14px_rgba(125,211,252,0.38)] hover:-translate-y-0.5 transition-all duration-300 backdrop-blur-sm",
       className,
     )}
     {...props}
