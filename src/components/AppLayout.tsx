@@ -11,7 +11,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.06),transparent_22%),radial-gradient(circle_at_top,hsl(var(--glow)/0.05),transparent_28%)]">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center justify-between border-b border-border/50 px-4 bg-background/80 backdrop-blur-sm shrink-0">

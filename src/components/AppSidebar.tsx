@@ -82,7 +82,7 @@ export function AppSidebar() {
         <SidebarMenuItem key={item.path}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <SidebarMenuButton className="opacity-40 cursor-not-allowed">
+              <SidebarMenuButton className="opacity-50 cursor-not-allowed border border-white/5 bg-white/[0.03] text-sidebar-foreground/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <Icon className="h-4 w-4" />
                 {!collapsed && <span>{item.label}</span>}
                 {!collapsed && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
@@ -100,10 +100,10 @@ export function AppSidebar() {
           <NavLink
             to={item.path}
             end
-            className="hover:bg-primary/10 hover:text-foreground transition-all duration-150"
-            activeClassName="bg-primary/15 text-primary font-semibold border-l-[3px] border-[hsl(var(--glow))] shadow-[inset_0_0_20px_-6px_hsl(var(--primary)/0.25)]"
+            className="rounded-xl border border-transparent bg-white/[0.03] text-sidebar-foreground/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[hsl(var(--glow)/0.22)] hover:bg-white/[0.07] hover:text-foreground hover:shadow-[0_0_0_1px_hsl(var(--glow)/0.14),0_0_20px_-10px_hsl(var(--glow)/0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-200"
+            activeClassName="border-[hsl(var(--glow)/0.3)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--glow)/0.1))] text-foreground font-semibold shadow-[0_0_0_1px_hsl(var(--glow)/0.18),0_0_26px_-10px_hsl(var(--glow)/0.5),inset_0_1px_0_rgba(255,255,255,0.12)]"
           >
-            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_6px_hsl(var(--glow)/0.6)]' : 'text-sidebar-foreground/80'}`} />
+            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_8px_hsl(var(--glow)/0.7)]' : 'text-sidebar-foreground/80'}`} />
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         </SidebarMenuButton>
@@ -112,7 +112,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-border/30">
+    <Sidebar collapsible="icon" className="border-r border-white/8 bg-[linear-gradient(180deg,hsl(var(--sidebar)/0.98),hsl(var(--sidebar)/0.94))] shadow-[inset_-1px_0_0_rgba(255,255,255,0.05),0_0_40px_-24px_hsl(var(--glow)/0.35)]">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark shadow-[0_0_16px_-3px_hsl(var(--primary)/0.5)]">
@@ -126,12 +126,12 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarSeparator className="border-border/30" />
+      <SidebarSeparator className="border-white/8" />
 
       <SidebarContent>
         {/* Operacional */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Operacional</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-accent/80 uppercase tracking-widest text-[10px] font-bold">Operacional</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleOperational.map(renderMenuItem)}
@@ -142,13 +142,13 @@ export function AppSidebar() {
         {/* Administração (admin only) */}
         {isAdmin && (
           <>
-            <SidebarSeparator className="border-border/30" />
+            <SidebarSeparator className="border-white/8" />
             <Collapsible defaultOpen={
               location.pathname.startsWith('/admin') ||
               ['/users', '/settings', '/branding'].includes(location.pathname)
             }>
               <SidebarGroup>
-                <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-bold text-accent/70 uppercase tracking-widest hover:text-accent transition-colors">
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-[10px] font-bold text-accent/80 uppercase tracking-widest hover:bg-white/[0.04] hover:text-accent transition-all">
                   Administração
                   {!collapsed && <ChevronDown className="h-3 w-3" />}
                 </CollapsibleTrigger>
@@ -165,9 +165,9 @@ export function AppSidebar() {
         )}
 
         {/* Pessoal */}
-        <SidebarSeparator className="border-border/30" />
+        <SidebarSeparator className="border-white/8" />
         <SidebarGroup>
-          <SidebarGroupLabel className="text-accent/70 uppercase tracking-widest text-[10px] font-bold">Pessoal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-accent/80 uppercase tracking-widest text-[10px] font-bold">Pessoal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {personalRoutes.map(renderMenuItem)}
@@ -186,7 +186,7 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="w-full justify-start rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4" />
