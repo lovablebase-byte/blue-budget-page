@@ -26,10 +26,10 @@ function StatCard({ title, value, icon: Icon, subtitle, color }: {
   title: string; value: number | string; icon: any; subtitle?: string; color?: string;
 }) {
   return (
-    <Card className="group border-white/10 bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_16px_40px_-24px_hsl(var(--primary)/0.35)]">
+    <Card className="group overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent before:opacity-80 before:content-['']">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
-        <div className={`rounded-lg p-2 shadow-[0_0_18px_-6px_currentColor] ${color ? 'bg-current/10' : 'bg-primary/10'}`}>
+        <div className={`rounded-lg p-1.5 shadow-[0_0_18px_-8px_currentColor] ${color ? 'bg-current/10' : 'bg-primary/10'}`}>
           <Icon className={`h-4 w-4 ${color || 'text-primary'}`} />
         </div>
       </CardHeader>
@@ -115,27 +115,27 @@ export default function AdminDashboard() {
       {/* Instance Status + Providers */}
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_16px_40px_-24px_hsl(var(--primary)/0.32)]">
+          <Card>
             <CardHeader><CardTitle className="text-sm">Status das Instâncias</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-primary/15 p-2 shadow-[0_0_16px_-3px_hsl(var(--primary)/0.38)]"><Wifi className="h-5 w-5 text-primary" /></div>
+                  <div className="rounded-full bg-primary/15 p-2 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.45)]"><Wifi className="h-5 w-5 text-primary" /></div>
                   <div><p className="text-xl font-bold text-foreground">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-slate-500/10 p-2 shadow-[0_0_16px_-4px_hsl(var(--muted-foreground)/0.22)]"><WifiOff className="h-5 w-5 text-muted-foreground" /></div>
+                  <div className="rounded-full bg-sky-500/10 p-2 shadow-[0_0_16px_-4px_rgba(56,189,248,0.35)]"><WifiOff className="h-5 w-5 text-sky-500" /></div>
                   <div><p className="text-xl font-bold text-foreground">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Offline</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-warning/15 p-2 shadow-[0_0_16px_-3px_hsl(var(--warning)/0.3)]"><Signal className="h-5 w-5 text-warning" /></div>
+                  <div className="rounded-full bg-warning/15 p-2 shadow-[0_0_16px_-4px_hsl(var(--warning)/0.35)]"><Signal className="h-5 w-5 text-warning" /></div>
                   <div><p className="text-xl font-bold text-foreground">{s.instancesConnecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-card via-card to-accent/10 shadow-[0_16px_40px_-24px_hsl(var(--accent)/0.3)]">
+          <Card>
             <CardHeader><CardTitle className="text-sm">Instâncias por Provider</CardTitle></CardHeader>
             <CardContent>
               {s.instancesByProvider.length > 0 ? (
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
                   {s.instancesByProvider.map((p) => (
                     <div key={p.provider} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Server className="h-4 w-4 text-accent" />
+                        <Server className="h-4 w-4 text-primary" />
                         <span className="text-sm font-medium capitalize">{p.provider}</span>
                       </div>
                       <Badge variant="secondary">{p.count}</Badge>
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
       {/* Recent lists */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Recent Companies */}
-        <Card className="bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_16px_40px_-24px_hsl(var(--primary)/0.28)]">
+        <Card>
           <CardHeader><CardTitle className="text-sm">Últimos Clientes</CardTitle></CardHeader>
           <CardContent>
             {recentCompanies.isLoading ? <SectionSkeleton /> :
@@ -198,7 +198,7 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Recent Instances */}
-        <Card className="bg-gradient-to-br from-card via-card to-info/10 shadow-[0_16px_40px_-24px_hsl(var(--info)/0.28)]">
+        <Card>
           <CardHeader><CardTitle className="text-sm">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
             {recentInstances.isLoading ? <SectionSkeleton /> :
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Recent Invoices */}
-        <Card className="bg-gradient-to-br from-card via-card to-warning/10 shadow-[0_16px_40px_-24px_hsl(var(--warning)/0.26)]">
+        <Card>
           <CardHeader><CardTitle className="text-sm">Últimas Faturas</CardTitle></CardHeader>
           <CardContent>
             {recentInvoices.isLoading ? <SectionSkeleton /> :

@@ -59,9 +59,9 @@ function KpiCard({ label, value, sub, icon: Icon, iconColor = 'text-primary', ic
   label: string; value: string | number; sub?: string; icon: any; iconColor?: string; iconBg?: string;
 }) {
   return (
-    <Card className="relative overflow-hidden border-white/10 bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_18px_44px_-26px_hsl(var(--primary)/0.34)]">
+    <Card className="relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/70 before:to-transparent before:opacity-90 before:content-['']">
       <CardContent className="p-4 flex items-center gap-3">
-        <div className={`rounded-lg p-2.5 shadow-[0_0_20px_-8px_currentColor] ${iconBg} shrink-0`}>
+        <div className={`rounded-lg p-2.5 shadow-[0_0_18px_-8px_currentColor] ${iconBg} shrink-0`}>
           <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
         <div className="min-w-0">
@@ -258,8 +258,8 @@ export default function ClientDashboard() {
       {/* ── KPI Row ── */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Instâncias online" value={instanceStatus.online} sub={`de ${instanceStatus.total} total`} icon={Wifi} iconColor="text-primary" iconBg="bg-primary/10" />
-        <KpiCard label="Mensagens hoje" value={msgMetrics.today} icon={Send} iconColor="text-info" iconBg="bg-info/10" />
-        <KpiCard label="Mensagens no mês" value={msgMetrics.month} sub={`${deliveryRate}% entregue`} icon={TrendingUp} iconColor="text-accent" iconBg="bg-accent/10" />
+        <KpiCard label="Mensagens hoje" value={msgMetrics.today} icon={Send} iconColor="text-primary" iconBg="bg-primary/10" />
+        <KpiCard label="Mensagens no mês" value={msgMetrics.month} sub={`${deliveryRate}% entregue`} icon={TrendingUp} iconColor="text-accent-foreground" iconBg="bg-accent/10" />
         <KpiCard
           label={pendingInvoices > 0 ? 'Faturas pendentes' : 'Financeiro em dia'}
           value={pendingInvoices > 0 ? pendingInvoices : '✓'}
@@ -273,7 +273,7 @@ export default function ClientDashboard() {
       {/* ── Main Grid: Plan + Usage + Instance Status ── */}
       <div className="grid gap-4 md:grid-cols-3">
         {/* Plan Summary */}
-        <Card className="bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_16px_40px_-24px_hsl(var(--primary)/0.3)]">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" /> Plano atual
@@ -335,10 +335,10 @@ export default function ClientDashboard() {
         </Card>
 
         {/* Usage / Limits */}
-        <Card className="bg-gradient-to-br from-card via-card to-accent/10 shadow-[0_16px_40px_-24px_hsl(var(--accent)/0.28)]">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-accent" /> Consumo
+              <BarChart3 className="h-4 w-4 text-accent-foreground" /> Consumo
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -364,10 +364,10 @@ export default function ClientDashboard() {
         </Card>
 
         {/* Instance Fleet Status */}
-        <Card className="bg-gradient-to-br from-card via-card to-info/10 shadow-[0_16px_40px_-24px_hsl(var(--info)/0.28)]">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-info" /> Status das instâncias
+              <Activity className="h-4 w-4 text-primary" /> Status das instâncias
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -375,13 +375,13 @@ export default function ClientDashboard() {
               <>
                 {[
                   { label: 'Online', value: instanceStatus.online, icon: Wifi, color: 'text-primary', bg: 'bg-primary/10' },
-                  { label: 'Offline', value: instanceStatus.offline, icon: WifiOff, color: 'text-muted-foreground', bg: 'bg-muted/60' },
+                  { label: 'Offline', value: instanceStatus.offline, icon: WifiOff, color: 'text-sky-500', bg: 'bg-sky-500/10' },
                   { label: 'Bloqueadas', value: instanceStatus.blocked, icon: Ban, color: 'text-destructive', bg: 'bg-destructive/10' },
                   { label: 'Conectando', value: instanceStatus.connecting, icon: Signal, color: 'text-warning', bg: 'bg-warning/10' },
                 ].filter(s => s.value > 0).map(s => (
                   <div key={s.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-full p-1.5 shadow-[0_0_16px_-6px_currentColor] ${s.bg}`}>
+                      <div className={`rounded-full p-1.5 shadow-[0_0_16px_-8px_currentColor] ${s.bg}`}>
                         <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
                       </div>
                       <span className="text-sm">{s.label}</span>
@@ -411,7 +411,7 @@ export default function ClientDashboard() {
       </div>
 
       {/* ── Chart: Hourly sends ── */}
-      <Card className="bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_16px_40px_-24px_hsl(var(--primary)/0.28)]">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Envios por hora — Hoje</CardTitle>
         </CardHeader>
@@ -431,10 +431,10 @@ export default function ClientDashboard() {
       {/* ── Bottom Grid: Recent Instances + Invoices + Activity ── */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Recent Instances */}
-        <Card className="bg-gradient-to-br from-card via-card to-info/10 shadow-[0_16px_40px_-24px_hsl(var(--info)/0.28)]">
+        <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Smartphone className="h-4 w-4 text-info" /> Instâncias
+              <Smartphone className="h-4 w-4 text-primary" /> Instâncias
             </CardTitle>
             <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/instances')}>
               Ver todas <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
@@ -465,7 +465,7 @@ export default function ClientDashboard() {
                     <div className="flex items-start gap-2 min-w-0 flex-1">
                       {isOnline
                         ? <Wifi className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                        : <WifiOff className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />}
+                        : <WifiOff className="h-3.5 w-3.5 text-sky-500 shrink-0 mt-0.5" />}
                       <div className="min-w-0 flex-1">
                         <p className="font-medium truncate">{inst.name}</p>
                         {phone ? (
@@ -492,7 +492,7 @@ export default function ClientDashboard() {
 
         {/* Recent Invoices */}
         {hasFeature('invoices_enabled') && (
-          <Card className="bg-gradient-to-br from-card via-card to-warning/10 shadow-[0_16px_40px_-24px_hsl(var(--warning)/0.28)]">
+          <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FileText className="h-4 w-4 text-warning" /> Últimas faturas
@@ -529,10 +529,10 @@ export default function ClientDashboard() {
         )}
 
         {/* Recent Activity */}
-        <Card className="bg-gradient-to-br from-card via-card to-accent/10 shadow-[0_16px_40px_-24px_hsl(var(--accent)/0.28)]">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-accent" /> Atividade recente
+              <Activity className="h-4 w-4 text-accent-foreground" /> Atividade recente
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -542,7 +542,7 @@ export default function ClientDashboard() {
                   <div key={evt.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                        evt.status === 'failed' ? 'bg-destructive' : 'bg-primary'
+                        evt.status === 'failed' ? 'bg-destructive shadow-[0_0_8px_0_hsl(var(--destructive)/0.55)]' : 'bg-primary shadow-[0_0_8px_0_hsl(var(--primary)/0.55)]'
                       }`} />
                       <span className="truncate text-muted-foreground">{evt.event_type}</span>
                     </div>

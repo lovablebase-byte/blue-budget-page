@@ -20,15 +20,15 @@ export function InstanceStatsCards({
   return (
     <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
       {/* Total */}
-      <Card className="border-white/10 bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_16px_40px_-24px_hsl(var(--primary)/0.32)]">
+      <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Total</span>
-            <div className="rounded-md p-1.5 bg-primary/10 shadow-[0_0_18px_-8px_hsl(var(--primary)/0.45)]">
+            <div className="rounded-md p-1.5 bg-primary/10 shadow-[0_0_16px_-6px_hsl(var(--primary)/0.45)]">
               <Smartphone className="h-3.5 w-3.5 text-primary" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight">{total}</div>
+          <div className="text-2xl font-bold tracking-tight text-primary">{total}</div>
           {providerBreakdown && Object.keys(providerBreakdown).length > 0 && (
             <p className="text-[10px] text-muted-foreground mt-1 truncate">
               {Object.entries(providerBreakdown).map(([p, c]) => `${p}: ${c}`).join(' · ')}
@@ -38,11 +38,11 @@ export function InstanceStatsCards({
       </Card>
 
       {/* Online */}
-      <Card className="border-white/10 bg-gradient-to-br from-card via-card to-success/10 shadow-[0_16px_40px_-24px_hsl(var(--success)/0.3)]">
+      <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Online</span>
-            <div className="rounded-md p-1.5 bg-success/10 shadow-[0_0_18px_-8px_hsl(var(--success)/0.45)]">
+            <div className="rounded-md p-1.5 bg-success/10 shadow-[0_0_16px_-6px_hsl(var(--success)/0.45)]">
               <Wifi className="h-3.5 w-3.5 text-success" />
             </div>
           </div>
@@ -51,43 +51,43 @@ export function InstanceStatsCards({
       </Card>
 
       {/* Offline */}
-      <Card className="border-white/10 bg-gradient-to-br from-card via-card to-slate-500/10 shadow-[0_16px_40px_-24px_hsl(var(--muted-foreground)/0.18)]">
+      <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Desconectadas</span>
-            <div className="rounded-md p-1.5 bg-muted/50 shadow-[0_0_18px_-8px_hsl(var(--muted-foreground)/0.25)]">
-              <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="rounded-md p-1.5 bg-sky-500/10 shadow-[0_0_16px_-6px_rgba(56,189,248,0.45)]">
+              <WifiOff className="h-3.5 w-3.5 text-sky-500" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight">{offline}</div>
+          <div className="text-2xl font-bold tracking-tight text-sky-500">{offline}</div>
         </CardContent>
       </Card>
 
       {/* Connecting */}
-      <Card className="border-white/10 bg-gradient-to-br from-card via-card to-info/10 shadow-[0_16px_40px_-24px_hsl(var(--info)/0.28)]">
+      <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Conectando</span>
-            <div className="rounded-md p-1.5 bg-info/10 shadow-[0_0_18px_-8px_hsl(var(--info)/0.4)]">
+            <div className="rounded-md p-1.5 bg-info/10 shadow-[0_0_16px_-6px_hsl(var(--info)/0.45)]">
               <Signal className="h-3.5 w-3.5 text-info" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight">{connecting}</div>
+          <div className="text-2xl font-bold tracking-tight text-info">{connecting}</div>
         </CardContent>
       </Card>
 
       {/* Plan usage */}
-      <Card className="border-white/10 bg-gradient-to-br from-card via-card to-accent/10 shadow-[0_16px_40px_-24px_hsl(var(--accent)/0.28)]">
+      <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Limite do plano</span>
-            <div className="rounded-md p-1.5 bg-accent/10 shadow-[0_0_18px_-8px_hsl(var(--accent)/0.4)]">
-              <Shield className="h-3.5 w-3.5 text-accent" />
+            <div className="rounded-md p-1.5 bg-warning/10 shadow-[0_0_16px_-6px_hsl(var(--warning)/0.45)]">
+              <Shield className="h-3.5 w-3.5 text-warning" />
             </div>
           </div>
           {planMax != null && planMax > 0 ? (
             <>
-              <div className="text-2xl font-bold tracking-tight">
+              <div className="text-2xl font-bold tracking-tight text-warning">
                 {available} <span className="text-xs font-normal text-muted-foreground">disponíveis</span>
               </div>
               <Progress value={usagePercent} className="h-1.5 mt-2" />
@@ -97,7 +97,7 @@ export function InstanceStatsCards({
             </>
           ) : (
             <>
-              <div className="text-2xl font-bold tracking-tight">∞</div>
+              <div className="text-2xl font-bold tracking-tight text-warning">∞</div>
               <p className="text-[10px] text-muted-foreground mt-1">Sem limite</p>
             </>
           )}
