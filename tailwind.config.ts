@@ -75,6 +75,13 @@ export default {
         glow: "hsl(var(--glow))",
         cyan: "hsl(var(--cyan))",
         purple: "hsl(var(--purple))",
+        theme: {
+          green: "hsl(var(--theme-green))",
+          "green-foreground": "hsl(var(--theme-green-foreground))",
+          "green-soft": "hsl(var(--theme-green-soft) / 0.16)",
+          "green-border": "hsl(var(--theme-green-border) / 0.4)",
+          "green-ring": "hsl(var(--theme-green-ring) / 0.45)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

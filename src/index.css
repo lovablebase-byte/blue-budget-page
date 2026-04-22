@@ -14,9 +14,20 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 14%;
 
-    /* Primary – Verde oficial único do sistema (alinhado ao --success) */
-    --primary: 150 60% 40%;
-    --primary-foreground: 0 0% 100%;
+    /* Verde global único do sistema: #24FF91 */
+    --theme-green: 150 100% 57%;
+    --theme-green-foreground: 220 20% 14%;
+    --theme-green-soft: 150 100% 57%;
+    --theme-green-soft-foreground: 220 20% 14%;
+    --theme-green-border: 150 100% 57%;
+    --theme-green-ring: 150 100% 57%;
+    --theme-green-glow: 150 100% 57%;
+    --theme-green-hover: 150 100% 52%;
+    --theme-green-active: 150 100% 47%;
+    --theme-green-muted: 150 100% 57%;
+
+    --primary: var(--theme-green);
+    --primary-foreground: var(--theme-green-foreground);
 
     --secondary: 210 16% 93%;
     --secondary-foreground: 220 20% 14%;
@@ -24,51 +35,51 @@
     --muted: 210 16% 93%;
     --muted-foreground: 215 14% 46%;
 
-    --accent: 186 80% 42%;
-    --accent-foreground: 0 0% 100%;
+    --accent: var(--theme-green);
+    --accent-foreground: var(--theme-green-foreground);
 
     --destructive: 348 80% 52%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 214 18% 83%;
     --input: 214 18% 83%;
-    --ring: 150 60% 40%;
+    --ring: var(--theme-green-ring);
 
     --radius: 0.5rem;
 
     /* Sidebar – light */
     --sidebar-background: 210 18% 96%;
     --sidebar-foreground: 220 14% 36%;
-    --sidebar-primary: 150 60% 40%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 186 80% 42%;
-    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-primary: var(--theme-green);
+    --sidebar-primary-foreground: var(--theme-green-foreground);
+    --sidebar-accent: var(--theme-green);
+    --sidebar-accent-foreground: var(--theme-green-foreground);
     --sidebar-border: 214 18% 88%;
-    --sidebar-ring: 150 60% 40%;
+    --sidebar-ring: var(--theme-green-ring);
 
-    /* Status colors – success é a referência oficial do verde do sistema */
-    --success: 150 60% 40%;
-    --success-foreground: 0 0% 100%;
+    /* Status colors */
+    --success: var(--theme-green);
+    --success-foreground: var(--theme-green-foreground);
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --info: 199 80% 46%;
     --info-foreground: 0 0% 100%;
 
-    /* Brand accents – glow derivado do verde oficial */
-    --glow: 150 60% 40%;
-    --cyan: 186 80% 42%;
+    /* Brand accents */
+    --glow: var(--theme-green-glow);
+    --cyan: var(--theme-green);
     --purple: 258 70% 56%;
 
-    /* Variações controladas do verde oficial (apenas para hover/active) */
-    --primary-hover: 150 60% 46%;
-    --primary-dark: 150 60% 32%;
+    /* Variações derivadas do verde oficial */
+    --primary-hover: var(--theme-green-hover);
+    --primary-dark: var(--theme-green-active);
 
     /* Card hover */
     --card-hover: 210 16% 96%;
   }
 
   .dark {
-    /* ── Dark Mode (preserved exactly) ── */
+    /* ── Dark Mode ── */
     --background: 220 69% 3%;
     --foreground: 210 40% 98%;
 
@@ -78,8 +89,20 @@
     --popover: 210 63% 6%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 150 100% 57%;
-    --primary-foreground: 220 69% 3%;
+    /* Verde global único do sistema: #24FF91 */
+    --theme-green: 150 100% 57%;
+    --theme-green-foreground: 220 69% 3%;
+    --theme-green-soft: 150 100% 57%;
+    --theme-green-soft-foreground: 220 69% 3%;
+    --theme-green-border: 150 100% 57%;
+    --theme-green-ring: 150 100% 57%;
+    --theme-green-glow: 150 100% 57%;
+    --theme-green-hover: 150 100% 62%;
+    --theme-green-active: 150 100% 50%;
+    --theme-green-muted: 150 100% 57%;
+
+    --primary: var(--theme-green);
+    --primary-foreground: var(--theme-green-foreground);
 
     --secondary: 210 63% 6%;
     --secondary-foreground: 210 40% 98%;
@@ -87,40 +110,40 @@
     --muted: 209 51% 19%;
     --muted-foreground: 211 16% 51%;
 
-    --accent: 186 100% 50%;
-    --accent-foreground: 220 69% 3%;
+    --accent: var(--theme-green);
+    --accent-foreground: var(--theme-green-foreground);
 
     --destructive: 348 100% 65%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 209 51% 19%;
     --input: 209 51% 19%;
-    --ring: 150 100% 57%;
+    --ring: var(--theme-green-ring);
 
     --sidebar-background: 220 69% 2%;
     --sidebar-foreground: 213 22% 77%;
-    --sidebar-primary: 150 100% 57%;
-    --sidebar-primary-foreground: 220 69% 3%;
-    --sidebar-accent: 150 100% 57%;
-    --sidebar-accent-foreground: 220 69% 3%;
+    --sidebar-primary: var(--theme-green);
+    --sidebar-primary-foreground: var(--theme-green-foreground);
+    --sidebar-accent: var(--theme-green);
+    --sidebar-accent-foreground: var(--theme-green-foreground);
     --sidebar-border: 209 51% 15%;
-    --sidebar-ring: 150 100% 57%;
+    --sidebar-ring: var(--theme-green-ring);
 
-    /* Status colors – success é a referência oficial do verde do sistema */
-    --success: 150 100% 57%;
-    --success-foreground: 220 69% 3%;
+    /* Status colors */
+    --success: var(--theme-green);
+    --success-foreground: var(--theme-green-foreground);
     --warning: 48 96% 53%;
     --warning-foreground: 220 69% 3%;
     --info: 199 93% 60%;
     --info-foreground: 220 69% 3%;
 
-    --glow: 150 100% 57%;
-    --cyan: 186 100% 50%;
+    --glow: var(--theme-green-glow);
+    --cyan: var(--theme-green);
     --purple: 258 90% 66%;
 
-    /* Variações controladas do verde oficial (apenas para hover/active) */
-    --primary-hover: 150 100% 65%;
-    --primary-dark: 150 100% 45%;
+    /* Variações derivadas do verde oficial */
+    --primary-hover: var(--theme-green-hover);
+    --primary-dark: var(--theme-green-active);
     --card-hover: 213 53% 13%;
   }
 }
