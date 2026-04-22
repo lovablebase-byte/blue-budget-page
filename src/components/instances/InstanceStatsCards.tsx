@@ -20,11 +20,11 @@ export function InstanceStatsCards({
   return (
     <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
       {/* Total */}
-      <Card className="border-border/60 bg-gradient-to-br from-card via-card to-primary/5">
+      <Card className="border-primary/15 bg-gradient-to-br from-card via-card to-primary/10">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Total</span>
-            <div className="rounded-md p-1.5 bg-primary/10 shadow-[0_0_16px_-6px_hsl(var(--primary)/0.6)]">
+            <div className="rounded-md p-1.5 bg-primary/10 shadow-[0_0_18px_-6px_hsl(var(--primary)/0.45)]">
               <Smartphone className="h-3.5 w-3.5 text-primary" />
             </div>
           </div>
@@ -38,11 +38,11 @@ export function InstanceStatsCards({
       </Card>
 
       {/* Online */}
-      <Card className="border-border/60 bg-gradient-to-br from-card via-card to-success/5">
+      <Card className="border-success/20 bg-gradient-to-br from-card via-card to-success/10">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Online</span>
-            <div className="rounded-md p-1.5 bg-success/10 shadow-[0_0_16px_-6px_hsl(var(--success)/0.6)]">
+            <div className="rounded-md p-1.5 bg-success/10 shadow-[0_0_18px_-6px_hsl(var(--success)/0.45)]">
               <Wifi className="h-3.5 w-3.5 text-success" />
             </div>
           </div>
@@ -51,11 +51,11 @@ export function InstanceStatsCards({
       </Card>
 
       {/* Offline */}
-      <Card className="border-border/60 bg-gradient-to-br from-card via-card to-muted/20">
+      <Card className="border-muted/40 bg-gradient-to-br from-card via-card to-muted/20">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Desconectadas</span>
-            <div className="rounded-md p-1.5 bg-muted/50 shadow-[0_0_14px_-8px_hsl(var(--muted-foreground)/0.5)]">
+            <div className="rounded-md p-1.5 bg-muted/50 shadow-[0_0_16px_-8px_hsl(var(--muted-foreground)/0.35)]">
               <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </div>
@@ -64,11 +64,11 @@ export function InstanceStatsCards({
       </Card>
 
       {/* Connecting */}
-      <Card className="border-border/60 bg-gradient-to-br from-card via-card to-info/5">
+      <Card className="border-info/20 bg-gradient-to-br from-card via-card to-info/10">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Conectando</span>
-            <div className="rounded-md p-1.5 bg-info/10 shadow-[0_0_16px_-6px_hsl(var(--info)/0.6)]">
+            <div className="rounded-md p-1.5 bg-info/10 shadow-[0_0_18px_-6px_hsl(var(--info)/0.45)]">
               <Signal className="h-3.5 w-3.5 text-info" />
             </div>
           </div>
@@ -77,12 +77,12 @@ export function InstanceStatsCards({
       </Card>
 
       {/* Plan usage */}
-      <Card className="border-border/60 bg-gradient-to-br from-card via-card to-accent/5">
+      <Card className="border-accent/20 bg-gradient-to-br from-card via-card to-accent/10">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Limite do plano</span>
-            <div className="rounded-md p-1.5 bg-primary/10 shadow-[0_0_16px_-6px_hsl(var(--primary)/0.6)]">
-              <Shield className="h-3.5 w-3.5 text-primary" />
+            <div className="rounded-md p-1.5 bg-accent/10 shadow-[0_0_18px_-6px_hsl(var(--accent)/0.45)]">
+              <Shield className="h-3.5 w-3.5 text-accent-foreground" />
             </div>
           </div>
           {planMax != null && planMax > 0 ? (
