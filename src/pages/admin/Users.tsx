@@ -30,7 +30,7 @@ export default function AdminUsers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('*, profiles:profiles!inner(full_name, user_id), companies(name)')
+        .select('*, profiles:profiles!inner(full_name, user_id)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
