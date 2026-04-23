@@ -29,7 +29,7 @@ function UsageBar({ label, used, max, icon: Icon, colorClass = 'metric-green' }:
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-1.5 text-muted-foreground opacity-80">
+        <span className={`flex items-center gap-1.5 ${semanticColor} filter drop-shadow-[0_0_4px_var(--icon-shadow)] font-medium`}>
           <span className={`icon-premium ${semanticColor} p-1 rounded-md`}>
             <Icon className="h-3.5 w-3.5" />
           </span>
@@ -67,7 +67,7 @@ function KpiCard({ label, value, sub, icon: Icon, colorClass = 'metric-green' }:
         </div>
         <div className="min-w-0">
           <p className={`text-2xl font-bold tabular-nums tracking-tight ${colorClass}`}>{typeof value === 'number' ? value.toLocaleString('pt-BR') : value}</p>
-          <p className={`text-xs font-semibold uppercase tracking-wider ${colorClass}`}>{label}</p>
+          <p className={`text-xs font-semibold uppercase tracking-wider ${colorClass} filter drop-shadow-[0_0_6px_var(--icon-shadow)]`}>{label}</p>
           {sub && <p className={`text-[10px] ${colorClass} opacity-70`}>{sub}</p>}
         </div>
       </CardContent>
@@ -262,7 +262,7 @@ export default function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+            <CardTitle className="text-sm flex items-center gap-2 metric-purple filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-purple p-1.5 rounded-md"><Shield className="h-4 w-4" /></span> Plano atual
             </CardTitle>
           </CardHeader>
@@ -323,7 +323,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-gold p-1.5 rounded-md"><BarChart3 className="h-4 w-4" /></span> Consumo
             </CardTitle>
           </CardHeader>
@@ -351,7 +351,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 metric-mint filter drop-shadow-[0_0_8px_rgba(0,255,190,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 metric-mint filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-mint p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Status das instâncias
             </CardTitle>
           </CardHeader>
@@ -415,7 +415,7 @@ export default function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2 metric-cyan filter drop-shadow-[0_0_8px_rgba(0,224,255,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-cyan p-1.5 rounded-md"><Smartphone className="h-4 w-4" /></span> Instâncias
             </CardTitle>
             <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/instances')}>
@@ -475,7 +475,7 @@ export default function ClientDashboard() {
         {hasFeature('invoices_enabled') && (
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2 metric-orange filter drop-shadow-[0_0_8px_rgba(255,165,0,0.3)]">
+              <CardTitle className="text-sm flex items-center gap-2 metric-orange filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
                 <span className="icon-premium metric-orange p-1.5 rounded-md"><FileText className="h-4 w-4" /></span> Últimas faturas
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/subscription')}>
@@ -511,7 +511,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_rgba(255,214,0,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-gold p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Atividade recente
             </CardTitle>
           </CardHeader>
