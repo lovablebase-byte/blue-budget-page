@@ -41,17 +41,17 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info' }> = {
-    online: { label: 'Online', variant: 'default' },
-    connected: { label: 'Online', variant: 'default' },
-    connecting: { label: 'Conectando', variant: 'warning' },
-    offline: { label: 'Desconectado', variant: 'destructive' },
-    paid: { label: 'Pago', variant: 'default' },
-    pending: { label: 'Pendente', variant: 'warning' },
-    overdue: { label: 'Vencido', variant: 'destructive' },
+  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info' | 'success' }> = {
+    online: { label: 'ONLINE', variant: 'success' },
+    connected: { label: 'ONLINE', variant: 'success' },
+    connecting: { label: 'CONECTANDO', variant: 'warning' },
+    offline: { label: 'OFFLINE', variant: 'destructive' },
+    paid: { label: 'PAGO', variant: 'success' },
+    pending: { label: 'PENDENTE', variant: 'warning' },
+    overdue: { label: 'VENCIDO', variant: 'destructive' },
   };
-  const s = map[status] || { label: status, variant: 'outline' as const };
-  return <Badge variant={s.variant} className="text-[10px]">{s.label}</Badge>;
+  const s = map[status] || { label: status.toUpperCase(), variant: 'outline' as const };
+  return <Badge variant={s.variant as any} className="text-[9px] font-black tracking-wider filter drop-shadow-[0_0_3px_var(--badge-shadow)]">{s.label}</Badge>;
 }
 
 function SectionSkeleton() {
