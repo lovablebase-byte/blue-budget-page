@@ -262,7 +262,7 @@ export default function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+            <CardTitle className="text-sm flex items-center gap-2 metric-purple filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-purple p-1.5 rounded-md"><Shield className="h-4 w-4" /></span> Plano atual
             </CardTitle>
           </CardHeader>
