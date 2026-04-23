@@ -44,7 +44,7 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info' }> = {
     online: { label: 'Online', variant: 'default' },
     connected: { label: 'Online', variant: 'default' },
-    connecting: { label: 'Conectando', variant: 'info' },
+    connecting: { label: 'Conectando', variant: 'warning' },
     offline: { label: 'Desconectado', variant: 'destructive' },
     paid: { label: 'Pago', variant: 'default' },
     pending: { label: 'Pendente', variant: 'warning' },
