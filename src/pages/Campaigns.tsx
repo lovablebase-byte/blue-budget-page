@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText, Loader2, Bot, Timer, Activity } from 'lucide-react';
+import { Plus, Trash2, Send, BarChart3, Users, MessageCircle, AlertTriangle, Upload, Play, Pause, Shield, Clock, Zap, FileText, Loader2, Bot, Timer, Activity, CheckCircle2, Eye } from 'lucide-react';
 
 // ---- Spintax engine ----
 function resolveSpintax(text: string): string {
