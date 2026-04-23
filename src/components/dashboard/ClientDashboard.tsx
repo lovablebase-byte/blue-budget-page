@@ -369,9 +369,9 @@ export default function ClientDashboard() {
                       <div className={`icon-premium ${s.colorClass} rounded-full p-1.5`}>
                         <s.icon className="h-3.5 w-3.5" />
                       </div>
-                      <span className="text-sm">{s.label}</span>
+                      <span className={`text-sm ${s.colorClass} font-medium`}>{s.label}</span>
                     </div>
-                    <span className="text-lg font-bold tabular-nums">{s.value}</span>
+                    <span className={`text-lg font-bold tabular-nums ${s.colorClass}`}>{s.value}</span>
                   </div>
                 ))}
                 <div className="pt-2 border-t text-center">
