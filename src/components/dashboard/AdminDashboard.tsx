@@ -126,21 +126,21 @@ export default function AdminDashboard() {
                   <div className="icon-premium metric-green rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(36,255,145,0.2)]"><Wifi className="h-5 w-5" /></div>
                   <div>
                     <p className="text-xl font-black metric-green filter drop-shadow-[0_0_10px_rgba(36,255,145,0.5)]">{s.instancesOnline}</p>
-                    <p className="text-[10px] font-bold metric-green uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(36,255,145,0.3)]">Online</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Online</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 group">
                   <div className="icon-premium metric-red rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,90,95,0.2)]"><WifiOff className="h-5 w-5" /></div>
                   <div>
                     <p className="text-xl font-black metric-red filter drop-shadow-[0_0_10px_rgba(255,90,95,0.5)]">{s.instancesOffline}</p>
-                    <p className="text-[10px] font-bold metric-red uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(255,90,95,0.3)]">Offline</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Offline</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 group">
                   <div className="icon-premium metric-yellow rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,214,0,0.2)]"><Signal className="h-5 w-5" /></div>
                   <div>
                     <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_10px_rgba(255,214,0,0.5)]">{s.instancesConnecting}</p>
-                    <p className="text-[10px] font-bold metric-yellow uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(255,214,0,0.3)]">Conectando</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Conectando</p>
                   </div>
                 </div>
               </div>
