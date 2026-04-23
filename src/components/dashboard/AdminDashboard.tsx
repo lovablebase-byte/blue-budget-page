@@ -5,14 +5,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Building2, Users, Smartphone, Wifi, WifiOff, Signal,
   CreditCard, AlertTriangle, Ban, DollarSign, FileText,
-  TrendingUp, Server, Info, Phone,
+  Server, Info, Phone,
 } from 'lucide-react';
 
 function formatPhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const digits = raw.replace(/\D/g, '');
   if (!digits) return null;
-  // BR pattern: +55 (11) 91234-5678
   if (digits.length === 13 && digits.startsWith('55')) {
     return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
   }
@@ -22,19 +21,19 @@ function formatPhone(raw: string | null | undefined): string | null {
   return `+${digits}`;
 }
 
-function StatCard({ title, value, icon: Icon, subtitle, color }: {
-  title: string; value: number | string; icon: any; subtitle?: string; color?: string;
+function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-green' }: {
+  title: string; value: number | string; icon: any; subtitle?: string; colorClass?: string;
 }) {
   return (
     <Card className="group overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent before:opacity-80 before:content-['']">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
-        <div className={`rounded-lg p-1.5 shadow-[0_0_18px_-8px_currentColor] ${color ? 'bg-current/10' : 'bg-primary/10'}`}>
-          <Icon className={`h-4 w-4 ${color || 'text-primary'}`} />
+        <div className={`icon-premium ${colorClass} p-2`}>
+          <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold tracking-tight ${color || 'text-foreground'}`}>{value}</div>
+        <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
         {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </CardContent>
     </Card>
@@ -42,13 +41,13 @@ function StatCard({ title, value, icon: Icon, subtitle, color }: {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info' }> = {
     online: { label: 'Online', variant: 'default' },
     connected: { label: 'Online', variant: 'default' },
-    connecting: { label: 'Conectando', variant: 'secondary' },
+    connecting: { label: 'Conectando', variant: 'info' },
     offline: { label: 'Offline', variant: 'outline' },
     paid: { label: 'Pago', variant: 'default' },
-    pending: { label: 'Pendente', variant: 'secondary' },
+    pending: { label: 'Pendente', variant: 'warning' },
     overdue: { label: 'Vencido', variant: 'destructive' },
   };
   const s = map[status] || { label: status, variant: 'outline' as const };
@@ -72,23 +71,21 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Admin</h1>
         <p className="text-muted-foreground text-sm">Visão consolidada do SaaS</p>
       </div>
 
-      {/* Alerts */}
       {alerts.data && alerts.data.length > 0 && (
         <div className="space-y-2">
           {alerts.data.map((alert, i) => (
             <div key={i} className={`flex items-center gap-3 rounded-lg border p-3 backdrop-blur-sm ${
-              alert.type === 'error' ? 'border-destructive/40 bg-destructive/10 shadow-[0_0_12px_-4px_hsl(var(--destructive)/0.2)]' :
-              alert.type === 'warning' ? 'border-warning/40 bg-warning/10 shadow-[0_0_12px_-4px_hsl(var(--warning)/0.15)]' :
+              alert.type === 'error' ? 'border-[rgba(255,90,95,0.28)] bg-[rgba(255,90,95,0.08)] shadow-[0_0_18px_-10px_rgba(255,90,95,0.45)]' :
+              alert.type === 'warning' ? 'border-[rgba(255,200,87,0.28)] bg-[rgba(255,200,87,0.08)] shadow-[0_0_18px_-10px_rgba(255,200,87,0.45)]' :
               'border-border bg-muted/30'
             }`}>
-              {alert.type === 'error' ? <Ban className="h-4 w-4 text-destructive shrink-0" /> :
-               alert.type === 'warning' ? <AlertTriangle className="h-4 w-4 text-warning shrink-0" /> :
+              {alert.type === 'error' ? <Ban className="h-4 w-4 text-[#FF5A5F] shrink-0" /> :
+               alert.type === 'warning' ? <AlertTriangle className="h-4 w-4 text-[#FFC857] shrink-0" /> :
                <Info className="h-4 w-4 text-muted-foreground shrink-0" />}
               <p className="text-sm font-medium">{alert.message}</p>
             </div>
@@ -96,23 +93,21 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* KPI Grid */}
       {isLoading ? (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
       ) : s ? (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          <StatCard title="Clientes" value={s.companies} icon={Building2} subtitle="registrados" color="text-primary" />
-          <StatCard title="Usuários" value={s.users} icon={Users} subtitle="no sistema" color="text-accent" />
-          <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" color="text-primary" />
-          <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" color="text-info" />
-          <StatCard title="Faturas Abertas" value={s.openInvoices} icon={FileText} subtitle="pendentes" color={s.openInvoices > 0 ? 'text-warning' : 'text-muted-foreground'} />
-          <StatCard title="Faturamento" value={formatCurrency(s.paidRevenueCents)} icon={DollarSign} subtitle="recebido" color="text-primary" />
+          <StatCard title="Clientes" value={s.companies} icon={Building2} subtitle="registrados" colorClass="metric-blue" />
+          <StatCard title="Usuários" value={s.users} icon={Users} subtitle="no sistema" colorClass="metric-green" />
+          <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" colorClass="metric-cyan" />
+          <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" colorClass="metric-purple" />
+          <StatCard title="Faturas Abertas" value={s.openInvoices} icon={FileText} subtitle="pendentes" colorClass="metric-orange" />
+          <StatCard title="Faturamento" value={formatCurrency(s.paidRevenueCents)} icon={DollarSign} subtitle="recebido" colorClass="metric-emerald" />
         </div>
       ) : null}
 
-      {/* Instance Status + Providers */}
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
@@ -120,15 +115,15 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-primary/15 p-2 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.45)]"><Wifi className="h-5 w-5 text-primary" /></div>
+                  <div className="icon-premium metric-green rounded-full p-2"><Wifi className="h-5 w-5" /></div>
                   <div><p className="text-xl font-bold text-foreground">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-sky-500/10 p-2 shadow-[0_0_16px_-4px_rgba(56,189,248,0.35)]"><WifiOff className="h-5 w-5 text-sky-500" /></div>
+                  <div className="icon-premium metric-slate rounded-full p-2"><WifiOff className="h-5 w-5" /></div>
                   <div><p className="text-xl font-bold text-foreground">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Offline</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-warning/15 p-2 shadow-[0_0_16px_-4px_hsl(var(--warning)/0.35)]"><Signal className="h-5 w-5 text-warning" /></div>
+                  <div className="icon-premium metric-sky rounded-full p-2"><Signal className="h-5 w-5" /></div>
                   <div><p className="text-xl font-bold text-foreground">{s.instancesConnecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
                 </div>
               </div>
@@ -143,10 +138,10 @@ export default function AdminDashboard() {
                   {s.instancesByProvider.map((p) => (
                     <div key={p.provider} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Server className="h-4 w-4 text-primary" />
+                        <div className="icon-premium metric-cyan p-1.5 rounded-md"><Server className="h-4 w-4" /></div>
                         <span className="text-sm font-medium capitalize">{p.provider}</span>
                       </div>
-                      <Badge variant="secondary">{p.count}</Badge>
+                      <Badge variant="info">{p.count}</Badge>
                     </div>
                   ))}
                 </div>
@@ -158,21 +153,18 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Subscriptions summary */}
       {s && (s.expiredSubscriptions > 0 || s.pendingSubscriptions > 0) && (
         <div className="grid gap-4 md:grid-cols-2">
           {s.pendingSubscriptions > 0 && (
-            <StatCard title="Assinaturas Atrasadas" value={s.pendingSubscriptions} icon={AlertTriangle} subtitle="pagamento pendente" color="text-warning" />
+            <StatCard title="Assinaturas Atrasadas" value={s.pendingSubscriptions} icon={AlertTriangle} subtitle="pagamento pendente" colorClass="metric-amber" />
           )}
           {s.expiredSubscriptions > 0 && (
-            <StatCard title="Assinaturas Canceladas" value={s.expiredSubscriptions} icon={Ban} subtitle="canceladas" color="text-destructive" />
+            <StatCard title="Assinaturas Canceladas" value={s.expiredSubscriptions} icon={Ban} subtitle="canceladas" colorClass="metric-red" />
           )}
         </div>
       )}
 
-      {/* Recent lists */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Recent Companies */}
         <Card>
           <CardHeader><CardTitle className="text-sm">Últimos Clientes</CardTitle></CardHeader>
           <CardContent>
@@ -187,7 +179,7 @@ export default function AdminDashboard() {
                        <p className="text-sm font-medium truncate">{c.name}</p>
                        <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
                      </div>
-                     <Badge variant={c.is_active ? 'default' : 'outline'} className="text-[10px] shrink-0">
+                     <Badge variant={c.is_active ? 'success' : 'outline'} className="text-[10px] shrink-0">
                        {c.is_active ? 'Ativa' : 'Inativa'}
                      </Badge>
                    </div>
@@ -197,7 +189,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Instances */}
         <Card>
           <CardHeader><CardTitle className="text-sm">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
@@ -215,7 +206,7 @@ export default function AdminDashboard() {
                        <p className="text-sm font-medium truncate">{inst.name}</p>
                        <p className="text-xs text-muted-foreground truncate">{inst.company_name} · {inst.provider}</p>
                        {phone ? (
-                         <p className={`text-xs font-medium tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'text-success' : 'text-muted-foreground'}`}>
+                         <p className={`text-xs font-medium tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'text-[#24FF91]' : 'text-muted-foreground'}`}>
                            <Phone className="h-3 w-3" />
                            {phone}
                          </p>
@@ -232,7 +223,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Invoices */}
         <Card>
           <CardHeader><CardTitle className="text-sm">Últimas Faturas</CardTitle></CardHeader>
           <CardContent>

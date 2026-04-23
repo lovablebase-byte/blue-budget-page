@@ -10,10 +10,9 @@ import { Progress } from '@/components/ui/progress';
 import { LimitReachedBanner } from '@/components/PlanEnforcementGuard';
 import {
   Smartphone, AlertTriangle, Plus, ArrowRight,
-  Send, CheckCircle2, Wifi, WifiOff, Ban, Signal,
+  Send, Wifi, WifiOff, Ban, Signal,
   TrendingUp, BarChart3, Shield, Lock, CreditCard,
-  FileText, Globe, ExternalLink,
-  Activity, Clock, RefreshCw, ChevronRight, Loader2,
+  FileText, Activity, Clock, RefreshCw, ChevronRight, Loader2,
 } from 'lucide-react';
 import { PLAN_FEATURES } from '@/lib/plan-features';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -22,23 +21,25 @@ import { ptBR } from 'date-fns/locale';
 
 const REFRESH_INTERVAL = 15000;
 
-/* ── Helpers ── */
-function UsageBar({ label, used, max, icon: Icon }: { label: string; used: number; max: number; icon: any }) {
+function UsageBar({ label, used, max, icon: Icon, colorClass = 'metric-green' }: { label: string; used: number; max: number; icon: any; colorClass?: string }) {
   const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
   const isAtLimit = used >= max && max > 0;
   const isNearLimit = pct >= 80 && !isAtLimit;
+  const semanticColor = isAtLimit ? 'metric-red' : isNearLimit ? 'metric-amber' : colorClass;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="flex items-center gap-1.5 text-muted-foreground">
-          <Icon className={`h-3.5 w-3.5 ${isAtLimit ? 'text-destructive' : isNearLimit ? 'text-warning' : 'text-primary/70'}`} />
+          <span className={`icon-premium ${semanticColor} p-1 rounded-md`}>
+            <Icon className="h-3.5 w-3.5" />
+          </span>
           {label}
         </span>
-        <span className={`font-semibold tabular-nums ${isAtLimit ? 'text-destructive' : isNearLimit ? 'text-warning' : 'text-foreground'}`}>
+        <span className={`font-semibold tabular-nums ${isAtLimit ? 'text-[#FF5A5F]' : isNearLimit ? 'text-[#FFC857]' : 'text-foreground'}`}>
           {used.toLocaleString('pt-BR')}<span className="text-muted-foreground font-normal">/{max.toLocaleString('pt-BR')}</span>
         </span>
       </div>
-      <Progress value={pct} className={`h-1.5 ${isAtLimit ? '[&>div]:bg-destructive' : isNearLimit ? '[&>div]:bg-warning' : '[&>div]:bg-primary'}`} />
+      <Progress value={pct} className={`h-1.5 ${isAtLimit ? '[&>div]:bg-[#FF5A5F]' : isNearLimit ? '[&>div]:bg-[#FFC857]' : '[&>div]:bg-[#24FF91]'}`} />
     </div>
   );
 }
@@ -55,14 +56,14 @@ function SubscriptionBadge({ status }: { status: string }) {
   return <Badge variant={s.variant}>{s.label}</Badge>;
 }
 
-function KpiCard({ label, value, sub, icon: Icon, iconColor = 'text-primary', iconBg = 'bg-primary/10' }: {
-  label: string; value: string | number; sub?: string; icon: any; iconColor?: string; iconBg?: string;
+function KpiCard({ label, value, sub, icon: Icon, colorClass = 'metric-green' }: {
+  label: string; value: string | number; sub?: string; icon: any; colorClass?: string;
 }) {
   return (
     <Card className="relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/70 before:to-transparent before:opacity-90 before:content-['']">
       <CardContent className="p-4 flex items-center gap-3">
-        <div className={`rounded-lg p-2.5 shadow-[0_0_18px_-8px_currentColor] ${iconBg} shrink-0`}>
-          <Icon className={`h-5 w-5 ${iconColor}`} />
+        <div className={`icon-premium ${colorClass} p-2.5 shrink-0`}>
+          <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
           <p className="text-2xl font-bold tabular-nums tracking-tight">{typeof value === 'number' ? value.toLocaleString('pt-BR') : value}</p>
@@ -74,17 +75,13 @@ function KpiCard({ label, value, sub, icon: Icon, iconColor = 'text-primary', ic
   );
 }
 
-
-/* ── Main Component ── */
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const { company, isReadOnly } = useAuth();
-  const { plan, planLoading, allowedProviders, isActive, isSuspended, isTrialing, hasFeature, getLimit } = useCompany();
+  const { plan, planLoading, allowedProviders, isSuspended, hasFeature, getLimit } = useCompany();
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [loading, setLoading] = useState(true);
-
-  // Metrics state
   const [msgMetrics, setMsgMetrics] = useState({ today: 0, week: 0, month: 0, failed: 0 });
   const [instanceStatus, setInstanceStatus] = useState({ online: 0, offline: 0, blocked: 0, connecting: 0, total: 0 });
   const [recentInstances, setRecentInstances] = useState<any[]>([]);
@@ -141,7 +138,6 @@ export default function ClientDashboard() {
     setPendingInvoices(pendingInvRes.count ?? 0);
     setRecentActivity(activityRes.data || []);
 
-    // Hourly chart
     const { data: hourlyEvents } = await supabase
       .from('webhook_events').select('created_at')
       .eq('company_id', company.id).eq('direction', 'outbound').gte('created_at', todayStart);
@@ -149,7 +145,6 @@ export default function ClientDashboard() {
     (hourlyEvents || []).forEach((evt: any) => { hours[new Date(evt.created_at).getHours()].envios++; });
     setHourlyData(hours);
 
-    // Build alerts
     const monthCount = monthRes.count ?? 0;
     const failedCount = failedRes.count ?? 0;
     const newAlerts: typeof alerts = [];
@@ -185,7 +180,6 @@ export default function ClientDashboard() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
-      {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
@@ -202,10 +196,9 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* ── Critical Banners ── */}
       {isSuspended && (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+        <div className="flex items-center gap-3 rounded-lg border border-[rgba(255,90,95,0.35)] bg-[rgba(255,90,95,0.08)] p-4 shadow-[0_0_18px_-10px_rgba(255,90,95,0.45)]">
+          <AlertTriangle className="h-5 w-5 text-[#FF5A5F] shrink-0" />
           <div className="flex-1">
             <p className="font-semibold text-sm">Assinatura suspensa</p>
             <p className="text-xs text-muted-foreground">Sua conta está em modo somente leitura. Regularize para continuar operando.</p>
@@ -216,8 +209,8 @@ export default function ClientDashboard() {
         </div>
       )}
       {isReadOnly && !isSuspended && (
-        <div className="flex items-center gap-3 rounded-lg border border-warning/50 bg-warning/10 p-4">
-          <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
+        <div className="flex items-center gap-3 rounded-lg border border-[rgba(255,200,87,0.35)] bg-[rgba(255,200,87,0.08)] p-4 shadow-[0_0_18px_-10px_rgba(255,200,87,0.45)]">
+          <AlertTriangle className="h-5 w-5 text-[#FFC857] shrink-0" />
           <div className="flex-1">
             <p className="font-semibold text-sm">Conta com pendências</p>
             <p className="text-xs text-muted-foreground">Operação em modo somente leitura até regularização.</p>
@@ -228,7 +221,6 @@ export default function ClientDashboard() {
         </div>
       )}
 
-      {/* ── Alerts ── */}
       {alerts.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2">
           {alerts.map((alert, i) => (
@@ -236,14 +228,14 @@ export default function ClientDashboard() {
               key={i}
               className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50 ${
                 alert.type === 'error'
-                  ? 'border-destructive/30 bg-destructive/5'
-                  : 'border-warning/30 bg-warning/5'
+                  ? 'border-[rgba(255,90,95,0.28)] bg-[rgba(255,90,95,0.06)]'
+                  : 'border-[rgba(255,200,87,0.28)] bg-[rgba(255,200,87,0.06)]'
               }`}
               onClick={() => alert.action && navigate(alert.action)}
             >
               {alert.type === 'error'
-                ? <Ban className="h-4 w-4 text-destructive shrink-0" />
-                : <AlertTriangle className="h-4 w-4 text-warning shrink-0" />}
+                ? <Ban className="h-4 w-4 text-[#FF5A5F] shrink-0" />
+                : <AlertTriangle className="h-4 w-4 text-[#FFC857] shrink-0" />}
               <p className="text-sm font-medium flex-1">{alert.message}</p>
               {alert.action && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
             </div>
@@ -255,28 +247,23 @@ export default function ClientDashboard() {
         <LimitReachedBanner current={instanceStatus.total} max={maxInstances} resourceLabel="instâncias" />
       )}
 
-      {/* ── KPI Row ── */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Instâncias online" value={instanceStatus.online} sub={`de ${instanceStatus.total} total`} icon={Wifi} iconColor="text-primary" iconBg="bg-primary/10" />
-        <KpiCard label="Mensagens hoje" value={msgMetrics.today} icon={Send} iconColor="text-primary" iconBg="bg-primary/10" />
-        <KpiCard label="Mensagens no mês" value={msgMetrics.month} sub={`${deliveryRate}% entregue`} icon={TrendingUp} iconColor="text-accent-foreground" iconBg="bg-accent/10" />
+        <KpiCard label="Instâncias online" value={instanceStatus.online} sub={`de ${instanceStatus.total} total`} icon={Wifi} colorClass="metric-green" />
+        <KpiCard label="Mensagens hoje" value={msgMetrics.today} icon={Send} colorClass="metric-sky" />
+        <KpiCard label="Mensagens no mês" value={msgMetrics.month} sub={`${deliveryRate}% entregue`} icon={TrendingUp} colorClass="metric-emerald" />
         <KpiCard
           label={pendingInvoices > 0 ? 'Faturas pendentes' : 'Financeiro em dia'}
           value={pendingInvoices > 0 ? pendingInvoices : '✓'}
           icon={CreditCard}
-          iconColor={pendingInvoices > 0 ? 'text-destructive' : 'text-success'}
-          iconBg={pendingInvoices > 0 ? 'bg-destructive/10' : 'bg-success/10'}
+          colorClass={pendingInvoices > 0 ? 'metric-orange' : 'metric-emerald'}
         />
       </div>
 
-
-      {/* ── Main Grid: Plan + Usage + Instance Status ── */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Plan Summary */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" /> Plano atual
+              <span className="icon-premium metric-purple p-1.5 rounded-md"><Shield className="h-4 w-4" /></span> Plano atual
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -334,24 +321,23 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
-        {/* Usage / Limits */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-accent-foreground" /> Consumo
+              <span className="icon-premium metric-gold p-1.5 rounded-md"><BarChart3 className="h-4 w-4" /></span> Consumo
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {plan ? (
               <>
-                <UsageBar label="Instâncias" used={instanceStatus.total} max={plan.limits.max_instances} icon={Smartphone} />
-                <UsageBar label="Msgs/dia" used={msgMetrics.today} max={plan.limits.max_messages_day} icon={Send} />
-                <UsageBar label="Msgs/mês" used={msgMetrics.month} max={plan.limits.max_messages_month} icon={TrendingUp} />
+                <UsageBar label="Instâncias" used={instanceStatus.total} max={plan.limits.max_instances} icon={Smartphone} colorClass="metric-cyan" />
+                <UsageBar label="Msgs/dia" used={msgMetrics.today} max={plan.limits.max_messages_day} icon={Send} colorClass="metric-sky" />
+                <UsageBar label="Msgs/mês" used={msgMetrics.month} max={plan.limits.max_messages_month} icon={TrendingUp} colorClass="metric-emerald" />
                 <div className="pt-2 border-t">
                   <p className="text-xs text-muted-foreground mb-2">Providers permitidos</p>
                   <div className="flex gap-1.5">
                     {allowedProviders.map(p => (
-                      <Badge key={p} variant="secondary" className="text-xs capitalize">{p}</Badge>
+                      <Badge key={p} variant="info" className="text-xs capitalize">{p}</Badge>
                     ))}
                     {allowedProviders.length === 0 && <span className="text-xs text-muted-foreground">Nenhum configurado</span>}
                   </div>
@@ -363,26 +349,25 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
-        {/* Instance Fleet Status */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" /> Status das instâncias
+              <span className="icon-premium metric-mint p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Status das instâncias
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {instanceStatus.total > 0 ? (
               <>
                 {[
-                  { label: 'Online', value: instanceStatus.online, icon: Wifi, color: 'text-primary', bg: 'bg-primary/10' },
-                  { label: 'Offline', value: instanceStatus.offline, icon: WifiOff, color: 'text-sky-500', bg: 'bg-sky-500/10' },
-                  { label: 'Bloqueadas', value: instanceStatus.blocked, icon: Ban, color: 'text-destructive', bg: 'bg-destructive/10' },
-                  { label: 'Conectando', value: instanceStatus.connecting, icon: Signal, color: 'text-warning', bg: 'bg-warning/10' },
+                  { label: 'Online', value: instanceStatus.online, icon: Wifi, colorClass: 'metric-green' },
+                  { label: 'Offline', value: instanceStatus.offline, icon: WifiOff, colorClass: 'metric-slate' },
+                  { label: 'Bloqueadas', value: instanceStatus.blocked, icon: Ban, colorClass: 'metric-red' },
+                  { label: 'Conectando', value: instanceStatus.connecting, icon: Signal, colorClass: 'metric-sky' },
                 ].filter(s => s.value > 0).map(s => (
                   <div key={s.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-full p-1.5 shadow-[0_0_16px_-8px_currentColor] ${s.bg}`}>
-                        <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
+                      <div className={`icon-premium ${s.colorClass} rounded-full p-1.5`}>
+                        <s.icon className="h-3.5 w-3.5" />
                       </div>
                       <span className="text-sm">{s.label}</span>
                     </div>
@@ -410,7 +395,6 @@ export default function ClientDashboard() {
         </Card>
       </div>
 
-      {/* ── Chart: Hourly sends ── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Envios por hora — Hoje</CardTitle>
@@ -422,19 +406,17 @@ export default function ClientDashboard() {
               <XAxis dataKey="hour" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
               <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
               <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, color: 'hsl(var(--foreground))', fontSize: 12 }} />
-              <Bar dataKey="envios" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="envios" fill="#38BDF8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* ── Bottom Grid: Recent Instances + Invoices + Activity ── */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Recent Instances */}
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Smartphone className="h-4 w-4 text-primary" /> Instâncias
+              <span className="icon-premium metric-cyan p-1.5 rounded-md"><Smartphone className="h-4 w-4" /></span> Instâncias
             </CardTitle>
             <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/instances')}>
               Ver todas <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
@@ -464,12 +446,12 @@ export default function ClientDashboard() {
                   >
                     <div className="flex items-start gap-2 min-w-0 flex-1">
                       {isOnline
-                        ? <Wifi className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                        : <WifiOff className="h-3.5 w-3.5 text-sky-500 shrink-0 mt-0.5" />}
+                        ? <span className="icon-premium metric-green p-1 rounded-full shrink-0 mt-0.5"><Wifi className="h-3.5 w-3.5" /></span>
+                        : <span className="icon-premium metric-slate p-1 rounded-full shrink-0 mt-0.5"><WifiOff className="h-3.5 w-3.5" /></span>}
                       <div className="min-w-0 flex-1">
                         <p className="font-medium truncate">{inst.name}</p>
                         {phone ? (
-                          <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'text-success' : 'text-muted-foreground'}`}>
+                          <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'text-[#24FF91]' : 'text-muted-foreground'}`}>
                             {phone}
                           </p>
                         ) : (
@@ -477,7 +459,7 @@ export default function ClientDashboard() {
                         )}
                       </div>
                     </div>
-                    <Badge variant={isOnline ? 'default' : 'secondary'} className="text-[10px] capitalize shrink-0">
+                    <Badge variant={isOnline ? 'success' : 'outline'} className="text-[10px] capitalize shrink-0">
                       {inst.status}
                     </Badge>
                   </div>
@@ -490,12 +472,11 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Invoices */}
         {hasFeature('invoices_enabled') && (
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4 text-warning" /> Últimas faturas
+                <span className="icon-premium metric-orange p-1.5 rounded-md"><FileText className="h-4 w-4" /></span> Últimas faturas
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/subscription')}>
                 Ver todas <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
@@ -528,11 +509,10 @@ export default function ClientDashboard() {
           </Card>
         )}
 
-        {/* Recent Activity */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-accent-foreground" /> Atividade recente
+              <span className="icon-premium metric-gold p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Atividade recente
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -541,8 +521,8 @@ export default function ClientDashboard() {
                 {recentActivity.slice(0, 6).map((evt: any) => (
                   <div key={evt.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                        evt.status === 'failed' ? 'bg-destructive shadow-[0_0_8px_0_hsl(var(--destructive)/0.55)]' : 'bg-primary shadow-[0_0_8px_0_hsl(var(--primary)/0.55)]'
+                      <div className={`status-dot h-1.5 w-1.5 rounded-full shrink-0 ${
+                        evt.status === 'failed' ? 'bg-[#FF5A5F]' : 'bg-[#38BDF8]'
                       }`} />
                       <span className="truncate text-muted-foreground">{evt.event_type}</span>
                     </div>
