@@ -29,14 +29,14 @@ function UsageBar({ label, used, max, icon: Icon, colorClass = 'metric-green' }:
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className={`flex items-center gap-1.5 ${semanticColor} opacity-80`}>
+        <span className="flex items-center gap-1.5 text-muted-foreground opacity-80">
           <span className={`icon-premium ${semanticColor} p-1 rounded-md`}>
             <Icon className="h-3.5 w-3.5" />
           </span>
           {label}
         </span>
         <span className={`font-semibold tabular-nums ${isAtLimit ? 'text-[#FF5A5F]' : isNearLimit ? 'text-[#FFC857]' : 'text-foreground'}`}>
-          {used.toLocaleString('pt-BR')}<span className={`${semanticColor} opacity-50 font-normal`}>/{max.toLocaleString('pt-BR')}</span>
+          {used.toLocaleString('pt-BR')}<span className="text-muted-foreground opacity-50 font-normal">/{max.toLocaleString('pt-BR')}</span>
         </span>
       </div>
       <Progress value={pct} className={`h-1.5 ${isAtLimit ? '[&>div]:bg-[#FF5A5F]' : isNearLimit ? '[&>div]:bg-[#FFC857]' : '[&>div]:bg-[#24FF91]'}`} />
@@ -262,7 +262,7 @@ export default function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 metric-purple filter drop-shadow-[0_0_8px_rgba(168,85,247,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
               <span className="icon-premium metric-purple p-1.5 rounded-md"><Shield className="h-4 w-4" /></span> Plano atual
             </CardTitle>
           </CardHeader>
@@ -323,7 +323,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_rgba(255,214,0,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
               <span className="icon-premium metric-gold p-1.5 rounded-md"><BarChart3 className="h-4 w-4" /></span> Consumo
             </CardTitle>
           </CardHeader>

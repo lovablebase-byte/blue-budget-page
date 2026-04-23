@@ -105,7 +105,7 @@ export default function AdminReports() {
                 <c.icon className={`h-5 w-5 filter drop-shadow-[0_0_3px_var(--icon-shadow)]`} />
               </div>
               <p className={`text-3xl font-black tracking-tighter ${c.color} filter drop-shadow-[0_0_10px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_15px_var(--icon-shadow)]`}>{c.value}</p>
-              <p className={`text-[10px] font-black uppercase tracking-[0.15em] ${c.color} filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{c.label}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-90 transition-all duration-300">{c.label}</p>
             </CardContent>
           </Card>
         ))}
@@ -119,7 +119,7 @@ export default function AdminReports() {
                 <c.icon className={`h-5 w-5 filter drop-shadow-[0_0_3px_var(--icon-shadow)]`} />
               </div>
               <p className={`text-3xl font-black tracking-tighter ${c.color} filter drop-shadow-[0_0_10px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_15px_var(--icon-shadow)]`}>{c.value}</p>
-              <p className={`text-[10px] font-black uppercase tracking-[0.15em] ${c.color} filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{c.label}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-90 transition-all duration-300">{c.label}</p>
             </CardContent>
           </Card>
         ))}
