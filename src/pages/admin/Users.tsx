@@ -30,7 +30,7 @@ export default function AdminUsers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('*, profiles:profiles!inner(full_name, user_id), companies(name)')
+        .select('*, profiles:profiles!inner(full_name, user_id)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
@@ -82,11 +82,6 @@ export default function AdminUsers() {
     {
       key: 'profiles', label: 'Nome',
       render: (row) => <span className="font-medium text-foreground">{(row.profiles as any)?.full_name || '—'}</span>,
-      sortable: true,
-    },
-    {
-      key: 'companies', label: 'Cliente',
-      render: (row) => <span className="text-muted-foreground">{(row.companies as any)?.name || '—'}</span>,
       sortable: true,
     },
     {
@@ -212,10 +207,6 @@ export default function AdminUsers() {
                 <Badge variant="outline" className="bg-primary/10 border-primary/30 text-primary">{ROLE_LABELS[detailUser.role] || detailUser.role}</Badge>
               </div>
               <Separator className="bg-border/30" />
-              <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
-                <span className="text-muted-foreground">Cliente</span>
-                <span className="text-foreground">{(detailUser.companies as any)?.name || '—'}</span>
-              </div>
               <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Criado em</span>
                 <span className="text-foreground">{new Date(detailUser.created_at).toLocaleDateString('pt-BR')}</span>

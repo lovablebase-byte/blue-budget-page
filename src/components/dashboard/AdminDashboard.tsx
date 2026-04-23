@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Building2, Users, Smartphone, Wifi, WifiOff, Signal,
+  Users, Smartphone, Wifi, WifiOff, Signal,
   CreditCard, AlertTriangle, Ban, DollarSign, FileText,
   Server, Info, Phone,
 } from 'lucide-react';
@@ -71,7 +71,7 @@ function SectionSkeleton() {
 }
 
 export default function AdminDashboard() {
-  const { stats, recentCompanies, recentInstances, recentInvoices, alerts } = useAdminDashboard();
+  const { stats, recentInstances, recentInvoices, alerts } = useAdminDashboard();
   const s = stats.data;
   const isLoading = stats.isLoading;
 
@@ -106,8 +106,7 @@ export default function AdminDashboard() {
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
       ) : s ? (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          <StatCard title="Clientes" value={s.companies} icon={Building2} subtitle="registrados" colorClass="metric-blue" />
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           <StatCard title="Usuários" value={s.users} icon={Users} subtitle="no sistema" colorClass="metric-green" />
           <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" colorClass="metric-cyan" />
           <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" colorClass="metric-purple" />
@@ -187,34 +186,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
-          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-blue filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Últimos Clientes</CardTitle></CardHeader>
-          <CardContent>
-            {recentCompanies.isLoading ? <SectionSkeleton /> :
-             (recentCompanies.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhum cliente</p>
-             ) : (
-               <div className="space-y-3">
-                 {recentCompanies.data!.map((c) => {
-                   const statusColor = c.is_active ? 'metric-green' : 'metric-red';
-                   return (
-                   <div key={c.id} className="flex items-center justify-between group">
-                     <div className="min-w-0">
-                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{c.name}</p>
-                        <p className="text-[10px] text-muted-foreground opacity-50 uppercase tracking-widest font-black">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
-                     </div>
-                     <Badge className={`${statusColor} bg-transparent border-[var(--icon-border)] text-[9px] font-black tracking-wider filter drop-shadow-[0_0_6px_var(--icon-shadow)]`}>
-                       {c.is_active ? 'ATIVA' : 'INATIVA'}
-                     </Badge>
-                   </div>
-                   );
-                 })}
-               </div>
-             )}
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-6 md:grid-cols-2">
         <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
           <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
@@ -231,7 +203,7 @@ export default function AdminDashboard() {
                    <div key={inst.id} className="flex items-center justify-between gap-2 group">
                      <div className="min-w-0">
                         <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inst.name}</p>
-                        <p className="text-[10px] text-muted-foreground opacity-50 truncate uppercase tracking-widest font-black">{inst.company_name} · {inst.provider}</p>
+                        <p className="text-[10px] text-muted-foreground opacity-50 truncate uppercase tracking-widest font-black">{inst.provider}</p>
                        {phone ? (
                          <p className={`text-[11px] font-black tabular-nums flex items-center gap-1 mt-0.5 ${statusColor} filter drop-shadow-[0_0_5px_var(--icon-shadow)]`}>
                            <Phone className="h-3 w-3" />
@@ -263,7 +235,7 @@ export default function AdminDashboard() {
                    return (
                    <div key={inv.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
-                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inv.company_name}</p>
+                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>Fatura #{inv.id.slice(0, 8)}</p>
                         <p className="text-[10px] text-muted-foreground opacity-50 uppercase tracking-widest font-black">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
                      </div>
                      <div className="flex items-center gap-2 shrink-0">

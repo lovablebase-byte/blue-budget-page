@@ -74,11 +74,31 @@ serve(async (req) => {
     const { data: modules } = await supabase.from("modules").select("id, name");
     const moduleMap = new Map((modules || []).map((m: any) => [m.name, m.id]));
 
-    // 4. Seed users (only admin and user roles)
-    const users = [
-      { email: "admin@admin.com", password: "123456", fullName: "Admin Demo", role: "admin", companyId, perms: ADMIN_DEFAULT_PERMISSIONS },
-      { email: "usuario@usuario.com", password: "123456", fullName: "Operador Demo", role: "user", companyId, perms: OPERATOR_DEFAULT_PERMISSIONS },
-    ];
+    // 4. Seed users — accept optional payload from request body to create a single user
+    let users: any[] = [];
+    try {
+      const body = req.headers.get('content-type')?.includes('application/json')
+        ? await req.json().catch(() => ({}))
+        : {};
+      if (body && body.email) {
+        users = [{
+          email: body.email,
+          password: body.password || '123456',
+          fullName: body.full_name || body.email,
+          role: body.role === 'admin' ? 'admin' : 'user',
+          companyId,
+          perms: body.role === 'admin' ? ADMIN_DEFAULT_PERMISSIONS : OPERATOR_DEFAULT_PERMISSIONS,
+        }];
+      }
+    } catch {}
+
+    if (users.length === 0) {
+      // Default seed: create demo admin and operator
+      users = [
+        { email: "admin@admin.com", password: "123456", fullName: "Admin Demo", role: "admin", companyId, perms: ADMIN_DEFAULT_PERMISSIONS },
+        { email: "usuario@usuario.com", password: "123456", fullName: "Operador Demo", role: "user", companyId, perms: OPERATOR_DEFAULT_PERMISSIONS },
+      ];
+    }
 
     for (const u of users) {
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
