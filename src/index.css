@@ -204,11 +204,11 @@
   }
 
   .metric-blue {
-    --icon-color: #4DA3FF;
-    --icon-bg: rgba(77, 163, 255, 0.16);
-    --icon-border: rgba(77, 163, 255, 0.28);
-    --icon-shadow: rgba(77, 163, 255, 0.45);
-    color: #4DA3FF;
+    --icon-color: #00D2FF;
+    --icon-bg: rgba(0, 210, 255, 0.16);
+    --icon-border: rgba(0, 210, 255, 0.28);
+    --icon-shadow: rgba(0, 210, 255, 0.45);
+    color: #00D2FF;
   }
 
   .metric-green {
@@ -220,43 +220,67 @@
   }
 
   .metric-cyan {
-    --icon-color: #2EF2FF;
-    --icon-bg: rgba(46, 242, 255, 0.16);
-    --icon-border: rgba(46, 242, 255, 0.28);
-    --icon-shadow: rgba(46, 242, 255, 0.45);
-    color: #2EF2FF;
+    --icon-color: #00F5FF;
+    --icon-bg: rgba(0, 245, 255, 0.16);
+    --icon-border: rgba(0, 245, 255, 0.28);
+    --icon-shadow: rgba(0, 245, 255, 0.45);
+    color: #00F5FF;
   }
 
   .metric-purple {
-    --icon-color: #A855F7;
-    --icon-bg: rgba(168, 85, 247, 0.16);
-    --icon-border: rgba(168, 85, 247, 0.28);
-    --icon-shadow: rgba(168, 85, 247, 0.42);
-    color: #A855F7;
+    --icon-color: #BF7AFF;
+    --icon-bg: rgba(191, 122, 255, 0.16);
+    --icon-border: rgba(191, 122, 255, 0.28);
+    --icon-shadow: rgba(191, 122, 255, 0.45);
+    color: #BF7AFF;
   }
 
   .metric-orange {
     --icon-color: #FF9F43;
     --icon-bg: rgba(255, 159, 67, 0.16);
     --icon-border: rgba(255, 159, 67, 0.28);
-    --icon-shadow: rgba(255, 159, 67, 0.42);
+    --icon-shadow: rgba(255, 159, 67, 0.45);
     color: #FF9F43;
   }
 
   .metric-emerald {
-    --icon-color: #00E676;
-    --icon-bg: rgba(0, 230, 118, 0.16);
-    --icon-border: rgba(0, 230, 118, 0.28);
-    --icon-shadow: rgba(0, 230, 118, 0.42);
-    color: #00E676;
+    --icon-color: #00FF88;
+    --icon-bg: rgba(0, 255, 136, 0.16);
+    --icon-border: rgba(0, 255, 136, 0.28);
+    --icon-shadow: rgba(0, 255, 136, 0.45);
+    color: #00FF88;
   }
 
   .metric-pink {
-    --icon-color: #FF4D9D;
-    --icon-bg: rgba(255, 77, 157, 0.16);
-    --icon-border: rgba(255, 77, 157, 0.28);
-    --icon-shadow: rgba(255, 77, 157, 0.42);
-    color: #FF4D9D;
+    --icon-color: #FF2D92;
+    --icon-bg: rgba(255, 45, 146, 0.16);
+    --icon-border: rgba(255, 45, 146, 0.28);
+    --icon-shadow: rgba(255, 45, 146, 0.45);
+    color: #FF2D92;
+  }
+
+  .metric-yellow {
+    --icon-color: #FFD600;
+    --icon-bg: rgba(255, 214, 0, 0.16);
+    --icon-border: rgba(255, 214, 0, 0.28);
+    --icon-shadow: rgba(255, 214, 0, 0.45);
+    color: #FFD600;
+  }
+
+  .metric-turquoise {
+    --icon-color: #00F5D4;
+    --icon-bg: rgba(0, 245, 212, 0.16);
+    --icon-border: rgba(0, 245, 212, 0.28);
+    --icon-shadow: rgba(0, 245, 212, 0.45);
+    color: #00F5D4;
+  }
+
+  .metric-red {
+    --icon-color: #FF4D4D;
+    --icon-bg: rgba(255, 77, 77, 0.16);
+    --icon-border: rgba(255, 77, 77, 0.28);
+    --icon-shadow: rgba(255, 77, 77, 0.45);
+    color: #FF4D4D;
   }
 
   .metric-violet {
@@ -268,51 +292,43 @@
   }
 
   .metric-sky {
-    --icon-color: #38BDF8;
-    --icon-bg: rgba(56, 189, 248, 0.16);
-    --icon-border: rgba(56, 189, 248, 0.28);
-    --icon-shadow: rgba(56, 189, 248, 0.42);
-    color: #38BDF8;
+    --icon-color: #00B4FF;
+    --icon-bg: rgba(0, 180, 255, 0.16);
+    --icon-border: rgba(0, 180, 255, 0.28);
+    --icon-shadow: rgba(0, 180, 255, 0.42);
+    color: #00B4FF;
   }
 
   .metric-magenta {
-    --icon-color: #EC4899;
-    --icon-bg: rgba(236, 72, 153, 0.16);
-    --icon-border: rgba(236, 72, 153, 0.28);
-    --icon-shadow: rgba(236, 72, 153, 0.42);
-    color: #EC4899;
+    --icon-color: #FF00FF;
+    --icon-bg: rgba(255, 0, 255, 0.16);
+    --icon-border: rgba(255, 0, 255, 0.28);
+    --icon-shadow: rgba(255, 0, 255, 0.45);
+    color: #FF00FF;
   }
 
   .metric-gold {
-    --icon-color: #FFD93D;
-    --icon-bg: rgba(255, 217, 61, 0.16);
-    --icon-border: rgba(255, 217, 61, 0.28);
-    --icon-shadow: rgba(255, 217, 61, 0.42);
-    color: #FFD93D;
+    --icon-color: #FFD700;
+    --icon-bg: rgba(255, 215, 0, 0.16);
+    --icon-border: rgba(255, 215, 0, 0.28);
+    --icon-shadow: rgba(255, 215, 0, 0.45);
+    color: #FFD700;
   }
 
   .metric-slate {
-    --icon-color: #94A3B8;
-    --icon-bg: rgba(148, 163, 184, 0.16);
-    --icon-border: rgba(148, 163, 184, 0.28);
-    --icon-shadow: rgba(148, 163, 184, 0.34);
-    color: #94A3B8;
-  }
-
-  .metric-mint {
-    --icon-color: #2AF598;
-    --icon-bg: rgba(42, 245, 152, 0.16);
-    --icon-border: rgba(42, 245, 152, 0.28);
-    --icon-shadow: rgba(42, 245, 152, 0.42);
-    color: #2AF598;
+    --icon-color: #CBD5E1;
+    --icon-bg: rgba(203, 213, 225, 0.16);
+    --icon-border: rgba(203, 213, 225, 0.28);
+    --icon-shadow: rgba(203, 213, 225, 0.34);
+    color: #CBD5E1;
   }
 
   .metric-amber {
-    --icon-color: #FFC857;
-    --icon-bg: rgba(255, 200, 87, 0.16);
-    --icon-border: rgba(255, 200, 87, 0.28);
-    --icon-shadow: rgba(255, 200, 87, 0.42);
-    color: #FFC857;
+    --icon-color: #FFB300;
+    --icon-bg: rgba(255, 179, 0, 0.16);
+    --icon-border: rgba(255, 179, 0, 0.28);
+    --icon-shadow: rgba(255, 179, 0, 0.42);
+    color: #FFB300;
   }
 
   .metric-red {
