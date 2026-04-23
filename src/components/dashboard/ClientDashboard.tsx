@@ -449,7 +449,7 @@ export default function ClientDashboard() {
                         ? <span className="icon-premium metric-green p-1 rounded-full shrink-0 mt-0.5"><Wifi className="h-3.5 w-3.5" /></span>
                         : <span className="icon-premium metric-slate p-1 rounded-full shrink-0 mt-0.5"><WifiOff className="h-3.5 w-3.5" /></span>}
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{inst.name}</p>
+                        <p className={`font-semibold truncate ${isOnline ? 'metric-green' : 'metric-slate opacity-80'}`}>{inst.name}</p>
                         {phone ? (
                           <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'metric-green' : 'metric-slate opacity-60'}`}>
                             {phone}
@@ -488,7 +488,7 @@ export default function ClientDashboard() {
                   {recentInvoices.map((inv: any) => (
                     <div key={inv.id} className="flex items-center justify-between text-sm py-1.5 border-b last:border-0">
                       <div>
-                        <p className="font-medium tabular-nums">{formatCents(inv.amount_cents)}</p>
+                        <p className={`font-bold tabular-nums ${inv.status === 'paid' ? 'metric-green' : inv.status === 'pending' ? 'metric-yellow' : 'metric-red'}`}>{formatCents(inv.amount_cents)}</p>
                         <p className="text-[10px] metric-orange opacity-60 font-medium">
                           Venc. {format(new Date(inv.due_date), 'dd/MM/yyyy')}
                         </p>
