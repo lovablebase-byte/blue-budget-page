@@ -67,7 +67,7 @@ function KpiCard({ label, value, sub, icon: Icon, colorClass = 'metric-green' }:
         </div>
         <div className="min-w-0">
           <p className={`text-2xl font-bold tabular-nums tracking-tight ${colorClass}`}>{typeof value === 'number' ? value.toLocaleString('pt-BR') : value}</p>
-          <p className="text-xs text-muted-foreground truncate">{label}</p>
+          <p className={`text-xs font-semibold uppercase tracking-wider ${colorClass}`}>{label}</p>
           {sub && <p className="text-[10px] text-muted-foreground/70">{sub}</p>}
         </div>
       </CardContent>
