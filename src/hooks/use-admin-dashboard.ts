@@ -111,14 +111,8 @@ export function useAdminDashboard() {
 
   const recentCompanies = useQuery({
     queryKey: ['admin-dashboard-recent-companies'],
-    queryFn: async (): Promise<RecentCompany[]> => {
-      const { data } = await supabase
-        .from('companies')
-        .select('id, name, slug, is_active, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      return (data || []) as RecentCompany[];
-    },
+    enabled: false,
+    queryFn: async (): Promise<RecentCompany[]> => [],
   });
 
   const recentInstances = useQuery({
