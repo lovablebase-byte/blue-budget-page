@@ -375,7 +375,7 @@ export default function ClientDashboard() {
                   </div>
                 ))}
                 <div className="pt-2 border-t text-center">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs metric-mint opacity-70 font-medium">
                     {instanceStatus.online}/{instanceStatus.total} instâncias operando
                   </span>
                 </div>
@@ -451,7 +451,7 @@ export default function ClientDashboard() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium truncate">{inst.name}</p>
                         {phone ? (
-                          <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'text-[#24FF91]' : 'text-muted-foreground'}`}>
+                          <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'metric-green' : 'metric-slate opacity-60'}`}>
                             {phone}
                           </p>
                         ) : (
@@ -489,7 +489,7 @@ export default function ClientDashboard() {
                     <div key={inv.id} className="flex items-center justify-between text-sm py-1.5 border-b last:border-0">
                       <div>
                         <p className="font-medium tabular-nums">{formatCents(inv.amount_cents)}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-[10px] metric-orange opacity-60 font-medium">
                           Venc. {format(new Date(inv.due_date), 'dd/MM/yyyy')}
                         </p>
                       </div>
@@ -524,9 +524,9 @@ export default function ClientDashboard() {
                       <div className={`status-dot h-1.5 w-1.5 rounded-full shrink-0 ${
                         evt.status === 'failed' ? 'bg-[#FF5A5F]' : 'bg-[#38BDF8]'
                       }`} />
-                      <span className="truncate text-muted-foreground">{evt.event_type}</span>
+                      <span className="truncate metric-gold opacity-70 font-medium">{evt.event_type}</span>
                     </div>
-                    <span className="text-muted-foreground/70 shrink-0 ml-2">
+                    <span className="metric-gold opacity-50 shrink-0 ml-2 text-[10px] font-medium">
                       {formatDistanceToNow(new Date(evt.created_at), { addSuffix: true, locale: ptBR })}
                     </span>
                   </div>
