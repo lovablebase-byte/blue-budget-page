@@ -281,10 +281,12 @@ export default function Subscription() {
                       { label: 'Teste', value: usage.teste || 0, icon: TestTube, color: 'metric-purple' },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
-                        <item.icon className={`h-4 w-4 shrink-0 ${item.color}`} />
+                        <div className={`icon-premium ${item.color} p-1 rounded-md`}>
+                          <item.icon className="h-3.5 w-3.5 shrink-0" />
+                        </div>
                         <div>
-                          <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                          <p className={`text-sm font-semibold ${item.color}`}>{item.value.toLocaleString('pt-BR')}</p>
+                          <p className={`text-[10px] font-semibold uppercase tracking-wider ${item.color}`}>{item.label}</p>
+                          <p className={`text-sm font-bold tabular-nums ${item.color}`}>{item.value.toLocaleString('pt-BR')}</p>
                         </div>
                       </div>
                     ))}
@@ -585,10 +587,12 @@ export default function Subscription() {
                             .filter(([k]) => k.startsWith('provider_'))
                             .map(([k, v]) => (
                               <div key={k} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
-                                <Shield className="h-4 w-4 text-muted-foreground" />
+                                <div className={`icon-premium ${k.includes('evolution') ? 'metric-pink' : 'metric-blue'} p-1 rounded-md`}>
+                                  <Shield className="h-3.5 w-3.5 shrink-0" />
+                                </div>
                                 <div>
-                                  <p className="text-[11px] text-muted-foreground capitalize">{k.replace('provider_', '')}</p>
-                                  <p className="text-sm font-semibold">{v}</p>
+                                  <p className={`text-[10px] font-semibold uppercase tracking-wider ${k.includes('evolution') ? 'metric-pink' : 'metric-blue'} capitalize`}>{k.replace('provider_', '').replace('_', ' ')}</p>
+                                  <p className={`text-sm font-bold tabular-nums ${k.includes('evolution') ? 'metric-pink' : 'metric-blue'}`}>{v}</p>
                                 </div>
                               </div>
                             ))}

@@ -22,7 +22,7 @@ export function InstanceStatsCards({
       <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-muted-foreground">Total</span>
+            <span className="text-xs font-semibold uppercase tracking-wider metric-cyan">Total</span>
             <div className="icon-premium metric-cyan rounded-md p-1.5">
               <Smartphone className="h-3.5 w-3.5" />
             </div>
@@ -39,7 +39,7 @@ export function InstanceStatsCards({
       <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-muted-foreground">Online</span>
+            <span className="text-xs font-semibold uppercase tracking-wider metric-green">Online</span>
             <div className="icon-premium metric-green rounded-md p-1.5">
               <Wifi className="h-3.5 w-3.5" />
             </div>
@@ -51,7 +51,7 @@ export function InstanceStatsCards({
       <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-muted-foreground">Desconectado</span>
+            <span className="text-xs font-semibold uppercase tracking-wider metric-red">Desconectado</span>
             <div className="icon-premium metric-red rounded-md p-1.5">
               <WifiOff className="h-3.5 w-3.5" />
             </div>
@@ -63,19 +63,19 @@ export function InstanceStatsCards({
       <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-muted-foreground">Conectando</span>
-            <div className="icon-premium metric-amber rounded-md p-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider metric-yellow">Conectando</span>
+            <div className="icon-premium metric-yellow rounded-md p-1.5">
               <Signal className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight metric-amber">{connecting}</div>
+          <div className="text-2xl font-bold tracking-tight metric-yellow">{connecting}</div>
         </CardContent>
       </Card>
 
       <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-muted-foreground">Limite do plano</span>
+            <span className="text-xs font-semibold uppercase tracking-wider metric-amber">Limite do plano</span>
             <div className="icon-premium metric-amber rounded-md p-1.5">
               <Shield className="h-3.5 w-3.5" />
             </div>
@@ -85,7 +85,7 @@ export function InstanceStatsCards({
               <div className="text-2xl font-bold tracking-tight metric-amber">
                 {available} <span className="text-xs font-normal text-muted-foreground">disponíveis</span>
               </div>
-              <Progress value={usagePercent} className="h-1.5 mt-2 [&>div]:bg-[#FFC857]" />
+              <Progress value={usagePercent} className="h-1.5 mt-2 [&>div]:bg-[#FFB300]" />
               <p className="text-[10px] text-muted-foreground mt-1">
                 {total}/{planMax} utilizadas
               </p>

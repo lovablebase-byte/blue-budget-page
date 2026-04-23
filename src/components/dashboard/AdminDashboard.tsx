@@ -27,13 +27,13 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
   return (
     <Card className="group overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent before:opacity-80 before:content-['']">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className={`text-xs font-semibold uppercase tracking-wider ${colorClass}`}>{title}</CardTitle>
         <div className={`icon-premium ${colorClass} p-2`}>
           <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold tracking-tight ${colorClass}`}>{value}</div>
+        <div className={`text-2xl font-bold tracking-tight ${colorClass} drop-shadow-[0_0_8px_rgba(var(--icon-shadow),0.2)]`}>{value}</div>
         {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </CardContent>
     </Card>
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
-            <CardHeader><CardTitle className="text-sm">Status das Instâncias</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Status das Instâncias</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
@@ -123,15 +123,15 @@ export default function AdminDashboard() {
                   <div><p className="text-xl font-bold metric-red">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Desconectado</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="icon-premium metric-amber rounded-full p-2"><Signal className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold metric-amber">{s.instancesConnecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
+                  <div className="icon-premium metric-yellow rounded-full p-2"><Signal className="h-5 w-5" /></div>
+                  <div><p className="text-xl font-bold metric-yellow">{s.instancesConnecting}</p><p className="text-xs font-medium metric-yellow">Conectando</p></div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-sm">Instâncias por Provider</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Instâncias por Provider</CardTitle></CardHeader>
             <CardContent>
               {s.instancesByProvider.length > 0 ? (
                 <div className="space-y-3">

@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/hooks/use-toast';
 import {
   Plug, Save, TestTube, Loader2, CheckCircle2, XCircle, Clock, Eye, EyeOff, Copy,
-  AlertTriangle, RefreshCw, Shield,
+  AlertTriangle, RefreshCw, Shield, Activity,
 } from 'lucide-react';
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -271,21 +271,30 @@ export default function AdminGateways() {
       {/* Observability mini-cards (PDF seção 10 — Observabilidade) */}
       <div className="grid grid-cols-3 gap-4">
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold metric-purple">{eventStats.total}</p>
-            <p className="text-xs text-muted-foreground">Eventos recentes</p>
+          <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+            <div className="icon-premium metric-purple p-2 rounded-md"><Activity className="h-5 w-5" /></div>
+            <div className="text-center">
+              <p className="text-2xl font-bold metric-purple">{eventStats.total}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider metric-purple">Eventos recentes</p>
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold metric-green">{eventStats.success}</p>
-            <p className="text-xs text-muted-foreground">Sucesso</p>
+          <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+            <div className="icon-premium metric-green p-2 rounded-md"><CheckCircle2 className="h-5 w-5" /></div>
+            <div className="text-center">
+              <p className="text-2xl font-bold metric-green">{eventStats.success}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider metric-green">Sucesso</p>
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold metric-red">{eventStats.errors}</p>
-            <p className="text-xs text-muted-foreground">Falhas</p>
+          <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+            <div className="icon-premium metric-red p-2 rounded-md"><XCircle className="h-5 w-5" /></div>
+            <div className="text-center">
+              <p className="text-2xl font-bold metric-red">{eventStats.errors}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider metric-red">Falhas</p>
+            </div>
           </CardContent>
         </Card>
       </div>
