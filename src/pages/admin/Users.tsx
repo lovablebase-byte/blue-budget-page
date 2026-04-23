@@ -85,10 +85,6 @@ export default function AdminUsers() {
       sortable: true,
     },
     {
-      key: 'created_at_label', label: 'Email',
-      render: (row) => <span className="text-muted-foreground text-sm">{(row.profiles as any)?.user_id ? '—' : '—'}</span>,
-    },
-    {
       key: 'role', label: 'Papel',
       render: (row) => (
         <Select value={row.role} onValueChange={(v) => updateRole.mutate({ id: row.id, role: v })}>
