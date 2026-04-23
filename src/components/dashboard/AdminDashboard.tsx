@@ -235,7 +235,7 @@ export default function AdminDashboard() {
                    return (
                    <div key={inv.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
-                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inv.company_name}</p>
+                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>Fatura #{inv.id.slice(0, 8)}</p>
                         <p className="text-[10px] text-muted-foreground opacity-50 uppercase tracking-widest font-black">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
                      </div>
                      <div className="flex items-center gap-2 shrink-0">
