@@ -174,22 +174,22 @@ export default function AdminDashboard() {
       )}
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Últimos Clientes</CardTitle></CardHeader>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5">
+          <CardHeader><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Últimos Clientes</CardTitle></CardHeader>
           <CardContent>
             {recentCompanies.isLoading ? <SectionSkeleton /> :
              (recentCompanies.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground">Nenhum cliente</p>
+               <p className="text-sm text-muted-foreground/60 italic">Nenhum cliente</p>
              ) : (
                <div className="space-y-3">
                  {recentCompanies.data!.map((c) => (
                    <div key={c.id} className="flex items-center justify-between">
                      <div className="min-w-0">
-                       <p className="text-sm font-medium truncate">{c.name}</p>
-                       <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
+                       <p className="text-sm font-semibold truncate">{c.name}</p>
+                       <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-medium">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
                      </div>
-                     <Badge variant={c.is_active ? 'success' : 'outline'} className="text-[10px] shrink-0">
-                       {c.is_active ? 'Ativa' : 'Inativa'}
+                     <Badge className={c.is_active ? "metric-green bg-transparent border-[var(--icon-border)] text-[9px] font-bold" : "text-muted-foreground border-muted-foreground/20 text-[9px] font-bold"}>
+                       {c.is_active ? 'ATIVA' : 'INATIVA'}
                      </Badge>
                    </div>
                  ))}
@@ -198,12 +198,12 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Últimas Instâncias</CardTitle></CardHeader>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5">
+          <CardHeader><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
             {recentInstances.isLoading ? <SectionSkeleton /> :
              (recentInstances.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground">Nenhuma instância</p>
+               <p className="text-sm text-muted-foreground/60 italic">Nenhuma instância</p>
              ) : (
                <div className="space-y-3">
                  {recentInstances.data!.map((inst) => {
@@ -212,15 +212,15 @@ export default function AdminDashboard() {
                    return (
                    <div key={inst.id} className="flex items-center justify-between gap-2">
                      <div className="min-w-0">
-                       <p className="text-sm font-medium truncate">{inst.name}</p>
-                       <p className="text-xs text-muted-foreground truncate">{inst.company_name} · {inst.provider}</p>
+                       <p className="text-sm font-semibold truncate">{inst.name}</p>
+                       <p className="text-[10px] text-muted-foreground/60 truncate uppercase tracking-wider font-medium">{inst.company_name} · {inst.provider}</p>
                        {phone ? (
-                         <p className={`text-xs font-medium tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'text-[#24FF91]' : 'text-muted-foreground'}`}>
+                         <p className={`text-[11px] font-bold tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'metric-green filter drop-shadow-[0_0_2px_var(--icon-shadow)]' : 'text-muted-foreground/60'}`}>
                            <Phone className="h-3 w-3" />
                            {phone}
                          </p>
                        ) : (
-                         <p className="text-xs text-muted-foreground/60 italic mt-0.5">Sem número</p>
+                         <p className="text-[10px] text-muted-foreground/40 italic mt-0.5 font-medium">Sem número</p>
                        )}
                      </div>
                      <StatusBadge status={inst.status} />
@@ -232,22 +232,22 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Últimas Faturas</CardTitle></CardHeader>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5">
+          <CardHeader><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Últimas Faturas</CardTitle></CardHeader>
           <CardContent>
             {recentInvoices.isLoading ? <SectionSkeleton /> :
              (recentInvoices.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground">Nenhuma fatura</p>
+               <p className="text-sm text-muted-foreground/60 italic">Nenhuma fatura</p>
              ) : (
                <div className="space-y-3">
                  {recentInvoices.data!.map((inv) => (
                    <div key={inv.id} className="flex items-center justify-between">
                      <div className="min-w-0">
-                       <p className="text-sm font-medium truncate">{inv.company_name}</p>
-                       <p className="text-xs text-muted-foreground">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
+                       <p className="text-sm font-semibold truncate">{inv.company_name}</p>
+                       <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-medium">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
                      </div>
                      <div className="flex items-center gap-2 shrink-0">
-                       <span className="text-sm font-medium">{formatCurrency(inv.amount_cents)}</span>
+                       <span className="text-sm font-bold tabular-nums">{formatCurrency(inv.amount_cents)}</span>
                        <StatusBadge status={inv.status} />
                      </div>
                    </div>
