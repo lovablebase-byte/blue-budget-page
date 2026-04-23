@@ -111,7 +111,7 @@ export default function AdminDashboard() {
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
-            <CardHeader><CardTitle className="text-sm">Status das Instâncias</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Status das Instâncias</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-sm">Instâncias por Provider</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Instâncias por Provider</CardTitle></CardHeader>
             <CardContent>
               {s.instancesByProvider.length > 0 ? (
                 <div className="space-y-3">

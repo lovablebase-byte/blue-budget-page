@@ -261,11 +261,11 @@ export default function AdminPlans() {
             <DialogHeader><DialogTitle>{editId ? 'Editar Plano' : 'Novo Plano'}</DialogTitle></DialogHeader>
             <Tabs defaultValue="general">
               <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="general" className="data-[state=active]:text-[#2EF2FF] data-[state=active]:bg-[#2EF2FF]/10">Ciclo</TabsTrigger>
-                <TabsTrigger value="features" className="data-[state=active]:text-[#2AF598] data-[state=active]:bg-[#2AF598]/10">Recursos</TabsTrigger>
-                <TabsTrigger value="limits" className="data-[state=active]:text-[#FFC857] data-[state=active]:bg-[#FFC857]/10">Limites</TabsTrigger>
-                <TabsTrigger value="providers" className="data-[state=active]:text-[#FF4D9D] data-[state=active]:bg-[#FF4D9D]/10">Providers</TabsTrigger>
-                <TabsTrigger value="notes" className="data-[state=active]:text-[#A855F7] data-[state=active]:bg-[#A855F7]/10">Notas</TabsTrigger>
+                <TabsTrigger value="general" className="data-[state=active]:text-[#00F5FF] data-[state=active]:bg-[#00F5FF]/10">Ciclo</TabsTrigger>
+                <TabsTrigger value="features" className="data-[state=active]:text-[#24FF91] data-[state=active]:bg-[#24FF91]/10">Recursos</TabsTrigger>
+                <TabsTrigger value="limits" className="data-[state=active]:text-[#FFD600] data-[state=active]:bg-[#FFD600]/10">Limites</TabsTrigger>
+                <TabsTrigger value="providers" className="data-[state=active]:text-[#FF2D92] data-[state=active]:bg-[#FF2D92]/10">Providers</TabsTrigger>
+                <TabsTrigger value="notes" className="data-[state=active]:text-[#BF7AFF] data-[state=active]:bg-[#BF7AFF]/10">Notas</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-4 mt-4">
