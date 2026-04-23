@@ -189,7 +189,7 @@ export default function AdminDashboard() {
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
-          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Últimos Clientes</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-blue filter drop-shadow-[0_0_8px_rgba(0,123,255,0.3)] opacity-80">Últimos Clientes</CardTitle></CardHeader>
           <CardContent>
             {recentCompanies.isLoading ? <SectionSkeleton /> :
              (recentCompanies.data?.length ?? 0) === 0 ? (
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
                    <div key={c.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{c.name}</p>
-                       <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-black">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
+                       <p className={`text-[10px] ${statusColor} opacity-50 uppercase tracking-widest font-black`}>{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
                      </div>
                      <Badge className={`${statusColor} bg-transparent border-[var(--icon-border)] text-[9px] font-black tracking-wider filter drop-shadow-[0_0_6px_var(--icon-shadow)]`}>
                        {c.is_active ? 'ATIVA' : 'INATIVA'}
@@ -216,7 +216,7 @@ export default function AdminDashboard() {
         </Card>
 
         <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
-          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Últimas Instâncias</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_rgba(0,224,255,0.3)] opacity-80">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
             {recentInstances.isLoading ? <SectionSkeleton /> :
              (recentInstances.data?.length ?? 0) === 0 ? (
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
                    <div key={inst.id} className="flex items-center justify-between gap-2 group">
                      <div className="min-w-0">
                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inst.name}</p>
-                       <p className="text-[10px] text-muted-foreground/50 truncate uppercase tracking-widest font-black">{inst.company_name} · {inst.provider}</p>
+                       <p className={`text-[10px] ${statusColor} opacity-50 truncate uppercase tracking-widest font-black`}>{inst.company_name} · {inst.provider}</p>
                        {phone ? (
                          <p className={`text-[11px] font-black tabular-nums flex items-center gap-1 mt-0.5 ${statusColor} filter drop-shadow-[0_0_5px_var(--icon-shadow)]`}>
                            <Phone className="h-3 w-3" />
@@ -251,7 +251,7 @@ export default function AdminDashboard() {
         </Card>
 
         <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
-          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Últimas Faturas</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-orange filter drop-shadow-[0_0_8px_rgba(255,165,0,0.3)] opacity-80">Últimas Faturas</CardTitle></CardHeader>
           <CardContent>
             {recentInvoices.isLoading ? <SectionSkeleton /> :
              (recentInvoices.data?.length ?? 0) === 0 ? (
@@ -264,7 +264,7 @@ export default function AdminDashboard() {
                    <div key={inv.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inv.company_name}</p>
-                       <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-black">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
+                       <p className={`text-[10px] ${statusColor} opacity-50 uppercase tracking-widest font-black`}>Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
                      </div>
                      <div className="flex items-center gap-2 shrink-0">
                        <span className={`text-sm font-black tabular-nums tracking-tighter ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{formatCurrency(inv.amount_cents)}</span>
