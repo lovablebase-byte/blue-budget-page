@@ -33,18 +33,32 @@ export default function AdminHealth() {
         {health && <p className="text-xs text-muted-foreground">Atualizado: {new Date(health.timestamp).toLocaleTimeString('pt-BR')}</p>}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {services.map((s) => (
-          <Card key={s.name}>
+        {services.map((s) => {
+          const colorClass = s.status ? 'metric-green' : 'metric-red';
+          const Icon = s.status ? CheckCircle : XCircle;
+          return (
+          <Card key={s.name} className="group transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md">
             <CardContent className="p-6 flex items-center gap-4">
-              {s.status ? <CheckCircle className="h-8 w-8 text-success" /> : <XCircle className="h-8 w-8 text-destructive" />}
+              <div className={`icon-premium ${colorClass} p-3 rounded-xl shadow-[0_0_15px_var(--icon-shadow)]/20 transition-all duration-300 group-hover:scale-110`}>
+                <Icon className="h-6 w-6 filter drop-shadow-[0_0_4px_var(--icon-shadow)]" />
+              </div>
               <div>
-                <p className="font-semibold">{s.name}</p>
-                <Badge variant={s.status ? 'default' : 'destructive'}>{s.status ? 'Online' : 'Offline'}</Badge>
-                {s.latency != null && <p className="text-xs text-muted-foreground mt-1">{s.latency}ms</p>}
+                <p className={`text-sm font-black uppercase tracking-widest ${colorClass} filter drop-shadow-[0_0_6px_var(--icon-shadow)]`}>{s.name}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <Badge className={`${colorClass} bg-transparent border-[var(--icon-border)] text-[9px] font-black tracking-wider filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>
+                    {s.status ? 'ONLINE' : 'OFFLINE'}
+                  </Badge>
+                  {s.latency != null && (
+                    <p className={`text-[11px] font-black tabular-nums ${colorClass} filter drop-shadow-[0_0_3px_var(--icon-shadow)]`}>
+                      {s.latency}ms
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
