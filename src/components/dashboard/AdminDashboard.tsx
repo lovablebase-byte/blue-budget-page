@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: string }) {
     online: { label: 'Online', variant: 'default' },
     connected: { label: 'Online', variant: 'default' },
     connecting: { label: 'Conectando', variant: 'info' },
-    offline: { label: 'Offline', variant: 'outline' },
+    offline: { label: 'Desconectado', variant: 'destructive' },
     paid: { label: 'Pago', variant: 'default' },
     pending: { label: 'Pendente', variant: 'warning' },
     overdue: { label: 'Vencido', variant: 'destructive' },
@@ -119,8 +119,8 @@ export default function AdminDashboard() {
                   <div><p className="text-xl font-bold text-foreground">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="icon-premium metric-slate rounded-full p-2"><WifiOff className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold text-foreground">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Offline</p></div>
+                  <div className="icon-premium metric-red rounded-full p-2"><WifiOff className="h-5 w-5" /></div>
+                  <div><p className="text-xl font-bold text-foreground">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Desconectado</p></div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="icon-premium metric-sky rounded-full p-2"><Signal className="h-5 w-5" /></div>
@@ -135,10 +135,10 @@ export default function AdminDashboard() {
             <CardContent>
               {s.instancesByProvider.length > 0 ? (
                 <div className="space-y-3">
-                  {s.instancesByProvider.map((p) => (
+                  {s.instancesByProvider.map((p, idx) => (
                     <div key={p.provider} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="icon-premium metric-cyan p-1.5 rounded-md"><Server className="h-4 w-4" /></div>
+                        <div className={`icon-premium ${idx === 0 ? 'metric-cyan' : idx === 1 ? 'metric-sky' : 'metric-emerald'} p-1.5 rounded-md`}><Server className="h-4 w-4" /></div>
                         <span className="text-sm font-medium capitalize">{p.provider}</span>
                       </div>
                       <Badge variant="info">{p.count}</Badge>
