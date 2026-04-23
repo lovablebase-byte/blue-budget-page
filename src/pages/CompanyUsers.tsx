@@ -9,37 +9,45 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LimitReachedBanner } from '@/components/PlanEnforcementGuard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Plus, AlertCircle, Users } from 'lucide-react';
+import { Trash2, AlertCircle, Users, UserPlus } from 'lucide-react';
 import { useResourceLimit } from '@/hooks/use-plan-enforcement';
 
 export default function CompanyUsers() {
   const { company, user, isAdmin } = useAuth();
   const { isSuspended } = useCompany();
   const queryClient = useQueryClient();
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'admin' | 'user'>('user');
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState<'admin' | 'user'>('user');
 
   const { data: limitData } = useResourceLimit('max_users', 'user_roles');
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ['company-users', company?.id],
+    queryKey: ['company-users', isAdmin ? 'all' : company?.id],
     queryFn: async () => {
-      if (!company?.id) return [];
-      const { data, error } = await supabase
+      // Admin vê TODOS os usuários do sistema; usuário comum vê apenas os da sua company
+      let query = supabase
         .from('user_roles')
         .select('*, profiles:profiles!inner(full_name, user_id)')
-        .eq('company_id', company.id)
         .order('created_at');
+
+      if (!isAdmin && company?.id) {
+        query = query.eq('company_id', company.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
-    enabled: !!company?.id,
+    enabled: isAdmin || !!company?.id,
   });
 
   const updateRole = useMutation({
@@ -61,16 +69,33 @@ export default function CompanyUsers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-users'] });
       queryClient.invalidateQueries({ queryKey: ['resource-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       toast({ title: 'Usuário removido' });
     },
   });
 
-  const inviteMutation = useMutation({
+  const createUser = useMutation({
     mutationFn: async () => {
-      if (!company?.id || !user?.id) throw new Error('Conta não encontrada');
-      throw new Error('Para convidar usuários, eles devem primeiro criar uma conta. Após o cadastro, adicione-os manualmente informando o ID do usuário.');
+      if (!newEmail) throw new Error('Email é obrigatório');
+      const { data, error } = await supabase.functions.invoke('seed-users', {
+        body: {
+          email: newEmail,
+          full_name: newName || newEmail,
+          password: newPassword || undefined,
+          role: newRole,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
-    onError: (e: any) => toast({ title: 'Info', description: e.message }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+      toast({ title: 'Usuário criado' });
+      setDialogOpen(false);
+      setNewEmail(''); setNewName(''); setNewPassword(''); setNewRole('user');
+    },
+    onError: (e: any) => toast({ title: 'Erro ao criar', description: e.message, variant: 'destructive' }),
   });
 
   const limitReached = limitData ? !limitData.allowed : false;
@@ -133,12 +158,22 @@ export default function CompanyUsers() {
             </div>
             Usuários
           </h1>
-          {limitData && (
+          {!isAdmin && limitData && (
             <p className="text-sm text-muted-foreground mt-1">
               <span className="text-foreground font-semibold">{limitData.current}</span> / {limitData.max} usuários utilizados
             </p>
           )}
+          {isAdmin && (
+            <p className="text-sm text-muted-foreground mt-1">
+              <span className="text-foreground font-semibold">{users.length}</span> {users.length === 1 ? 'usuário cadastrado' : 'usuários cadastrados'}
+            </p>
+          )}
         </div>
+        {isAdmin && !isSuspended && (
+          <Button onClick={() => setDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" /> Novo Usuário
+          </Button>
+        )}
       </div>
 
       {isSuspended && (
@@ -151,7 +186,7 @@ export default function CompanyUsers() {
         </Alert>
       )}
 
-      {limitData && <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="usuários" />}
+      {!isAdmin && limitData && <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="usuários" />}
 
       <DataTable
         data={users}
@@ -162,7 +197,7 @@ export default function CompanyUsers() {
           row.user_id !== user?.id && isAdmin && !isSuspended ? (
             <ConfirmDialog
               title="Remover usuário?"
-              description="O usuário perderá acesso à conta."
+              description="O usuário perderá acesso ao sistema."
               onConfirm={() => deleteMutation.mutate(row.id)}
               trigger={
                 <Button variant="ghost" size="icon" className="hover:bg-destructive/10">
@@ -173,6 +208,47 @@ export default function CompanyUsers() {
           ) : null
         }
       />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="border-border/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Novo Usuário
+            </DialogTitle>
+            <DialogDescription>Cadastre um novo usuário no sistema. Ele poderá fazer login com o email e senha definidos.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Email *</Label>
+              <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="email@exemplo.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome</Label>
+              <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome completo" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Senha</Label>
+              <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Padrão: 123456" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Papel</Label>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as 'admin' | 'user')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="user">Usuário</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => createUser.mutate()} disabled={createUser.isPending || !newEmail}>
+              {createUser.isPending ? 'Criando...' : 'Criar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
