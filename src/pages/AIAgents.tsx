@@ -245,16 +245,16 @@ export default function AIAgents() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10"><Zap className="h-6 w-6 text-success" /></div>
-              <div><p className="text-2xl font-bold tracking-tight text-success">{activeCount}</p><p className="text-sm text-muted-foreground">Ativos</p></div>
+              <div className="icon-premium metric-green rounded-lg p-2"><Zap className="h-6 w-6" /></div>
+              <div><p className="text-2xl font-bold tracking-tight metric-green">{activeCount}</p><p className="text-sm font-semibold uppercase tracking-wider metric-green">Ativos</p></div>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-sky-500/10"><Brain className="h-6 w-6 text-sky-500" /></div>
-              <div><p className="text-2xl font-bold tracking-tight">{new Set(agents.map((a: any) => a.provider)).size}</p><p className="text-sm text-muted-foreground">Provedores</p></div>
+              <div className="icon-premium metric-sky rounded-lg p-2"><Brain className="h-6 w-6" /></div>
+              <div><p className="text-2xl font-bold tracking-tight metric-sky">{new Set(agents.map((a: any) => a.provider)).size}</p><p className="text-sm font-semibold uppercase tracking-wider metric-sky">Provedores</p></div>
             </div>
           </CardContent>
         </Card>
