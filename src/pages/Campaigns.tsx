@@ -666,23 +666,23 @@ export default function Campaigns() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="icon-premium metric-green rounded-md p-2"><Send className="h-5 w-5" /></div>
-              <div><p className="text-2xl font-bold metric-green">{totalStats.sent}</p><p className="text-xs text-muted-foreground">Enviados</p></div>
+              <div><p className="text-2xl font-bold metric-green">{totalStats.sent}</p><p className="text-sm font-semibold uppercase tracking-wider metric-green">Enviados</p></div>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="icon-premium metric-blue rounded-md p-2"><CheckCircle2 className="h-5 w-5" /></div>
-              <div><p className="text-2xl font-bold metric-blue">{totalStats.delivered}</p><p className="text-xs text-muted-foreground">Entregues</p></div>
+              <div className="icon-premium metric-orange rounded-md p-2"><CheckCircle2 className="h-5 w-5" /></div>
+              <div><p className="text-2xl font-bold metric-orange">{totalStats.delivered}</p><p className="text-sm font-semibold uppercase tracking-wider metric-orange">Entregues</p></div>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="icon-premium metric-purple rounded-md p-2"><Eye className="h-5 w-5" /></div>
-              <div><p className="text-2xl font-bold metric-purple">{totalStats.read}</p><p className="text-xs text-muted-foreground">Lidos</p></div>
+              <div className="icon-premium metric-turquoise rounded-md p-2"><Eye className="h-5 w-5" /></div>
+              <div><p className="text-2xl font-bold metric-turquoise">{totalStats.read}</p><p className="text-sm font-semibold uppercase tracking-wider metric-turquoise">Lidos</p></div>
             </div>
           </CardContent>
         </Card>
@@ -690,7 +690,7 @@ export default function Campaigns() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="icon-premium metric-red rounded-md p-2"><AlertTriangle className="h-5 w-5" /></div>
-              <div><p className="text-2xl font-bold metric-red">{totalStats.failed}</p><p className="text-xs text-muted-foreground">Falhas</p></div>
+              <div><p className="text-2xl font-bold metric-red">{totalStats.failed}</p><p className="text-sm font-semibold uppercase tracking-wider metric-red">Falhas</p></div>
             </div>
           </CardContent>
         </Card>
