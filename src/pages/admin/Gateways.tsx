@@ -278,13 +278,13 @@ export default function AdminGateways() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-success">{eventStats.success}</p>
+            <p className="text-2xl font-bold metric-green">{eventStats.success}</p>
             <p className="text-xs text-muted-foreground">Sucesso</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-destructive">{eventStats.errors}</p>
+            <p className="text-2xl font-bold metric-red">{eventStats.errors}</p>
             <p className="text-xs text-muted-foreground">Falhas</p>
           </CardContent>
         </Card>

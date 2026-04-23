@@ -384,24 +384,24 @@ export default function AdminPlans() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><CreditCard className="h-6 w-6 text-primary" /></div>
-              <div><p className="text-2xl font-bold tracking-tight">{plans.length}</p><p className="text-sm text-muted-foreground">Total de Planos</p></div>
+              <div className="icon-premium metric-blue rounded-md p-2"><CreditCard className="h-6 w-6" /></div>
+              <div><p className="text-2xl font-bold metric-blue">{plans.length}</p><p className="text-sm text-muted-foreground">Total de Planos</p></div>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10"><Package className="h-6 w-6 text-success" /></div>
-              <div><p className="text-2xl font-bold tracking-tight text-success">{activePlans}</p><p className="text-sm text-muted-foreground">Ativos</p></div>
+              <div className="icon-premium metric-pink rounded-md p-2"><Package className="h-6 w-6" /></div>
+              <div><p className="text-2xl font-bold metric-pink">{activePlans}</p><p className="text-sm text-muted-foreground">Ativos</p></div>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-accent/10"><Users className="h-6 w-6 text-accent" /></div>
-              <div><p className="text-2xl font-bold tracking-tight">{totalSubs}</p><p className="text-sm text-muted-foreground">Assinaturas Ativas</p></div>
+              <div className="icon-premium metric-green rounded-md p-2"><Users className="h-6 w-6" /></div>
+              <div><p className="text-2xl font-bold metric-green">{totalSubs}</p><p className="text-sm text-muted-foreground">Assinaturas Ativas</p></div>
             </div>
           </CardContent>
         </Card>

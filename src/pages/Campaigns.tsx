@@ -665,8 +665,8 @@ export default function Campaigns() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><Send className="h-5 w-5 text-primary" /></div>
-              <div><p className="text-2xl font-bold tracking-tight text-primary">{totalStats.sent}</p><p className="text-xs text-muted-foreground">Enviados</p></div>
+              <div className="icon-premium metric-green rounded-md p-2"><Send className="h-5 w-5" /></div>
+              <div><p className="text-2xl font-bold metric-green">{totalStats.sent}</p><p className="text-xs text-muted-foreground">Enviados</p></div>
             </div>
           </CardContent>
         </Card>
@@ -689,8 +689,8 @@ export default function Campaigns() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10"><AlertTriangle className="h-5 w-5 text-destructive" /></div>
-              <div><p className="text-2xl font-bold tracking-tight text-destructive">{totalStats.failed}</p><p className="text-xs text-muted-foreground">Falhas</p></div>
+              <div className="icon-premium metric-red rounded-md p-2"><AlertTriangle className="h-5 w-5" /></div>
+              <div><p className="text-2xl font-bold metric-red">{totalStats.failed}</p><p className="text-xs text-muted-foreground">Falhas</p></div>
             </div>
           </CardContent>
         </Card>
