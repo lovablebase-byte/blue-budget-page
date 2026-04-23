@@ -673,16 +673,16 @@ export default function Campaigns() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10"><MessageCircle className="h-5 w-5 text-success" /></div>
-              <div><p className="text-2xl font-bold tracking-tight text-success">{totalStats.delivered}</p><p className="text-xs text-muted-foreground">Entregues</p></div>
+              <div className="icon-premium metric-blue rounded-md p-2"><CheckCircle2 className="h-5 w-5" /></div>
+              <div><p className="text-2xl font-bold metric-blue">{totalStats.delivered}</p><p className="text-xs text-muted-foreground">Entregues</p></div>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-warning/10"><Users className="h-5 w-5 text-warning" /></div>
-              <div><p className="text-2xl font-bold tracking-tight text-warning">{totalStats.read}</p><p className="text-xs text-muted-foreground">Lidos</p></div>
+              <div className="icon-premium metric-purple rounded-md p-2"><Eye className="h-5 w-5" /></div>
+              <div><p className="text-2xl font-bold metric-purple">{totalStats.read}</p><p className="text-xs text-muted-foreground">Lidos</p></div>
             </div>
           </CardContent>
         </Card>
