@@ -33,7 +33,7 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
+        <div className={`text-2xl font-bold tracking-tight ${colorClass}`}>{value}</div>
         {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </CardContent>
     </Card>
@@ -116,15 +116,15 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="icon-premium metric-green rounded-full p-2"><Wifi className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold text-foreground">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
+                  <div><p className="text-xl font-bold metric-green">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="icon-premium metric-red rounded-full p-2"><WifiOff className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold text-foreground">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Desconectado</p></div>
+                  <div><p className="text-xl font-bold metric-red">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Desconectado</p></div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="icon-premium metric-sky rounded-full p-2"><Signal className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold text-foreground">{s.instancesConnecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
+                  <div className="icon-premium metric-amber rounded-full p-2"><Signal className="h-5 w-5" /></div>
+                  <div><p className="text-xl font-bold metric-amber">{s.instancesConnecting}</p><p className="text-xs text-muted-foreground">Conectando</p></div>
                 </div>
               </div>
             </CardContent>
@@ -138,8 +138,8 @@ export default function AdminDashboard() {
                   {s.instancesByProvider.map((p, idx) => (
                     <div key={p.provider} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={`icon-premium ${idx === 0 ? 'metric-cyan' : idx === 1 ? 'metric-sky' : 'metric-emerald'} p-1.5 rounded-md`}><Server className="h-4 w-4" /></div>
-                        <span className="text-sm font-medium capitalize">{p.provider}</span>
+                        <div className={`icon-premium ${p.provider === 'evolution' ? 'metric-pink' : idx === 0 ? 'metric-cyan' : idx === 1 ? 'metric-sky' : 'metric-emerald'} p-1.5 rounded-md`}><Server className="h-4 w-4" /></div>
+                        <span className={`text-sm font-medium capitalize ${p.provider === 'evolution' ? 'metric-pink' : ''}`}>{p.provider}</span>
                       </div>
                       <Badge variant="info">{p.count}</Badge>
                     </div>

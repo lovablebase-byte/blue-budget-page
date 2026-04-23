@@ -144,6 +144,7 @@ export default function Subscription() {
         ai_agents: agents.count ?? 0,
         campaigns: campaigns.count ?? 0,
         users: users.count ?? 0,
+        teste: 0, // Mock for "Teste" card
         ...Object.fromEntries(Object.entries(providerCounts).map(([k, v]) => [`provider_${k}`, v])),
       });
       setUsageLoading(false);
@@ -282,7 +283,7 @@ export default function Subscription() {
                         <item.icon className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div>
                           <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                          <p className="text-sm font-semibold">{item.value.toLocaleString('pt-BR')}</p>
+                          <p className={`text-sm font-semibold ${item.label === 'Teste' ? 'metric-purple' : 'text-foreground'}`}>{item.value.toLocaleString('pt-BR')}</p>
                         </div>
                       </div>
                     ))}
