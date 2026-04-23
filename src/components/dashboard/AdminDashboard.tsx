@@ -25,16 +25,24 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
   title: string; value: number | string; icon: any; subtitle?: string; colorClass?: string;
 }) {
   return (
-    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/10 border-white/5 bg-card/40 backdrop-blur-sm before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:opacity-50 before:content-['']">
+    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:opacity-50 before:content-['']">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className={`text-[10px] font-bold uppercase tracking-[0.15em] ${colorClass} filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>{title}</CardTitle>
-        <div className={`icon-premium ${colorClass} p-2 transition-transform duration-300 group-hover:scale-110`}>
-          <Icon className="h-4 w-4" />
+        <CardTitle className={`text-[11px] font-black uppercase tracking-[0.18em] ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>
+          {title}
+        </CardTitle>
+        <div className={`icon-premium ${colorClass} p-2.5 transition-all duration-300 group-hover:scale-110 shadow-[0_0_20px_var(--icon-shadow)]/20`}>
+          <Icon className="h-4 w-4 filter drop-shadow-[0_0_3px_var(--icon-shadow)]" />
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-black tracking-tight ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{value}</div>
-        {subtitle && <p className={`text-[10px] ${colorClass} opacity-60 mt-1 font-medium uppercase tracking-wider`}>{subtitle}</p>}
+        <div className={`text-3xl font-black tracking-tighter ${colorClass} filter drop-shadow-[0_0_12px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_18px_var(--icon-shadow)]`}>
+          {value}
+        </div>
+        {subtitle && (
+          <p className={`text-[10px] ${colorClass} mt-2 font-bold uppercase tracking-widest filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90`}>
+            {subtitle}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
