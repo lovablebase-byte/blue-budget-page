@@ -323,7 +323,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-gold p-1.5 rounded-md"><BarChart3 className="h-4 w-4" /></span> Consumo
             </CardTitle>
           </CardHeader>
@@ -351,7 +351,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 metric-mint filter drop-shadow-[0_0_8px_rgba(0,255,190,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 metric-mint filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-mint p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Status das instâncias
             </CardTitle>
           </CardHeader>
@@ -415,7 +415,7 @@ export default function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2 metric-cyan filter drop-shadow-[0_0_8px_rgba(0,224,255,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-cyan p-1.5 rounded-md"><Smartphone className="h-4 w-4" /></span> Instâncias
             </CardTitle>
             <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/instances')}>
@@ -475,7 +475,7 @@ export default function ClientDashboard() {
         {hasFeature('invoices_enabled') && (
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2 metric-orange filter drop-shadow-[0_0_8px_rgba(255,165,0,0.3)]">
+              <CardTitle className="text-sm flex items-center gap-2 metric-orange filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
                 <span className="icon-premium metric-orange p-1.5 rounded-md"><FileText className="h-4 w-4" /></span> Últimas faturas
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/subscription')}>
@@ -511,7 +511,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_rgba(255,214,0,0.3)]">
+            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_var(--icon-shadow)]">
               <span className="icon-premium metric-gold p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Atividade recente
             </CardTitle>
           </CardHeader>
