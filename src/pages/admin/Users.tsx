@@ -208,10 +208,6 @@ export default function AdminUsers() {
               </div>
               <Separator className="bg-border/30" />
               <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
-                <span className="text-muted-foreground">Cliente</span>
-                <span className="text-foreground">{(detailUser.companies as any)?.name || '—'}</span>
-              </div>
-              <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Criado em</span>
                 <span className="text-foreground">{new Date(detailUser.created_at).toLocaleDateString('pt-BR')}</span>
               </div>
