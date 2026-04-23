@@ -360,7 +360,7 @@ export default function ClientDashboard() {
               <>
                 {[
                   { label: 'Online', value: instanceStatus.online, icon: Wifi, colorClass: 'metric-green' },
-                  { label: 'Offline', value: instanceStatus.offline, icon: WifiOff, colorClass: 'metric-slate' },
+                  { label: 'Desconectado', value: instanceStatus.offline, icon: WifiOff, colorClass: 'metric-red' },
                   { label: 'Bloqueadas', value: instanceStatus.blocked, icon: Ban, colorClass: 'metric-red' },
                   { label: 'Conectando', value: instanceStatus.connecting, icon: Signal, colorClass: 'metric-sky' },
                 ].filter(s => s.value > 0).map(s => (

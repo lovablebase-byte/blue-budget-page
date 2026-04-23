@@ -253,7 +253,7 @@ export default function AIAgents() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple/10"><Brain className="h-6 w-6 text-purple" /></div>
+              <div className="p-2 rounded-lg bg-sky-500/10"><Brain className="h-6 w-6 text-sky-500" /></div>
               <div><p className="text-2xl font-bold tracking-tight">{new Set(agents.map((a: any) => a.provider)).size}</p><p className="text-sm text-muted-foreground">Provedores</p></div>
             </div>
           </CardContent>

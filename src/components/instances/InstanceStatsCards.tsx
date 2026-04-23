@@ -51,8 +51,8 @@ export function InstanceStatsCards({
       <Card className="overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-muted-foreground">Desconectadas</span>
-            <div className="icon-premium metric-slate rounded-md p-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Desconectado</span>
+            <div className="icon-premium metric-red rounded-md p-1.5">
               <WifiOff className="h-3.5 w-3.5" />
             </div>
           </div>
