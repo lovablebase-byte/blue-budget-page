@@ -25,33 +25,33 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
   title: string; value: number | string; icon: any; subtitle?: string; colorClass?: string;
 }) {
   return (
-    <Card className="group overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent before:opacity-80 before:content-['']">
+    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/10 border-white/5 bg-card/40 backdrop-blur-sm before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:opacity-50 before:content-['']">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className={`text-xs font-semibold uppercase tracking-wider ${colorClass}`}>{title}</CardTitle>
-        <div className={`icon-premium ${colorClass} p-2`}>
+        <CardTitle className={`text-[10px] font-bold uppercase tracking-[0.15em] ${colorClass} filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>{title}</CardTitle>
+        <div className={`icon-premium ${colorClass} p-2 transition-transform duration-300 group-hover:scale-110`}>
           <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold tracking-tight ${colorClass} drop-shadow-[0_0_8px_rgba(var(--icon-shadow),0.2)]`}>{value}</div>
-        {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
+        <div className={`text-2xl font-black tracking-tight ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{value}</div>
+        {subtitle && <p className={`text-[10px] ${colorClass} opacity-60 mt-1 font-medium uppercase tracking-wider`}>{subtitle}</p>}
       </CardContent>
     </Card>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info' }> = {
-    online: { label: 'Online', variant: 'default' },
-    connected: { label: 'Online', variant: 'default' },
-    connecting: { label: 'Conectando', variant: 'warning' },
-    offline: { label: 'Desconectado', variant: 'destructive' },
-    paid: { label: 'Pago', variant: 'default' },
-    pending: { label: 'Pendente', variant: 'warning' },
-    overdue: { label: 'Vencido', variant: 'destructive' },
+  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info' | 'success' }> = {
+    online: { label: 'ONLINE', variant: 'success' },
+    connected: { label: 'ONLINE', variant: 'success' },
+    connecting: { label: 'CONECTANDO', variant: 'warning' },
+    offline: { label: 'OFFLINE', variant: 'destructive' },
+    paid: { label: 'PAGO', variant: 'success' },
+    pending: { label: 'PENDENTE', variant: 'warning' },
+    overdue: { label: 'VENCIDO', variant: 'destructive' },
   };
-  const s = map[status] || { label: status, variant: 'outline' as const };
-  return <Badge variant={s.variant} className="text-[10px]">{s.label}</Badge>;
+  const s = map[status] || { label: status.toUpperCase(), variant: 'outline' as const };
+  return <Badge variant={s.variant as any} className="text-[9px] font-black tracking-wider filter drop-shadow-[0_0_3px_var(--badge-shadow)]">{s.label}</Badge>;
 }
 
 function SectionSkeleton() {
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Admin</h1>
-        <p className="text-muted-foreground text-sm">Visão consolidada do SaaS</p>
+        <p className="text-muted-foreground text-sm font-medium uppercase tracking-[0.2em] opacity-70">Visão consolidada do SaaS</p>
       </div>
 
       {alerts.data && alerts.data.length > 0 && (
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
               {alert.type === 'error' ? <Ban className="h-4 w-4 text-[#FF5A5F] shrink-0" /> :
                alert.type === 'warning' ? <AlertTriangle className="h-4 w-4 text-[#FFC857] shrink-0" /> :
                <Info className="h-4 w-4 text-muted-foreground shrink-0" />}
-              <p className="text-sm font-medium">{alert.message}</p>
+              <p className="text-sm font-semibold tracking-tight">{alert.message}</p>
             </div>
           ))}
         </div>
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
 
       {isLoading ? (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
       ) : s ? (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
@@ -110,43 +110,57 @@ export default function AdminDashboard() {
 
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader><CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Status das Instâncias</CardTitle></CardHeader>
+          <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/20">
+            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Status das Instâncias</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="icon-premium metric-green rounded-full p-2"><Wifi className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold metric-green">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
+                <div className="flex items-center gap-3 group">
+                  <div className="icon-premium metric-green rounded-full p-2 group-hover:scale-110 transition-transform"><Wifi className="h-5 w-5" /></div>
+                  <div>
+                    <p className="text-xl font-black metric-green filter drop-shadow-[0_0_8px_rgba(36,255,145,0.4)]">{s.instancesOnline}</p>
+                    <p className="text-[10px] font-bold metric-green uppercase tracking-widest opacity-70">Online</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="icon-premium metric-red rounded-full p-2"><WifiOff className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold metric-red">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Desconectado</p></div>
+                <div className="flex items-center gap-3 group">
+                  <div className="icon-premium metric-red rounded-full p-2 group-hover:scale-110 transition-transform"><WifiOff className="h-5 w-5" /></div>
+                  <div>
+                    <p className="text-xl font-black metric-red filter drop-shadow-[0_0_8px_rgba(255,90,95,0.4)]">{s.instancesOffline}</p>
+                    <p className="text-[10px] font-bold metric-red uppercase tracking-widest opacity-70">Offline</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="icon-premium metric-yellow rounded-full p-2"><Signal className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold metric-yellow">{s.instancesConnecting}</p><p className="text-xs font-medium metric-yellow">Conectando</p></div>
+                <div className="flex items-center gap-3 group">
+                  <div className="icon-premium metric-yellow rounded-full p-2 group-hover:scale-110 transition-transform"><Signal className="h-5 w-5" /></div>
+                  <div>
+                    <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_8px_rgba(255,214,0,0.4)]">{s.instancesConnecting}</p>
+                    <p className="text-[10px] font-bold metric-yellow uppercase tracking-widest opacity-70">Conectando</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Instâncias por Provider</CardTitle></CardHeader>
+          <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/20">
+            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Instâncias por Provider</CardTitle></CardHeader>
             <CardContent>
               {s.instancesByProvider.length > 0 ? (
                 <div className="space-y-3">
-                  {s.instancesByProvider.map((p, idx) => (
-                    <div key={p.provider} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`icon-premium ${p.provider === 'evolution' ? 'metric-pink' : idx === 0 ? 'metric-cyan' : idx === 1 ? 'metric-sky' : 'metric-emerald'} p-1.5 rounded-md`}><Server className="h-4 w-4" /></div>
-                        <span className={`text-sm font-medium capitalize ${p.provider === 'evolution' ? 'metric-pink' : ''}`}>{p.provider}</span>
+                  {s.instancesByProvider.map((p, idx) => {
+                    const colorClass = p.provider === 'evolution' ? 'metric-pink' : idx === 0 ? 'metric-cyan' : idx === 1 ? 'metric-sky' : 'metric-emerald';
+                    return (
+                      <div key={p.provider} className="flex items-center justify-between group">
+                        <div className="flex items-center gap-2">
+                          <div className={`icon-premium ${colorClass} p-1.5 rounded-md transition-transform duration-300 group-hover:scale-110`}><Server className="h-4 w-4" /></div>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${colorClass} filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>{p.provider}</span>
+                        </div>
+                        <div className={`px-2 py-0.5 rounded-full border border-[var(--icon-border)] bg-[var(--icon-bg)] ${colorClass} text-[11px] font-black tabular-nums filter drop-shadow-[0_0_6px_var(--icon-shadow)] transition-all duration-300 group-hover:scale-105`}>
+                          {p.count}
+                        </div>
                       </div>
-                      <Badge variant="info">{p.count}</Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Nenhuma instância cadastrada</p>
+                <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma instância cadastrada</p>
               )}
             </CardContent>
           </Card>
@@ -165,22 +179,22 @@ export default function AdminDashboard() {
       )}
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Últimos Clientes</CardTitle></CardHeader>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Últimos Clientes</CardTitle></CardHeader>
           <CardContent>
             {recentCompanies.isLoading ? <SectionSkeleton /> :
              (recentCompanies.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground">Nenhum cliente</p>
+               <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhum cliente</p>
              ) : (
                <div className="space-y-3">
                  {recentCompanies.data!.map((c) => (
-                   <div key={c.id} className="flex items-center justify-between">
+                   <div key={c.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
-                       <p className="text-sm font-medium truncate">{c.name}</p>
-                       <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
+                       <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.name}</p>
+                       <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-black">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
                      </div>
-                     <Badge variant={c.is_active ? 'success' : 'outline'} className="text-[10px] shrink-0">
-                       {c.is_active ? 'Ativa' : 'Inativa'}
+                     <Badge className={c.is_active ? "metric-green bg-transparent border-[var(--icon-border)] text-[9px] font-black tracking-wider filter drop-shadow-[0_0_4px_var(--icon-shadow)]" : "text-muted-foreground/60 border-muted-foreground/20 text-[9px] font-bold tracking-wider"}>
+                       {c.is_active ? 'ATIVA' : 'INATIVA'}
                      </Badge>
                    </div>
                  ))}
@@ -189,29 +203,29 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Últimas Instâncias</CardTitle></CardHeader>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
             {recentInstances.isLoading ? <SectionSkeleton /> :
              (recentInstances.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground">Nenhuma instância</p>
+               <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma instância</p>
              ) : (
                <div className="space-y-3">
                  {recentInstances.data!.map((inst) => {
                    const phone = formatPhone(inst.phone_number);
                    const isOnline = inst.status === 'online' || inst.status === 'connected';
                    return (
-                   <div key={inst.id} className="flex items-center justify-between gap-2">
+                   <div key={inst.id} className="flex items-center justify-between gap-2 group">
                      <div className="min-w-0">
-                       <p className="text-sm font-medium truncate">{inst.name}</p>
-                       <p className="text-xs text-muted-foreground truncate">{inst.company_name} · {inst.provider}</p>
+                       <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{inst.name}</p>
+                       <p className="text-[10px] text-muted-foreground/50 truncate uppercase tracking-widest font-black">{inst.company_name} · {inst.provider}</p>
                        {phone ? (
-                         <p className={`text-xs font-medium tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'text-[#24FF91]' : 'text-muted-foreground'}`}>
+                         <p className={`text-[11px] font-black tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'metric-green filter drop-shadow-[0_0_3px_var(--icon-shadow)]' : 'text-muted-foreground/40'}`}>
                            <Phone className="h-3 w-3" />
                            {phone}
                          </p>
                        ) : (
-                         <p className="text-xs text-muted-foreground/60 italic mt-0.5">Sem número</p>
+                         <p className="text-[10px] text-muted-foreground/30 italic mt-0.5 font-bold uppercase tracking-widest">Sem número</p>
                        )}
                      </div>
                      <StatusBadge status={inst.status} />
@@ -223,22 +237,22 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Últimas Faturas</CardTitle></CardHeader>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Últimas Faturas</CardTitle></CardHeader>
           <CardContent>
             {recentInvoices.isLoading ? <SectionSkeleton /> :
              (recentInvoices.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground">Nenhuma fatura</p>
+               <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma fatura</p>
              ) : (
                <div className="space-y-3">
                  {recentInvoices.data!.map((inv) => (
-                   <div key={inv.id} className="flex items-center justify-between">
+                   <div key={inv.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
-                       <p className="text-sm font-medium truncate">{inv.company_name}</p>
-                       <p className="text-xs text-muted-foreground">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
+                       <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{inv.company_name}</p>
+                       <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-black">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
                      </div>
                      <div className="flex items-center gap-2 shrink-0">
-                       <span className="text-sm font-medium">{formatCurrency(inv.amount_cents)}</span>
+                       <span className="text-sm font-black tabular-nums tracking-tighter">{formatCurrency(inv.amount_cents)}</span>
                        <StatusBadge status={inv.status} />
                      </div>
                    </div>
