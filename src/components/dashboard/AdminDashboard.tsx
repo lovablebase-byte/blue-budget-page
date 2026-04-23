@@ -203,7 +203,7 @@ export default function AdminDashboard() {
                    <div key={inst.id} className="flex items-center justify-between gap-2 group">
                      <div className="min-w-0">
                         <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inst.name}</p>
-                        <p className="text-[10px] text-muted-foreground opacity-50 truncate uppercase tracking-widest font-black">{inst.company_name} · {inst.provider}</p>
+                        <p className="text-[10px] text-muted-foreground opacity-50 truncate uppercase tracking-widest font-black">{inst.provider}</p>
                        {phone ? (
                          <p className={`text-[11px] font-black tabular-nums flex items-center gap-1 mt-0.5 ${statusColor} filter drop-shadow-[0_0_5px_var(--icon-shadow)]`}>
                            <Phone className="h-3 w-3" />
