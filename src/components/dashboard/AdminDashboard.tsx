@@ -25,16 +25,16 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
   title: string; value: number | string; icon: any; subtitle?: string; colorClass?: string;
 }) {
   return (
-    <Card className="group overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent before:opacity-80 before:content-['']">
+    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/10 border-white/5 bg-card/40 backdrop-blur-sm before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:opacity-50 before:content-['']">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className={`text-xs font-semibold uppercase tracking-wider ${colorClass}`}>{title}</CardTitle>
-        <div className={`icon-premium ${colorClass} p-2`}>
+        <CardTitle className={`text-[10px] font-bold uppercase tracking-[0.15em] ${colorClass} filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>{title}</CardTitle>
+        <div className={`icon-premium ${colorClass} p-2 transition-transform duration-300 group-hover:scale-110`}>
           <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold tracking-tight ${colorClass} drop-shadow-[0_0_8px_rgba(var(--icon-shadow),0.2)]`}>{value}</div>
-        {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
+        <div className={`text-2xl font-black tracking-tight ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{value}</div>
+        {subtitle && <p className={`text-[10px] ${colorClass} opacity-60 mt-1 font-medium uppercase tracking-wider`}>{subtitle}</p>}
       </CardContent>
     </Card>
   );
@@ -110,21 +110,30 @@ export default function AdminDashboard() {
 
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader><CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Status das Instâncias</CardTitle></CardHeader>
+          <Card className="bg-card/40 backdrop-blur-sm border-white/5">
+            <CardHeader><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Status das Instâncias</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="icon-premium metric-green rounded-full p-2"><Wifi className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold metric-green">{s.instancesOnline}</p><p className="text-xs text-muted-foreground">Online</p></div>
+                  <div>
+                    <p className="text-xl font-black metric-green filter drop-shadow-[0_0_5px_rgba(36,255,145,0.4)]">{s.instancesOnline}</p>
+                    <p className="text-[10px] font-bold metric-green uppercase tracking-wider opacity-80">Online</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="icon-premium metric-red rounded-full p-2"><WifiOff className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold metric-red">{s.instancesOffline}</p><p className="text-xs text-muted-foreground">Desconectado</p></div>
+                  <div>
+                    <p className="text-xl font-black metric-red filter drop-shadow-[0_0_5px_rgba(255,90,95,0.4)]">{s.instancesOffline}</p>
+                    <p className="text-[10px] font-bold metric-red uppercase tracking-wider opacity-80">Offline</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="icon-premium metric-yellow rounded-full p-2"><Signal className="h-5 w-5" /></div>
-                  <div><p className="text-xl font-bold metric-yellow">{s.instancesConnecting}</p><p className="text-xs font-medium metric-yellow">Conectando</p></div>
+                  <div>
+                    <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_5px_rgba(255,214,0,0.4)]">{s.instancesConnecting}</p>
+                    <p className="text-[10px] font-bold metric-yellow uppercase tracking-wider opacity-80">Conectando</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
