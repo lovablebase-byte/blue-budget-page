@@ -148,7 +148,7 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/20">
-            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Instâncias por Provider</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_rgba(0,224,255,0.3)] opacity-80">Instâncias por Provider</CardTitle></CardHeader>
             <CardContent>
               {s.instancesByProvider.length > 0 ? (
                 <div className="space-y-3">
