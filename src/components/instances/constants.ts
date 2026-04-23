@@ -10,7 +10,7 @@ export const statusConfig: Record<string, StatusConfig> = {
   online: { label: 'Conectado', variant: 'success', icon: Wifi },
   connected: { label: 'Conectado', variant: 'success', icon: Wifi },
   offline: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
-  connecting: { label: 'Conectando', variant: 'info', icon: RefreshCw },
+  connecting: { label: 'Conectando', variant: 'warning', icon: RefreshCw },
   pairing: { label: 'Aguardando QR', variant: 'warning', icon: QrCode },
   error: { label: 'Erro', variant: 'destructive', icon: AlertCircle },
 };
@@ -22,7 +22,7 @@ export const providerLabels: Record<string, string> = {
 };
 
 export const providerColors: Record<string, string> = {
-  evolution: 'border-primary/40 text-primary bg-primary/10',
+  evolution: 'border-pink-500/40 text-pink-500 bg-pink-500/10',
   wuzapi: 'border-sky-500/40 text-sky-500 bg-sky-500/10',
   evolution_go: 'border-success/40 text-success bg-success/10',
 };
