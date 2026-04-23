@@ -381,27 +381,36 @@ export default function AdminPlans() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/10">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="icon-premium metric-blue rounded-md p-2"><CreditCard className="h-6 w-6" /></div>
-              <div><p className="text-2xl font-bold metric-blue">{plans.length}</p><p className="text-sm font-semibold uppercase tracking-wider metric-blue">Total de Planos</p></div>
+              <div>
+                <p className="text-2xl font-black metric-blue filter drop-shadow-[0_0_8px_var(--icon-shadow)]">{plans.length}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest metric-blue opacity-70">Total de Planos</p>
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/10">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="icon-premium metric-pink rounded-md p-2"><Package className="h-6 w-6" /></div>
-              <div><p className="text-2xl font-bold metric-pink">{activePlans}</p><p className="text-sm font-semibold uppercase tracking-wider metric-pink">Ativos</p></div>
+              <div>
+                <p className="text-2xl font-black metric-pink filter drop-shadow-[0_0_8px_var(--icon-shadow)]">{activePlans}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest metric-pink opacity-70">Ativos</p>
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/10">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="icon-premium metric-pink rounded-md p-2"><Users className="h-6 w-6" /></div>
-              <div><p className="text-2xl font-bold metric-pink">{totalSubs}</p><p className="text-sm font-semibold uppercase tracking-wider metric-pink">Assinaturas Ativas</p></div>
+              <div>
+                <p className="text-2xl font-black metric-pink filter drop-shadow-[0_0_8px_var(--icon-shadow)]">{totalSubs}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest metric-pink opacity-70">Assinaturas Ativas</p>
+              </div>
             </div>
           </CardContent>
         </Card>
