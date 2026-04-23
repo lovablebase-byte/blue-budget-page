@@ -29,7 +29,7 @@ function UsageBar({ label, used, max, icon: Icon, colorClass = 'metric-green' }:
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-1.5 text-muted-foreground opacity-80">
+        <span className={`flex items-center gap-1.5 ${semanticColor} filter drop-shadow-[0_0_4px_var(--icon-shadow)] font-medium`}>
           <span className={`icon-premium ${semanticColor} p-1 rounded-md`}>
             <Icon className="h-3.5 w-3.5" />
           </span>
