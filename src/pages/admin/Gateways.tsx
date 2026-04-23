@@ -272,19 +272,19 @@ export default function AdminGateways() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{eventStats.total}</p>
+            <p className="text-2xl font-bold metric-purple">{eventStats.total}</p>
             <p className="text-xs text-muted-foreground">Eventos recentes</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-success">{eventStats.success}</p>
+            <p className="text-2xl font-bold metric-green">{eventStats.success}</p>
             <p className="text-xs text-muted-foreground">Sucesso</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-destructive">{eventStats.errors}</p>
+            <p className="text-2xl font-bold metric-red">{eventStats.errors}</p>
             <p className="text-xs text-muted-foreground">Falhas</p>
           </CardContent>
         </Card>

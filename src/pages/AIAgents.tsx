@@ -237,8 +237,8 @@ export default function AIAgents() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple/10"><Bot className="h-6 w-6 text-purple" /></div>
-              <div><p className="text-2xl font-bold tracking-tight">{agents.length}</p><p className="text-sm text-muted-foreground">Total de Agentes</p></div>
+              <div className="p-2 rounded-lg bg-pink-500/10"><Bot className="h-6 w-6 text-[#FF4D9D]" /></div>
+              <div><p className="text-2xl font-bold tracking-tight text-[#FF4D9D]">{agents.length}</p><p className="text-sm text-muted-foreground">Total de Agentes</p></div>
             </div>
           </CardContent>
         </Card>

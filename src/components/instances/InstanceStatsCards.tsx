@@ -27,7 +27,7 @@ export function InstanceStatsCards({
               <Smartphone className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-foreground">{total}</div>
+          <div className="text-2xl font-bold tracking-tight metric-cyan">{total}</div>
           {providerBreakdown && Object.keys(providerBreakdown).length > 0 && (
             <p className="text-[10px] text-muted-foreground mt-1 truncate">
               {Object.entries(providerBreakdown).map(([p, c]) => `${p}: ${c}`).join(' · ')}
@@ -44,7 +44,7 @@ export function InstanceStatsCards({
               <Wifi className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-foreground">{online}</div>
+          <div className="text-2xl font-bold tracking-tight metric-green">{online}</div>
         </CardContent>
       </Card>
 
@@ -56,7 +56,7 @@ export function InstanceStatsCards({
               <WifiOff className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-foreground">{offline}</div>
+          <div className="text-2xl font-bold tracking-tight metric-red">{offline}</div>
         </CardContent>
       </Card>
 
@@ -64,11 +64,11 @@ export function InstanceStatsCards({
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground">Conectando</span>
-            <div className="icon-premium metric-sky rounded-md p-1.5">
+            <div className="icon-premium metric-amber rounded-md p-1.5">
               <Signal className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-foreground">{connecting}</div>
+          <div className="text-2xl font-bold tracking-tight metric-amber">{connecting}</div>
         </CardContent>
       </Card>
 
@@ -82,7 +82,7 @@ export function InstanceStatsCards({
           </div>
           {planMax != null && planMax > 0 ? (
             <>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl font-bold tracking-tight metric-amber">
                 {available} <span className="text-xs font-normal text-muted-foreground">disponíveis</span>
               </div>
               <Progress value={usagePercent} className="h-1.5 mt-2 [&>div]:bg-[#FFC857]" />

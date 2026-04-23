@@ -20,7 +20,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Crown, CreditCard, BarChart3, CheckCircle2, XCircle, Clock,
   AlertTriangle, ArrowUpRight, ArrowDownRight, MessageCircle, Receipt, Smartphone,
-  Bot, Megaphone, Users, FileText, Shield, Zap, Star,
+  Bot, Megaphone, Users, FileText, Shield, Zap, Star, TestTube
 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { PLAN_FEATURES } from '@/lib/plan-features';
@@ -144,6 +144,7 @@ export default function Subscription() {
         ai_agents: agents.count ?? 0,
         campaigns: campaigns.count ?? 0,
         users: users.count ?? 0,
+        teste: 0, // Mock for "Teste" card
         ...Object.fromEntries(Object.entries(providerCounts).map(([k, v]) => [`provider_${k}`, v])),
       });
       setUsageLoading(false);
@@ -270,19 +271,20 @@ export default function Subscription() {
                   <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">Limites do plano</p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                      { label: 'Instâncias', value: plan.limits.max_instances, icon: Smartphone },
-                      { label: 'Agentes IA', value: plan.limits.max_ai_agents, icon: Bot },
-                      { label: 'Campanhas', value: plan.limits.max_campaigns, icon: Megaphone },
-                      { label: 'Usuários', value: plan.limits.max_users, icon: Users },
-                      { label: 'Msgs/dia', value: plan.limits.max_messages_day, icon: Zap },
-                      { label: 'Msgs/mês', value: plan.limits.max_messages_month, icon: FileText },
-                      { label: 'Contatos', value: plan.limits.max_contacts, icon: Users },
+                      { label: 'Instâncias', value: plan.limits.max_instances, icon: Smartphone, color: 'metric-cyan' },
+                      { label: 'Agentes IA', value: plan.limits.max_ai_agents, icon: Bot, color: 'metric-pink' },
+                      { label: 'Campanhas', value: plan.limits.max_campaigns, icon: Megaphone, color: 'metric-orange' },
+                      { label: 'Usuários', value: plan.limits.max_users, icon: Users, color: 'metric-green' },
+                      { label: 'Msgs/dia', value: plan.limits.max_messages_day, icon: Zap, color: 'metric-amber' },
+                      { label: 'Msgs/mês', value: plan.limits.max_messages_month, icon: FileText, color: 'metric-sky' },
+                      { label: 'Contatos', value: plan.limits.max_contacts, icon: Users, color: 'metric-blue' },
+                      { label: 'Teste', value: usage.teste || 0, icon: TestTube, color: 'metric-purple' },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
-                        <item.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <item.icon className={`h-4 w-4 shrink-0 ${item.color}`} />
                         <div>
                           <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                          <p className="text-sm font-semibold">{item.value.toLocaleString('pt-BR')}</p>
+                          <p className={`text-sm font-semibold ${item.color}`}>{item.value.toLocaleString('pt-BR')}</p>
                         </div>
                       </div>
                     ))}

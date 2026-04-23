@@ -98,30 +98,30 @@ export default function AdminLogs() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium">Enviados</CardTitle>
-            <Send className="h-4 w-4 text-muted-foreground" />
+            <Send className="h-4 w-4 text-[#2AF598]" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{stats?.sent ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-[#2AF598]">{stats?.sent ?? 0}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium">Entregues</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle2 className="h-4 w-4 text-[#FF9F43]" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-primary">{stats?.delivered ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-[#FF9F43]">{stats?.delivered ?? 0}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium">Lidos</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
+            <Eye className="h-4 w-4 text-[#2EF2FF]" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{stats?.read ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-[#2EF2FF]">{stats?.read ?? 0}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-medium">Falhas</CardTitle>
-            <XCircle className="h-4 w-4 text-destructive" />
+            <XCircle className="h-4 w-4 text-[#FF5A5F]" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-destructive">{stats?.failed ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-[#FF5A5F]">{stats?.failed ?? 0}</div></CardContent>
         </Card>
       </div>
 
