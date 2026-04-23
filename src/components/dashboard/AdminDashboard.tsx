@@ -216,7 +216,7 @@ export default function AdminDashboard() {
         </Card>
 
         <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
-          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-80">Últimas Instâncias</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Últimas Instâncias</CardTitle></CardHeader>
           <CardContent>
             {recentInstances.isLoading ? <SectionSkeleton /> :
              (recentInstances.data?.length ?? 0) === 0 ? (
