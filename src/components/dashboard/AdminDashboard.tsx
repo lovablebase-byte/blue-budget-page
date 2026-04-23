@@ -119,7 +119,7 @@ export default function AdminDashboard() {
       {s && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/20">
-            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-80">Status das Instâncias</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Status das Instâncias</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 group">
