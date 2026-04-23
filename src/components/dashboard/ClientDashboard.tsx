@@ -29,14 +29,14 @@ function UsageBar({ label, used, max, icon: Icon, colorClass = 'metric-green' }:
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
+        <span className={`flex items-center gap-1.5 ${semanticColor} opacity-80`}>
           <span className={`icon-premium ${semanticColor} p-1 rounded-md`}>
             <Icon className="h-3.5 w-3.5" />
           </span>
           {label}
         </span>
         <span className={`font-semibold tabular-nums ${isAtLimit ? 'text-[#FF5A5F]' : isNearLimit ? 'text-[#FFC857]' : 'text-foreground'}`}>
-          {used.toLocaleString('pt-BR')}<span className="text-muted-foreground font-normal">/{max.toLocaleString('pt-BR')}</span>
+          {used.toLocaleString('pt-BR')}<span className={`${semanticColor} opacity-50 font-normal`}>/{max.toLocaleString('pt-BR')}</span>
         </span>
       </div>
       <Progress value={pct} className={`h-1.5 ${isAtLimit ? '[&>div]:bg-[#FF5A5F]' : isNearLimit ? '[&>div]:bg-[#FFC857]' : '[&>div]:bg-[#24FF91]'}`} />
@@ -68,7 +68,7 @@ function KpiCard({ label, value, sub, icon: Icon, colorClass = 'metric-green' }:
         <div className="min-w-0">
           <p className={`text-2xl font-bold tabular-nums tracking-tight ${colorClass}`}>{typeof value === 'number' ? value.toLocaleString('pt-BR') : value}</p>
           <p className={`text-xs font-semibold uppercase tracking-wider ${colorClass}`}>{label}</p>
-          {sub && <p className="text-[10px] text-muted-foreground/70">{sub}</p>}
+          {sub && <p className={`text-[10px] ${colorClass} opacity-70`}>{sub}</p>}
         </div>
       </CardContent>
     </Card>
@@ -262,7 +262,7 @@ export default function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2 metric-purple filter drop-shadow-[0_0_8px_rgba(168,85,247,0.3)]">
               <span className="icon-premium metric-purple p-1.5 rounded-md"><Shield className="h-4 w-4" /></span> Plano atual
             </CardTitle>
           </CardHeader>
@@ -323,7 +323,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_rgba(255,214,0,0.3)]">
               <span className="icon-premium metric-gold p-1.5 rounded-md"><BarChart3 className="h-4 w-4" /></span> Consumo
             </CardTitle>
           </CardHeader>
@@ -351,7 +351,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2 metric-mint filter drop-shadow-[0_0_8px_rgba(0,255,190,0.3)]">
               <span className="icon-premium metric-mint p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Status das instâncias
             </CardTitle>
           </CardHeader>
@@ -369,13 +369,13 @@ export default function ClientDashboard() {
                       <div className={`icon-premium ${s.colorClass} rounded-full p-1.5`}>
                         <s.icon className="h-3.5 w-3.5" />
                       </div>
-                      <span className="text-sm">{s.label}</span>
+                      <span className={`text-sm ${s.colorClass} font-medium`}>{s.label}</span>
                     </div>
-                    <span className="text-lg font-bold tabular-nums">{s.value}</span>
+                    <span className={`text-lg font-bold tabular-nums ${s.colorClass}`}>{s.value}</span>
                   </div>
                 ))}
                 <div className="pt-2 border-t text-center">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs metric-mint opacity-70 font-medium">
                     {instanceStatus.online}/{instanceStatus.total} instâncias operando
                   </span>
                 </div>
@@ -397,7 +397,7 @@ export default function ClientDashboard() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Envios por hora — Hoje</CardTitle>
+          <CardTitle className="text-sm metric-sky filter drop-shadow-[0_0_8px_rgba(56,189,248,0.3)]">Envios por hora — Hoje</CardTitle>
         </CardHeader>
         <CardContent className="h-56">
           <ResponsiveContainer width="100%" height="100%">
@@ -415,7 +415,7 @@ export default function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2 metric-cyan filter drop-shadow-[0_0_8px_rgba(0,224,255,0.3)]">
               <span className="icon-premium metric-cyan p-1.5 rounded-md"><Smartphone className="h-4 w-4" /></span> Instâncias
             </CardTitle>
             <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/instances')}>
@@ -449,9 +449,9 @@ export default function ClientDashboard() {
                         ? <span className="icon-premium metric-green p-1 rounded-full shrink-0 mt-0.5"><Wifi className="h-3.5 w-3.5" /></span>
                         : <span className="icon-premium metric-slate p-1 rounded-full shrink-0 mt-0.5"><WifiOff className="h-3.5 w-3.5" /></span>}
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{inst.name}</p>
+                        <p className={`font-semibold truncate ${isOnline ? 'metric-green' : 'metric-slate opacity-80'}`}>{inst.name}</p>
                         {phone ? (
-                          <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'text-[#24FF91]' : 'text-muted-foreground'}`}>
+                          <p className={`text-[11px] tabular-nums font-medium ${isOnline ? 'metric-green' : 'metric-slate opacity-60'}`}>
                             {phone}
                           </p>
                         ) : (
@@ -475,7 +475,7 @@ export default function ClientDashboard() {
         {hasFeature('invoices_enabled') && (
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
+              <CardTitle className="text-sm flex items-center gap-2 metric-orange filter drop-shadow-[0_0_8px_rgba(255,165,0,0.3)]">
                 <span className="icon-premium metric-orange p-1.5 rounded-md"><FileText className="h-4 w-4" /></span> Últimas faturas
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/subscription')}>
@@ -488,8 +488,8 @@ export default function ClientDashboard() {
                   {recentInvoices.map((inv: any) => (
                     <div key={inv.id} className="flex items-center justify-between text-sm py-1.5 border-b last:border-0">
                       <div>
-                        <p className="font-medium tabular-nums">{formatCents(inv.amount_cents)}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className={`font-bold tabular-nums ${inv.status === 'paid' ? 'metric-green' : inv.status === 'pending' ? 'metric-yellow' : 'metric-red'}`}>{formatCents(inv.amount_cents)}</p>
+                        <p className="text-[10px] metric-orange opacity-60 font-medium">
                           Venc. {format(new Date(inv.due_date), 'dd/MM/yyyy')}
                         </p>
                       </div>
@@ -511,7 +511,7 @@ export default function ClientDashboard() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2 metric-gold filter drop-shadow-[0_0_8px_rgba(255,214,0,0.3)]">
               <span className="icon-premium metric-gold p-1.5 rounded-md"><Activity className="h-4 w-4" /></span> Atividade recente
             </CardTitle>
           </CardHeader>
@@ -524,9 +524,9 @@ export default function ClientDashboard() {
                       <div className={`status-dot h-1.5 w-1.5 rounded-full shrink-0 ${
                         evt.status === 'failed' ? 'bg-[#FF5A5F]' : 'bg-[#38BDF8]'
                       }`} />
-                      <span className="truncate text-muted-foreground">{evt.event_type}</span>
+                      <span className="truncate metric-gold opacity-70 font-medium">{evt.event_type}</span>
                     </div>
-                    <span className="text-muted-foreground/70 shrink-0 ml-2">
+                    <span className="metric-gold opacity-50 shrink-0 ml-2 text-[10px] font-medium">
                       {formatDistanceToNow(new Date(evt.created_at), { addSuffix: true, locale: ptBR })}
                     </span>
                   </div>
