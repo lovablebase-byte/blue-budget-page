@@ -270,30 +270,36 @@ export default function AdminGateways() {
 
       {/* Observability mini-cards (PDF seção 10 — Observabilidade) */}
       <div className="grid grid-cols-3 gap-4">
-        <Card>
+        <Card className="group transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md">
           <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
-            <div className="icon-premium metric-purple p-2 rounded-md"><Activity className="h-5 w-5" /></div>
+            <div className="icon-premium metric-purple p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-[0_0_15px_var(--icon-shadow)]/20">
+              <Activity className="h-5 w-5 filter drop-shadow-[0_0_3px_var(--icon-shadow)]" />
+            </div>
             <div className="text-center">
-              <p className="text-2xl font-bold metric-purple">{eventStats.total}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider metric-purple">Eventos recentes</p>
+              <p className="text-2xl font-black metric-purple filter drop-shadow-[0_0_10px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_15px_var(--icon-shadow)]">{eventStats.total}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest metric-purple filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_var(--icon-shadow)]">Eventos recentes</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md">
           <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
-            <div className="icon-premium metric-green p-2 rounded-md"><CheckCircle2 className="h-5 w-5" /></div>
+            <div className="icon-premium metric-green p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-[0_0_15px_var(--icon-shadow)]/20">
+              <CheckCircle2 className="h-5 w-5 filter drop-shadow-[0_0_3px_var(--icon-shadow)]" />
+            </div>
             <div className="text-center">
-              <p className="text-2xl font-bold metric-green">{eventStats.success}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider metric-green">Sucesso</p>
+              <p className="text-2xl font-black metric-green filter drop-shadow-[0_0_10px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_15px_var(--icon-shadow)]">{eventStats.success}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest metric-green filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_var(--icon-shadow)]">Sucesso</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="group transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md">
           <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
-            <div className="icon-premium metric-red p-2 rounded-md"><XCircle className="h-5 w-5" /></div>
+            <div className="icon-premium metric-red p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-[0_0_15px_var(--icon-shadow)]/20">
+              <XCircle className="h-5 w-5 filter drop-shadow-[0_0_3px_var(--icon-shadow)]" />
+            </div>
             <div className="text-center">
-              <p className="text-2xl font-bold metric-red">{eventStats.errors}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider metric-red">Falhas</p>
+              <p className="text-2xl font-black metric-red filter drop-shadow-[0_0_10px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_15px_var(--icon-shadow)]">{eventStats.errors}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest metric-red filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_var(--icon-shadow)]">Falhas</p>
             </div>
           </CardContent>
         </Card>
