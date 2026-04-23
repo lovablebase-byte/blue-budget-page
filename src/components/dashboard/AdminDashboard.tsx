@@ -123,24 +123,24 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-green rounded-full p-2 group-hover:scale-110 transition-transform"><Wifi className="h-5 w-5" /></div>
+                  <div className="icon-premium metric-green rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(36,255,145,0.2)]"><Wifi className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xl font-black metric-green filter drop-shadow-[0_0_8px_rgba(36,255,145,0.4)]">{s.instancesOnline}</p>
-                    <p className="text-[10px] font-bold metric-green uppercase tracking-widest opacity-70">Online</p>
+                    <p className="text-xl font-black metric-green filter drop-shadow-[0_0_10px_rgba(36,255,145,0.5)]">{s.instancesOnline}</p>
+                    <p className="text-[10px] font-bold metric-green uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(36,255,145,0.3)]">Online</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-red rounded-full p-2 group-hover:scale-110 transition-transform"><WifiOff className="h-5 w-5" /></div>
+                  <div className="icon-premium metric-red rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,90,95,0.2)]"><WifiOff className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xl font-black metric-red filter drop-shadow-[0_0_8px_rgba(255,90,95,0.4)]">{s.instancesOffline}</p>
-                    <p className="text-[10px] font-bold metric-red uppercase tracking-widest opacity-70">Offline</p>
+                    <p className="text-xl font-black metric-red filter drop-shadow-[0_0_10px_rgba(255,90,95,0.5)]">{s.instancesOffline}</p>
+                    <p className="text-[10px] font-bold metric-red uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(255,90,95,0.3)]">Offline</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-yellow rounded-full p-2 group-hover:scale-110 transition-transform"><Signal className="h-5 w-5" /></div>
+                  <div className="icon-premium metric-yellow rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,214,0,0.2)]"><Signal className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_8px_rgba(255,214,0,0.4)]">{s.instancesConnecting}</p>
-                    <p className="text-[10px] font-bold metric-yellow uppercase tracking-widest opacity-70">Conectando</p>
+                    <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_10px_rgba(255,214,0,0.5)]">{s.instancesConnecting}</p>
+                    <p className="text-[10px] font-bold metric-yellow uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(255,214,0,0.3)]">Conectando</p>
                   </div>
                 </div>
               </div>
@@ -157,16 +157,17 @@ export default function AdminDashboard() {
                     return (
                       <div key={p.provider} className="flex items-center justify-between group">
                         <div className="flex items-center gap-2">
-                          <div className={`icon-premium ${colorClass} p-1.5 rounded-md transition-transform duration-300 group-hover:scale-110`}><Server className="h-4 w-4" /></div>
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${colorClass} filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>{p.provider}</span>
+                          <div className={`icon-premium ${colorClass} p-1.5 rounded-md transition-transform duration-300 group-hover:scale-110 shadow-[0_0_10px_var(--icon-shadow)]/20`}><Server className="h-4 w-4" /></div>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${colorClass} filter drop-shadow-[0_0_6px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_10px_var(--icon-shadow)]`}>{p.provider}</span>
                         </div>
-                        <div className={`px-2 py-0.5 rounded-full border border-[var(--icon-border)] bg-[var(--icon-bg)] ${colorClass} text-[11px] font-black tabular-nums filter drop-shadow-[0_0_6px_var(--icon-shadow)] transition-all duration-300 group-hover:scale-105`}>
+                        <div className={`px-2 py-0.5 rounded-full border border-[var(--icon-border)] bg-[var(--icon-bg)] ${colorClass} text-[11px] font-black tabular-nums filter drop-shadow-[0_0_8px_var(--icon-shadow)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>
                           {p.count}
                         </div>
                       </div>
                     );
                   })}
                 </div>
+
               ) : (
                 <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma instância cadastrada</p>
               )}
