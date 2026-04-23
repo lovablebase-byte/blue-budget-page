@@ -25,16 +25,24 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
   title: string; value: number | string; icon: any; subtitle?: string; colorClass?: string;
 }) {
   return (
-    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/10 border-white/5 bg-card/40 backdrop-blur-sm before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:opacity-50 before:content-['']">
+    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:opacity-50 before:content-['']">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className={`text-[10px] font-bold uppercase tracking-[0.15em] ${colorClass} filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>{title}</CardTitle>
-        <div className={`icon-premium ${colorClass} p-2 transition-transform duration-300 group-hover:scale-110`}>
-          <Icon className="h-4 w-4" />
+        <CardTitle className={`text-[11px] font-black uppercase tracking-[0.18em] ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>
+          {title}
+        </CardTitle>
+        <div className={`icon-premium ${colorClass} p-2.5 transition-all duration-300 group-hover:scale-110 shadow-[0_0_20px_var(--icon-shadow)]/20`}>
+          <Icon className="h-4 w-4 filter drop-shadow-[0_0_3px_var(--icon-shadow)]" />
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-black tracking-tight ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{value}</div>
-        {subtitle && <p className={`text-[10px] ${colorClass} opacity-60 mt-1 font-medium uppercase tracking-wider`}>{subtitle}</p>}
+        <div className={`text-3xl font-black tracking-tighter ${colorClass} filter drop-shadow-[0_0_12px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_18px_var(--icon-shadow)]`}>
+          {value}
+        </div>
+        {subtitle && (
+          <p className={`text-[10px] ${colorClass} mt-2 font-bold uppercase tracking-widest filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90`}>
+            {subtitle}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -115,24 +123,24 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-green rounded-full p-2 group-hover:scale-110 transition-transform"><Wifi className="h-5 w-5" /></div>
+                  <div className="icon-premium metric-green rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(36,255,145,0.2)]"><Wifi className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xl font-black metric-green filter drop-shadow-[0_0_8px_rgba(36,255,145,0.4)]">{s.instancesOnline}</p>
-                    <p className="text-[10px] font-bold metric-green uppercase tracking-widest opacity-70">Online</p>
+                    <p className="text-xl font-black metric-green filter drop-shadow-[0_0_10px_rgba(36,255,145,0.5)]">{s.instancesOnline}</p>
+                    <p className="text-[10px] font-bold metric-green uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(36,255,145,0.3)]">Online</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-red rounded-full p-2 group-hover:scale-110 transition-transform"><WifiOff className="h-5 w-5" /></div>
+                  <div className="icon-premium metric-red rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,90,95,0.2)]"><WifiOff className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xl font-black metric-red filter drop-shadow-[0_0_8px_rgba(255,90,95,0.4)]">{s.instancesOffline}</p>
-                    <p className="text-[10px] font-bold metric-red uppercase tracking-widest opacity-70">Offline</p>
+                    <p className="text-xl font-black metric-red filter drop-shadow-[0_0_10px_rgba(255,90,95,0.5)]">{s.instancesOffline}</p>
+                    <p className="text-[10px] font-bold metric-red uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(255,90,95,0.3)]">Offline</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-yellow rounded-full p-2 group-hover:scale-110 transition-transform"><Signal className="h-5 w-5" /></div>
+                  <div className="icon-premium metric-yellow rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,214,0,0.2)]"><Signal className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_8px_rgba(255,214,0,0.4)]">{s.instancesConnecting}</p>
-                    <p className="text-[10px] font-bold metric-yellow uppercase tracking-widest opacity-70">Conectando</p>
+                    <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_10px_rgba(255,214,0,0.5)]">{s.instancesConnecting}</p>
+                    <p className="text-[10px] font-bold metric-yellow uppercase tracking-widest filter drop-shadow-[0_0_4px_rgba(255,214,0,0.3)]">Conectando</p>
                   </div>
                 </div>
               </div>
@@ -149,16 +157,17 @@ export default function AdminDashboard() {
                     return (
                       <div key={p.provider} className="flex items-center justify-between group">
                         <div className="flex items-center gap-2">
-                          <div className={`icon-premium ${colorClass} p-1.5 rounded-md transition-transform duration-300 group-hover:scale-110`}><Server className="h-4 w-4" /></div>
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${colorClass} filter drop-shadow-[0_0_4px_var(--icon-shadow)]`}>{p.provider}</span>
+                          <div className={`icon-premium ${colorClass} p-1.5 rounded-md transition-transform duration-300 group-hover:scale-110 shadow-[0_0_10px_var(--icon-shadow)]/20`}><Server className="h-4 w-4" /></div>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${colorClass} filter drop-shadow-[0_0_6px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_10px_var(--icon-shadow)]`}>{p.provider}</span>
                         </div>
-                        <div className={`px-2 py-0.5 rounded-full border border-[var(--icon-border)] bg-[var(--icon-bg)] ${colorClass} text-[11px] font-black tabular-nums filter drop-shadow-[0_0_6px_var(--icon-shadow)] transition-all duration-300 group-hover:scale-105`}>
+                        <div className={`px-2 py-0.5 rounded-full border border-[var(--icon-border)] bg-[var(--icon-bg)] ${colorClass} text-[11px] font-black tabular-nums filter drop-shadow-[0_0_8px_var(--icon-shadow)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>
                           {p.count}
                         </div>
                       </div>
                     );
                   })}
                 </div>
+
               ) : (
                 <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma instância cadastrada</p>
               )}
@@ -187,17 +196,20 @@ export default function AdminDashboard() {
                <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhum cliente</p>
              ) : (
                <div className="space-y-3">
-                 {recentCompanies.data!.map((c) => (
+                 {recentCompanies.data!.map((c) => {
+                   const statusColor = c.is_active ? 'metric-green' : 'metric-red';
+                   return (
                    <div key={c.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
-                       <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.name}</p>
+                       <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{c.name}</p>
                        <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-black">{new Date(c.created_at).toLocaleDateString('pt-BR')}</p>
                      </div>
-                     <Badge className={c.is_active ? "metric-green bg-transparent border-[var(--icon-border)] text-[9px] font-black tracking-wider filter drop-shadow-[0_0_4px_var(--icon-shadow)]" : "text-muted-foreground/60 border-muted-foreground/20 text-[9px] font-bold tracking-wider"}>
+                     <Badge className={`${statusColor} bg-transparent border-[var(--icon-border)] text-[9px] font-black tracking-wider filter drop-shadow-[0_0_6px_var(--icon-shadow)]`}>
                        {c.is_active ? 'ATIVA' : 'INATIVA'}
                      </Badge>
                    </div>
-                 ))}
+                   );
+                 })}
                </div>
              )}
           </CardContent>
@@ -214,13 +226,14 @@ export default function AdminDashboard() {
                  {recentInstances.data!.map((inst) => {
                    const phone = formatPhone(inst.phone_number);
                    const isOnline = inst.status === 'online' || inst.status === 'connected';
+                   const statusColor = isOnline ? 'metric-green' : inst.status === 'connecting' ? 'metric-yellow' : 'metric-red';
                    return (
                    <div key={inst.id} className="flex items-center justify-between gap-2 group">
                      <div className="min-w-0">
-                       <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{inst.name}</p>
+                       <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inst.name}</p>
                        <p className="text-[10px] text-muted-foreground/50 truncate uppercase tracking-widest font-black">{inst.company_name} · {inst.provider}</p>
                        {phone ? (
-                         <p className={`text-[11px] font-black tabular-nums flex items-center gap-1 mt-0.5 ${isOnline ? 'metric-green filter drop-shadow-[0_0_3px_var(--icon-shadow)]' : 'text-muted-foreground/40'}`}>
+                         <p className={`text-[11px] font-black tabular-nums flex items-center gap-1 mt-0.5 ${statusColor} filter drop-shadow-[0_0_5px_var(--icon-shadow)]`}>
                            <Phone className="h-3 w-3" />
                            {phone}
                          </p>
@@ -245,19 +258,23 @@ export default function AdminDashboard() {
                <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma fatura</p>
              ) : (
                <div className="space-y-3">
-                 {recentInvoices.data!.map((inv) => (
+                 {recentInvoices.data!.map((inv) => {
+                   const statusColor = inv.status === 'paid' ? 'metric-green' : inv.status === 'pending' ? 'metric-yellow' : 'metric-red';
+                   return (
                    <div key={inv.id} className="flex items-center justify-between group">
                      <div className="min-w-0">
-                       <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{inv.company_name}</p>
+                       <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inv.company_name}</p>
                        <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-black">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
                      </div>
                      <div className="flex items-center gap-2 shrink-0">
-                       <span className="text-sm font-black tabular-nums tracking-tighter">{formatCurrency(inv.amount_cents)}</span>
+                       <span className={`text-sm font-black tabular-nums tracking-tighter ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{formatCurrency(inv.amount_cents)}</span>
                        <StatusBadge status={inv.status} />
                      </div>
                    </div>
-                 ))}
+                   );
+                 })}
                </div>
+
              )}
           </CardContent>
         </Card>

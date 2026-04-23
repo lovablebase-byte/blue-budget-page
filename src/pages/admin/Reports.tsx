@@ -65,19 +65,19 @@ export default function AdminReports() {
   });
 
   const row1 = [
-    { icon: UserCheck, label: 'Contas Ativas', value: stats?.clients ?? 0, color: 'text-primary' },
-    { icon: CreditCard, label: 'Assinaturas Ativas', value: stats?.activeSubscriptions ?? 0, color: 'text-success' },
-    { icon: Users, label: 'Usuários', value: stats?.users ?? 0, color: 'text-blue-500' },
-    { icon: Smartphone, label: 'Instâncias Ativas', value: `${stats?.activeInstances ?? 0} / ${stats?.totalInstances ?? 0}`, color: 'text-cyan-500' },
-    { icon: Bot, label: 'Agentes IA Ativos', value: stats?.activeAgents ?? 0, color: 'text-violet-500' },
+    { icon: UserCheck, label: 'Contas Ativas', value: stats?.clients ?? 0, color: 'metric-green' },
+    { icon: CreditCard, label: 'Assinaturas Ativas', value: stats?.activeSubscriptions ?? 0, color: 'metric-green' },
+    { icon: Users, label: 'Usuários', value: stats?.users ?? 0, color: 'metric-blue' },
+    { icon: Smartphone, label: 'Instâncias Ativas', value: `${stats?.activeInstances ?? 0} / ${stats?.totalInstances ?? 0}`, color: 'metric-cyan' },
+    { icon: Bot, label: 'Agentes IA Ativos', value: stats?.activeAgents ?? 0, color: 'metric-purple' },
   ];
 
   const row2 = [
-    { icon: Megaphone, label: 'Campanhas Ativas', value: stats?.activeCampaigns ?? 0, color: 'text-amber-500' },
-    { icon: AlertTriangle, label: 'Assinaturas Vencidas', value: stats?.expiredSubscriptions ?? 0, color: 'text-destructive' },
-    { icon: Activity, label: 'Contas sem Assinatura', value: stats?.clientsWithoutSubscription ?? 0, color: 'text-orange-500' },
-    { icon: MessageCircle, label: 'Mensagens no Período', value: stats?.messagesThisMonth ?? 0, color: 'text-info' },
-    { icon: TrendingUp, label: 'Taxa de Atividade', value: stats && stats.clients > 0 ? `${Math.round((stats.activeSubscriptions / stats.clients) * 100)}%` : '0%', color: 'text-success' },
+    { icon: Megaphone, label: 'Campanhas Ativas', value: stats?.activeCampaigns ?? 0, color: 'metric-orange' },
+    { icon: AlertTriangle, label: 'Assinaturas Vencidas', value: stats?.expiredSubscriptions ?? 0, color: 'metric-red' },
+    { icon: Activity, label: 'Contas sem Assinatura', value: stats?.clientsWithoutSubscription ?? 0, color: 'metric-orange' },
+    { icon: MessageCircle, label: 'Mensagens no Período', value: stats?.messagesThisMonth ?? 0, color: 'metric-blue' },
+    { icon: TrendingUp, label: 'Taxa de Atividade', value: stats && stats.clients > 0 ? `${Math.round((stats.activeSubscriptions / stats.clients) * 100)}%` : '0%', color: 'metric-green' },
   ];
 
   if (isLoading) {
@@ -99,11 +99,13 @@ export default function AdminReports() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {row1.map((c) => (
-          <Card key={c.label}>
-            <CardContent className="p-4 text-center">
-              <c.icon className={`h-6 w-6 mx-auto mb-2 ${c.color}`} />
-              <p className="text-3xl font-bold">{c.value}</p>
-              <p className="text-sm text-muted-foreground">{c.label}</p>
+          <Card key={c.label} className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md">
+            <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+              <div className={`icon-premium ${c.color} p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-[0_0_15px_var(--icon-shadow)]/20`}>
+                <c.icon className={`h-5 w-5 filter drop-shadow-[0_0_3px_var(--icon-shadow)]`} />
+              </div>
+              <p className={`text-3xl font-black tracking-tighter ${c.color} filter drop-shadow-[0_0_10px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_15px_var(--icon-shadow)]`}>{c.value}</p>
+              <p className={`text-[10px] font-black uppercase tracking-[0.15em] ${c.color} filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{c.label}</p>
             </CardContent>
           </Card>
         ))}
@@ -111,11 +113,13 @@ export default function AdminReports() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {row2.map((c) => (
-          <Card key={c.label}>
-            <CardContent className="p-4 text-center">
-              <c.icon className={`h-6 w-6 mx-auto mb-2 ${c.color}`} />
-              <p className="text-3xl font-bold">{c.value}</p>
-              <p className="text-sm text-muted-foreground">{c.label}</p>
+          <Card key={c.label} className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--icon-shadow)]/15 border-white/5 bg-card/40 backdrop-blur-md">
+            <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+              <div className={`icon-premium ${c.color} p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 shadow-[0_0_15px_var(--icon-shadow)]/20`}>
+                <c.icon className={`h-5 w-5 filter drop-shadow-[0_0_3px_var(--icon-shadow)]`} />
+              </div>
+              <p className={`text-3xl font-black tracking-tighter ${c.color} filter drop-shadow-[0_0_10px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_15px_var(--icon-shadow)]`}>{c.value}</p>
+              <p className={`text-[10px] font-black uppercase tracking-[0.15em] ${c.color} filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{c.label}</p>
             </CardContent>
           </Card>
         ))}
