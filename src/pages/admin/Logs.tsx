@@ -97,31 +97,31 @@ export default function AdminLogs() {
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Enviados</CardTitle>
-            <Send className="h-4 w-4 text-[#2AF598]" />
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider metric-green">Enviados</CardTitle>
+            <div className="icon-premium metric-green p-1.5 rounded-md"><Send className="h-4 w-4" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-[#2AF598]">{stats?.sent ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold metric-green">{stats?.sent ?? 0}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Entregues</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-[#FF9F43]" />
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider metric-orange">Entregues</CardTitle>
+            <div className="icon-premium metric-orange p-1.5 rounded-md"><CheckCircle2 className="h-4 w-4" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-[#FF9F43]">{stats?.delivered ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold metric-orange">{stats?.delivered ?? 0}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Lidos</CardTitle>
-            <Eye className="h-4 w-4 text-[#2EF2FF]" />
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider metric-turquoise">Lidos</CardTitle>
+            <div className="icon-premium metric-turquoise p-1.5 rounded-md"><Eye className="h-4 w-4" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-[#2EF2FF]">{stats?.read ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold metric-turquoise">{stats?.read ?? 0}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium">Falhas</CardTitle>
-            <XCircle className="h-4 w-4 text-[#FF5A5F]" />
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider metric-red">Falhas</CardTitle>
+            <div className="icon-premium metric-red p-1.5 rounded-md"><XCircle className="h-4 w-4" /></div>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-[#FF5A5F]">{stats?.failed ?? 0}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold metric-red">{stats?.failed ?? 0}</div></CardContent>
         </Card>
       </div>
 
