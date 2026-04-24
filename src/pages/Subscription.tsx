@@ -20,7 +20,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Crown, CreditCard, BarChart3, CheckCircle2, XCircle, Clock,
   AlertTriangle, ArrowUpRight, ArrowDownRight, MessageCircle, Receipt, Smartphone,
-  Bot, Megaphone, Users, FileText, Shield, Zap, Star, TestTube
+  Bot, Megaphone, Users, FileText, Shield, Zap, Star
 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { PLAN_FEATURES } from '@/lib/plan-features';
