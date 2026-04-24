@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
-import { routeOrderForRedirect, moduleFeatureMap } from '@/lib/routes';
+import { moduleFeatureMap } from '@/lib/routes';
+import { resolveInitialRoute } from '@/lib/initial-route';
 import { toast } from '@/hooks/use-toast';
 
 interface ProtectedRouteProps {
@@ -27,25 +28,13 @@ function getSafeHomeRoute(role: 'admin' | 'user' | null): string {
   return '/account';
 }
 
-function getFallbackRoute(
-  role: 'admin' | 'user' | null,
-  hasPermission: (m: string, a: string) => boolean,
-): string {
-  if (role === 'admin') return '/dashboard';
-
-  for (const route of routeOrderForRedirect) {
-    if (route.path.startsWith('/admin')) continue;
-    if (route.path === '/dashboard') continue;
-    if (hasPermission(route.module, 'view')) return route.path;
-  }
-
-  return '/account';
-}
-
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
   const { user, loading, role, hasPermission, permissions, roleError, signOut } = useAuth();
   const { hasFeature, plan, planLoading } = useCompany();
   const location = useLocation();
+
+  // Evita loop: se já estamos no destino seguro de fallback, não redirecionar.
+  const safeFallbackPaths = ['/account', '/subscription'];
 
   const isAdminRoute = location.pathname.startsWith('/admin') || ['/dashboard', '/users', '/settings', '/branding'].includes(location.pathname);
   const adminRouteDenied = role === 'user' && isAdminRoute;
@@ -125,8 +114,11 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   }
 
   if (permDenied) {
-    console.log('ProtectedRoute: Permission denied, redirecting to fallback');
-    return <Navigate to={getFallbackRoute(role, hasPermission)} replace />;
+    const fallback = resolveInitialRoute({ role, plan, permissions });
+    // Proteção contra loop: se o fallback é a rota atual, vai para /account
+    const target = fallback === location.pathname ? '/account' : fallback;
+    console.log('[ProtectedRoute] Permission denied em', location.pathname, '→ fallback:', target);
+    return <Navigate to={target} replace />;
   }
 
   return <>{children}</>;
