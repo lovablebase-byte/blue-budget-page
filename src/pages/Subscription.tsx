@@ -298,7 +298,6 @@ export default function Subscription() {
                       { label: 'Msgs/dia', value: plan.limits.max_messages_day, icon: Zap, color: 'metric-amber' },
                       { label: 'Msgs/mês', value: plan.limits.max_messages_month, icon: FileText, color: 'metric-sky' },
                       { label: 'Contatos', value: plan.limits.max_contacts, icon: Users, color: 'metric-blue' },
-                      { label: 'Teste', value: usage.teste || 0, icon: TestTube, color: 'metric-purple' },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
                         <div className={`icon-premium ${item.color} p-1 rounded-md`}>
