@@ -224,7 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user, session, loading, role, userRole, company,
-        permissions, isAdmin, isReadOnly,
+        permissions, isAdmin, isReadOnly, roleError,
         hasPermission, signOut, refreshAuth,
       }}
     >
@@ -236,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 const defaultAuthContext: AuthContextType = {
   user: null, session: null, loading: true, role: null,
   userRole: null, company: null, permissions: [],
-  isAdmin: false, isReadOnly: false,
+  isAdmin: false, isReadOnly: false, roleError: null,
   hasPermission: () => false,
   signOut: async () => {},
   refreshAuth: async () => {},
