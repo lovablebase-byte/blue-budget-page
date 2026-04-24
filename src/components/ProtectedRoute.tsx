@@ -33,18 +33,26 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   const { user, loading, role, hasPermission, permissions } = useAuth();
   const { hasFeature, plan, planLoading } = useCompany();
 
+  // Console logs for debugging (as requested)
+  useEffect(() => {
+    if (user) {
+      console.log('ProtectedRoute Debug:', {
+        userId: user.id,
+        role,
+        loading,
+        planLoading,
+        requiredModule,
+        requiredRole
+      });
+    }
+  }, [user, role, loading, planLoading, requiredModule, requiredRole]);
+
   const roleDenied = !!(role && requiredRole && !requiredRole.includes(role));
 
-  // Permission check aligned with sidebar visibility:
-  // 1. Admin → always allowed
-  // 2. Plan feature disabled → denied
-  // 3. Granular permissions exist → respect them
-  // 4. No granular permissions → plan feature is enough
   const getPermDenied = (): boolean => {
     if (!role || role === 'admin' || !requiredModule) return false;
 
     const featureKey = moduleFeatureMap[requiredModule];
-    // If there's a feature flag for this module: deny if plan is null OR feature is disabled
     if (featureKey) {
       if (!plan || !hasFeature(featureKey)) return true;
     }
@@ -63,35 +71,59 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     roleDenied || permDenied,
   );
 
-  if (loading || planLoading) {
+  // Still loading session or basic auth state
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <span className="ml-3 text-sm text-muted-foreground animate-pulse">Carregando sessão...</span>
       </div>
     );
   }
 
+  // Not logged in
   if (!user) {
+    console.log('ProtectedRoute: No user found, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
 
-  if (role === null) {
+  // Session loaded, but waiting for plan data (only if not admin)
+  if (role !== 'admin' && planLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <span className="ml-3 text-sm text-muted-foreground animate-pulse">Carregando plano...</span>
       </div>
     );
   }
 
+  // User has no role assigned yet (should be rare with auto-creation)
+  if (role === null) {
+    console.warn('ProtectedRoute: User has no role. Fallback to user role.');
+    // If it's been loading for a while and still no role, we could show an error
+    // but here we trust the AuthContext fallback. If we are here, something is slow.
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <span className="ml-3 text-sm text-muted-foreground animate-pulse">Finalizando configuração...</span>
+      </div>
+    );
+  }
+
+  // Admin bypass
   if (role === 'admin') {
     return <>{children}</>;
   }
 
+  // Role check
   if (roleDenied) {
+    console.log('ProtectedRoute: Role denied, redirecting to fallback');
     return <Navigate to={getFallbackRoute(hasPermission)} replace />;
   }
 
+  // Permission check
   if (permDenied) {
+    console.log('ProtectedRoute: Permission denied, redirecting to fallback');
     return <Navigate to={getFallbackRoute(hasPermission)} replace />;
   }
 
