@@ -36,33 +36,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = role === 'admin';
 
   const fetchUserData = useCallback(async (userId: string) => {
+    console.log('Fetching user data for:', userId);
     try {
       // Fetch user role
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('*')
         .eq('user_id', userId)
-        .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!isMountedRef.current) return;
 
-      if (roleData) {
+      if (roleError) {
+        console.error('Error fetching user role:', roleError);
+        throw roleError;
+      }
+
+      let activeRoleData = roleData;
+
+      // Fallback: If no role found, create one automatically (self-healing)
+      if (!activeRoleData) {
+        console.log('No role found for user, creating default role...');
+        
+        // Find default company
+        const { data: companies } = await supabase
+          .from('companies')
+          .select('id')
+          .limit(1);
+        
+        const defaultCompanyId = companies && companies.length > 0 ? companies[0].id : null;
+
+        const { data: newRole, error: createError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            company_id: defaultCompanyId,
+            role: 'user'
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating default role:', createError);
+          // If we can't create it, we can't proceed normally, but we shouldn't loop
+        } else {
+          activeRoleData = newRole;
+          console.log('Default role created successfully');
+        }
+      }
+
+      if (activeRoleData) {
         // Normalize: treat any legacy super_admin as admin
-        const normalizedRole = (roleData.role === 'super_admin' ? 'admin' : roleData.role) as AppRole;
+        const normalizedRole = (activeRoleData.role === 'super_admin' ? 'admin' : activeRoleData.role) as AppRole;
+        console.log('Setting user role:', normalizedRole);
         setRole(normalizedRole);
-        setUserRole({ ...roleData, role: normalizedRole } as UserRoleData);
+        setUserRole({ ...activeRoleData, role: normalizedRole } as UserRoleData);
 
         // Fetch company
-        if (roleData.company_id) {
+        if (activeRoleData.company_id) {
           const { data: companyData } = await supabase
             .from('companies')
             .select('*')
-            .eq('id', roleData.company_id)
+            .eq('id', activeRoleData.company_id)
             .single();
           
           if (!isMountedRef.current) return;
           if (companyData) {
+            console.log('Setting company:', companyData.name);
             setCompany(companyData as CompanyData);
           }
 
@@ -70,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { data: subData } = await supabase
             .from('subscriptions')
             .select('status')
-            .eq('company_id', roleData.company_id)
+            .eq('company_id', activeRoleData.company_id)
             .single();
           
           if (!isMountedRef.current) return;
@@ -79,11 +119,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Fetch permissions for all users (admin gets bypass via hasPermission)
+        // Fetch permissions
         const { data: permsData } = await supabase
           .from('permissions')
           .select('*, modules(name)')
-          .eq('user_role_id', roleData.id);
+          .eq('user_role_id', activeRoleData.id);
 
         if (!isMountedRef.current) return;
         if (permsData) {
@@ -97,12 +137,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }));
           setPermissions(mapped);
         }
+      } else {
+        // Safe fallback if still no role
+        console.warn('User has no role and creation failed. Setting default user role in state.');
+        setRole('user');
       }
     } catch (err) {
-      console.error('Error fetching user data:', err);
+      console.error('Error in fetchUserData:', err);
+      // Ensure we don't block the UI forever even on critical failure
+      if (isMountedRef.current) {
+        setRole('user'); 
+      }
     } finally {
       if (isMountedRef.current) {
         setUserDataLoaded(true);
+        console.log('User data loading finished');
       }
     }
   }, []);
