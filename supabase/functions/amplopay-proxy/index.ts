@@ -269,28 +269,34 @@ serve(async (req) => {
 
               await svc.from("payment_charges").update(updateData).eq("id", charge.id);
 
-              // Se pago, ativar assinatura (PDF seção 5.4)
+              // Se pago, ativar assinatura — preferindo confirm_pending_plan_change
               if (updateData.status === "paid" && charge.subscription_id) {
-                const now = new Date();
-                const nextMonth = new Date(now);
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                const { data: confirmRes } = await svc.rpc("confirm_pending_plan_change", {
+                  _subscription_id: charge.subscription_id,
+                });
 
-                await svc
-                  .from("subscriptions")
-                  .update({
-                    status: "active",
-                    started_at: now.toISOString(),
-                    expires_at: nextMonth.toISOString(),
-                    canceled_at: null,
-                    suspended_at: null,
-                  })
-                  .eq("id", charge.subscription_id);
+                if (!confirmRes || (confirmRes as any).success === false) {
+                  const now = new Date();
+                  const nextMonth = new Date(now);
+                  nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+                  await svc
+                    .from("subscriptions")
+                    .update({
+                      status: "active",
+                      started_at: now.toISOString(),
+                      expires_at: nextMonth.toISOString(),
+                      canceled_at: null,
+                      suspended_at: null,
+                    })
+                    .eq("id", charge.subscription_id);
+                }
 
                 await logEvent({
                   event_type: "fallback_reconciliation",
                   external_id: charge.external_id,
                   charge_id: charge.id,
-                  payload: { subscription_id: charge.subscription_id, new_status: "paid" },
+                  payload: { subscription_id: charge.subscription_id, new_status: "paid", confirm_result: confirmRes },
                   result: "processed",
                   processed_at: new Date().toISOString(),
                 });
