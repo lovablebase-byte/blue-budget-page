@@ -20,7 +20,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Crown, CreditCard, BarChart3, CheckCircle2, XCircle, Clock,
   AlertTriangle, ArrowUpRight, ArrowDownRight, MessageCircle, Receipt, Smartphone,
-  Bot, Megaphone, Users, FileText, Shield, Zap, Star, TestTube
+  Bot, Megaphone, Users, FileText, Shield, Zap, Star
 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { PLAN_FEATURES } from '@/lib/plan-features';
@@ -90,19 +90,39 @@ export default function Subscription() {
   // Change plan mutation — uses SECURITY DEFINER RPC to bypass RLS
   const changePlanMutation = useMutation({
     mutationFn: async (newPlanId: string) => {
-      const { error } = await supabase.rpc('change_subscription_plan', {
+      console.log('[Subscription] change_subscription_plan ->', newPlanId);
+      const { data, error } = await supabase.rpc('change_subscription_plan', {
         _new_plan_id: newPlanId,
       });
-      if (error) throw error;
+      if (error) {
+        console.error('[Subscription] change_subscription_plan error', error);
+        throw error;
+      }
+      // Audit log (best-effort, non-blocking)
+      supabase.rpc('log_audit', {
+        _action: 'change_plan',
+        _entity_type: 'subscription',
+        _entity_id: newPlanId,
+        _payload: (data ?? {}) as any,
+      }).then(({ error: aErr }) => {
+        if (aErr) console.warn('[Subscription] audit log failed', aErr);
+      });
+      return data as { success: boolean; is_free: boolean; status: string; requires_payment: boolean };
     },
-    onSuccess: () => {
-      // Invalidate all plan-related queries to refresh immediately
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['effective-plan'] });
       queryClient.invalidateQueries({ queryKey: ['allowed-providers'] });
       queryClient.invalidateQueries({ queryKey: ['available-plans'] });
       queryClient.invalidateQueries({ queryKey: ['resource-limit'] });
       queryClient.invalidateQueries({ queryKey: ['feature-enabled'] });
-      toast({ title: 'Plano alterado com sucesso', description: 'Os novos limites e recursos já estão ativos.' });
+      if (result?.requires_payment) {
+        toast({
+          title: 'Plano selecionado — pagamento pendente',
+          description: 'A assinatura só será ativada após a confirmação do pagamento.',
+        });
+      } else {
+        toast({ title: 'Plano alterado com sucesso', description: 'Os novos limites e recursos já estão ativos.' });
+      }
       setConfirmPlan(null);
     },
     onError: (e: any) => {
@@ -126,7 +146,7 @@ export default function Subscription() {
       });
   }, [company?.id]);
 
-  // Fetch usage counts
+  // Fetch usage counts (users count excludes admins — only end users count toward plan)
   useEffect(() => {
     if (!company?.id) return;
     setUsageLoading(true);
@@ -134,7 +154,7 @@ export default function Subscription() {
       supabase.from('instances').select('id, provider', { count: 'exact' }).eq('company_id', company.id),
       supabase.from('ai_agents').select('id', { count: 'exact' }).eq('company_id', company.id),
       supabase.from('campaigns').select('id', { count: 'exact' }).eq('company_id', company.id),
-      supabase.from('user_roles').select('id', { count: 'exact' }).eq('company_id', company.id),
+      supabase.from('user_roles').select('id', { count: 'exact' }).eq('company_id', company.id).eq('role', 'user'),
     ]).then(([inst, agents, campaigns, users]) => {
       const providerCounts: Record<string, number> = {};
       (inst.data || []).forEach((i: any) => {
@@ -145,7 +165,6 @@ export default function Subscription() {
         ai_agents: agents.count ?? 0,
         campaigns: campaigns.count ?? 0,
         users: users.count ?? 0,
-        teste: 0, // Mock for "Teste" card
         ...Object.fromEntries(Object.entries(providerCounts).map(([k, v]) => [`provider_${k}`, v])),
       });
       setUsageLoading(false);
@@ -279,7 +298,6 @@ export default function Subscription() {
                       { label: 'Msgs/dia', value: plan.limits.max_messages_day, icon: Zap, color: 'metric-amber' },
                       { label: 'Msgs/mês', value: plan.limits.max_messages_month, icon: FileText, color: 'metric-sky' },
                       { label: 'Contatos', value: plan.limits.max_contacts, icon: Users, color: 'metric-blue' },
-                      { label: 'Teste', value: usage.teste || 0, icon: TestTube, color: 'metric-purple' },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
                         <div className={`icon-premium ${item.color} p-1 rounded-md`}>
