@@ -34,7 +34,7 @@ export default function AdminReports() {
         supabase.from('companies').select('id', { count: 'exact', head: true }),
         supabase.from('subscriptions').select('id', { count: 'exact', head: true }).in('status', ['active', 'trialing']),
         supabase.from('subscriptions').select('id', { count: 'exact', head: true }).in('status', ['past_due', 'canceled']),
-        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', 'user'),
+        supabase.from('user_roles').select('id, profiles!inner(id)', { count: 'exact', head: true }).eq('role', 'user'),
         supabase.from('instances').select('id, status'),
         supabase.from('ai_agents').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('campaigns').select('id', { count: 'exact', head: true }).in('status', ['active', 'sending']),
