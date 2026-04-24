@@ -1,23 +1,29 @@
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { routeOrderForRedirect } from '@/lib/routes';
+import { useCompany } from '@/contexts/CompanyContext';
+import { resolveInitialRoute } from '@/lib/initial-route';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, ArrowRight, Smartphone, Bot, Megaphone, Shield } from 'lucide-react';
 
 const Index = () => {
-  const { user, loading, role, roleError } = useAuth();
+  const { user, loading, role, roleError, permissions } = useAuth();
+  const { plan, planLoading } = useCompany();
 
   if (loading) return null;
 
   // Authenticated users → redirect by role
   if (user) {
-    // Erro de role: deixa ProtectedRoute lidar via /account (que mostrará a tela de bloqueio)
+    // Erro de role: vai para /account que mostra tela controlada de bloqueio
     if (roleError) return <Navigate to="/account" replace />;
     // Admin SEMPRE vai para o painel admin
     if (role === 'admin') return <Navigate to="/dashboard" replace />;
-    // Usuário comum vai para a primeira área operacional disponível.
-    // Se nenhuma estiver disponível, vai para /account (área pessoal).
-    if (role === 'user') return <Navigate to="/instances" replace />;
+    // Usuário comum: precisa aguardar plano carregar para escolher rota válida
+    if (role === 'user') {
+      if (planLoading) return null;
+      const target = resolveInitialRoute({ role, plan, permissions });
+      console.log('[Index] redirect user comum →', target, '(plan:', plan?.plan_name ?? 'nenhum', ')');
+      return <Navigate to={target} replace />;
+    }
     // role === null sem erro (transição): aguarda
     return null;
   }
