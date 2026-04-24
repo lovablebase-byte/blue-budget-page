@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [userDataLoaded, setUserDataLoaded] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
 
