@@ -6,25 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── Fonte única de verdade: permissões padrão por papel ──
-// Alinhado com src/lib/rbac-defaults.ts — apenas módulos ativos do produto
-const ADMIN_DEFAULT_PERMISSIONS = [
-  { module: 'dashboard', can_view: true, can_create: false, can_edit: false, can_delete: false, extra: {} },
-  { module: 'instances', can_view: true, can_create: true, can_edit: true, can_delete: true,
-    extra: { pair: true, reconnect: true, disconnect: true, test_message: true } },
-  { module: 'ai_agents', can_view: true, can_create: true, can_edit: true, can_delete: true,
-    extra: { test: true } },
-  { module: 'campaigns', can_view: true, can_create: true, can_edit: true, can_delete: true,
-    extra: { send: true, pause: true, reports: true } },
-  { module: 'settings', can_view: true, can_create: false, can_edit: true, can_delete: false, extra: {} },
-];
-
-const OPERATOR_DEFAULT_PERMISSIONS = [
-  { module: 'dashboard', can_view: true, can_create: false, can_edit: false, can_delete: false, extra: {} },
-  { module: 'instances', can_view: true, can_create: true, can_edit: true, can_delete: false,
-    extra: { pair: true, reconnect: true, disconnect: true, test_message: true } },
-];
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -36,155 +17,93 @@ serve(async (req) => {
     });
 
     const results: string[] = [];
-
-    // 1. Determine company (Multi-tenant)
-    let companyId: string;
     const body = req.headers.get('content-type')?.includes('application/json')
       ? await req.json().catch(() => ({}))
       : {};
 
-    const fullName = body.full_name || body.email || 'Novo Usuário';
     const email = body.email;
+    const fullName = body.full_name || email || 'Novo Usuário';
+    const password = body.password || '123456';
+    const requestedRole = body.role === 'admin' ? 'admin' : 'user';
 
-    if (!email && !body.is_seed) {
+    if (!email) {
       throw new Error("Email é obrigatório");
     }
 
-    if (body.company_id) {
-      companyId = body.company_id;
-    } else {
-      // Create a NEW company for each user (unless it's a seed request for demo)
-      const slug = `empresa-${Math.random().toString(36).substring(2, 10)}`;
-      const { data: newCompany, error: companyErr } = await supabase
-        .from("companies")
-        .insert({ name: `${fullName} - Empresa`, slug })
-        .select("id")
-        .single();
+    // ── Single-tenant: SEMPRE vincular ao tenant principal ──
+    let { data: mainTenant } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('slug', 'main-tenant')
+      .maybeSingle();
+
+    if (!mainTenant) {
+      const { data: anyCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .order('created_at')
+        .limit(1)
+        .maybeSingle();
       
-      if (companyErr) throw companyErr;
-      companyId = newCompany.id;
-      results.push(`Empresa criada: ${slug}`);
-    }
-
-    // 2. Check/create subscription (ONLY if explicitly requested or for legacy demo seed)
-    if (body.include_subscription) {
-      const { data: plan } = await supabase.from("plans").select("id").eq("name", "Pro").single();
-      if (plan) {
-        await supabase.from("subscriptions").insert({
-          company_id: companyId, plan_id: plan.id, status: "active",
-          started_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        });
-        results.push("Assinatura Pro criada");
-      }
-    }
-
-    // 3. Get all modules
-    const { data: modules } = await supabase.from("modules").select("id, name");
-    const moduleMap = new Map((modules || []).map((m: any) => [m.name, m.id]));
-
-    // 4. Seed users
-    let users: any[] = [];
-    if (body && body.email) {
-      users = [{
-        email: body.email,
-        password: body.password || '123456',
-        fullName: body.full_name || body.email,
-        role: body.role === 'admin' ? 'admin' : 'user',
-        companyId,
-        perms: body.role === 'admin' ? ADMIN_DEFAULT_PERMISSIONS : OPERATOR_DEFAULT_PERMISSIONS,
-      }];
-    }
-
-    if (users.length === 0) {
-      // Default seed: create demo admin and operator
-      users = [
-        { email: "admin@admin.com", password: "123456", fullName: "Admin Demo", role: "admin", companyId, perms: ADMIN_DEFAULT_PERMISSIONS },
-        { email: "usuario@usuario.com", password: "123456", fullName: "Operador Demo", role: "user", companyId, perms: OPERATOR_DEFAULT_PERMISSIONS },
-      ];
-    }
-
-    for (const u of users) {
-      const { data: existingUsers } = await supabase.auth.admin.listUsers();
-      const existing = existingUsers?.users?.find((eu: any) => eu.email === u.email);
-
-      let userId: string;
-      if (existing) {
-        userId = existing.id;
-        await supabase.auth.admin.updateUserById(userId, { password: u.password });
-        results.push(`${u.email} já existe (senha atualizada)`);
+      if (anyCompany) {
+        mainTenant = anyCompany;
       } else {
-        const { data: newUser, error: authErr } = await supabase.auth.admin.createUser({
-          email: u.email, password: u.password, email_confirm: true,
-          user_metadata: { full_name: u.fullName },
-        });
-        if (authErr) throw authErr;
-        userId = newUser.user.id;
-        results.push(`${u.email} criado`);
-      }
-
-      // Ensure profile
-      const { data: existingProfile } = await supabase
-        .from("profiles").select("id").eq("user_id", userId).single();
-      if (!existingProfile) {
-        await supabase.from("profiles").insert({
-          user_id: userId, full_name: u.fullName,
-        });
-      }
-
-      // Ensure user_role
-      const { data: existingRole } = await supabase
-        .from("user_roles").select("id, role").eq("user_id", userId).single();
-
-      let userRoleId: string;
-      if (!existingRole) {
-        const { data: newRole, error: roleErr } = await supabase
-          .from("user_roles").insert({ user_id: userId, role: u.role, company_id: u.companyId })
-          .select("id").single();
-        if (roleErr) throw roleErr;
-        userRoleId = newRole.id;
-        results.push(`Role ${u.role} atribuído a ${u.email}`);
-      } else {
-        userRoleId = existingRole.id;
-        if (existingRole.role === 'super_admin') {
-          await supabase.from("user_roles").update({ role: 'admin' }).eq("id", userRoleId);
-          results.push(`Role de ${u.email} atualizado de super_admin para admin`);
-        }
-      }
-
-      // ── UPSERT de permissões: adicionar faltantes, nunca remover existentes ──
-      if (u.perms.length > 0 && moduleMap.size > 0) {
-        const { data: currentPerms } = await supabase
-          .from("permissions")
-          .select("module_id")
-          .eq("user_role_id", userRoleId);
-        
-        const existingModuleIds = new Set((currentPerms || []).map((p: any) => p.module_id));
-
-        for (const pm of u.perms) {
-          const moduleId = moduleMap.get(pm.module);
-          if (!moduleId) continue;
-          
-          if (existingModuleIds.has(moduleId)) continue;
-
-          await supabase.from("permissions").insert({
-            user_role_id: userRoleId,
-            module_id: moduleId,
-            can_view: pm.can_view,
-            can_create: pm.can_create,
-            can_edit: pm.can_edit,
-            can_delete: pm.can_delete,
-            extra_permissions: pm.extra || {},
-          });
-        }
-        results.push(`Permissões default aplicadas a ${u.email}`);
+        const { data: newTenant, error: createErr } = await supabase
+          .from('companies')
+          .insert({ name: 'Tenant Principal', slug: 'main-tenant', is_active: true })
+          .select('id')
+          .single();
+        if (createErr) throw createErr;
+        mainTenant = newTenant;
       }
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
+    const companyId = mainTenant.id;
+
+    // Verificar se usuário já existe
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existing = existingUsers?.users?.find((eu: any) => eu.email === email);
+
+    let userId: string;
+    if (existing) {
+      userId = existing.id;
+      await supabase.auth.admin.updateUserById(userId, { password });
+      results.push(`${email} já existe (senha atualizada)`);
+    } else {
+      const { data: newUser, error: authErr } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+      if (authErr) throw authErr;
+      userId = newUser.user.id;
+      results.push(`${email} criado`);
+    }
+
+    // Garantir profile
+    await supabase
+      .from('profiles')
+      .upsert({ user_id: userId, full_name: fullName, email }, { onConflict: 'user_id' });
+
+    // Garantir UM ÚNICO role (upsert via delete + insert)
+    await supabase.from('user_roles').delete().eq('user_id', userId);
+    
+    const { error: roleErr } = await supabase
+      .from('user_roles')
+      .insert({ user_id: userId, company_id: companyId, role: requestedRole });
+    
+    if (roleErr) throw roleErr;
+    results.push(`Role '${requestedRole}' atribuído a ${email}`);
+
+    // IMPORTANTE: NÃO criar assinatura automática.
+    // Usuário começa sem plano e deve escolher manualmente.
+
+    return new Response(JSON.stringify({ success: true, results, user_id: userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    console.error('seed-users error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -38,69 +38,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserData = useCallback(async (userId: string) => {
     console.log('Fetching user data for:', userId);
     try {
-      // Fetch all roles for the user
-      const { data: roles, error: roleError } = await supabase
+      // Single-tenant: cada usuário tem APENAS UM role.
+      const { data: activeRoleData, error: roleError } = await supabase
         .from('user_roles')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .maybeSingle();
 
       if (!isMountedRef.current) return;
 
       if (roleError) {
-        console.error('Error fetching user roles:', roleError);
+        console.error('Error fetching user role:', roleError);
         throw roleError;
       }
 
-      // Prioritize roles: 'admin' > 'user', and roles with company_id > NULL company_id
-      const sortedRoles = (roles || []).sort((a, b) => {
-        // Admin first
-        if (a.role === 'admin' && b.role !== 'admin') return -1;
-        if (a.role !== 'admin' && b.role === 'admin') return 1;
-        
-        // Super admin first (if applicable)
-        if (a.role === 'super_admin' && b.role !== 'super_admin') return -1;
-        if (a.role !== 'super_admin' && b.role === 'super_admin') return 1;
-
-        // Company assigned first
-        if (a.company_id && !b.company_id) return -1;
-        if (!a.company_id && b.company_id) return 1;
-        
-        return 0;
-      });
-
-      let activeRoleData = sortedRoles.length > 0 ? sortedRoles[0] : null;
-
-      // Fallback: If no role found, create one automatically (self-healing)
-      if (!activeRoleData) {
-        console.log('No role found for user, creating default role...');
-        
-        // Find default company
-        const { data: companies } = await supabase
-          .from('companies')
-          .select('id')
-          .limit(1);
-        
-        const defaultCompanyId = companies && companies.length > 0 ? companies[0].id : null;
-
-        const { data: newRole, error: createError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userId,
-            company_id: defaultCompanyId,
-            role: 'user'
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating default role:', createError);
-          // If we can't create it, we can't proceed normally, but we shouldn't loop
-        } else {
-          activeRoleData = newRole;
-          console.log('Default role created successfully');
-        }
-      }
-
+      // SEM auto-criação de role. Se não existir, fica null e o ProtectedRoute redireciona.
       if (activeRoleData) {
         // Normalize: treat any legacy super_admin as admin
         const normalizedRole = (activeRoleData.role === 'super_admin' ? 'admin' : activeRoleData.role) as AppRole;

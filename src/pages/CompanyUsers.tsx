@@ -11,14 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { LimitReachedBanner } from '@/components/PlanEnforcementGuard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { Trash2, AlertCircle, Users, UserPlus } from 'lucide-react';
-import { useResourceLimit } from '@/hooks/use-plan-enforcement';
 
 export default function CompanyUsers() {
-  const { company, user, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { isSuspended } = useCompany();
   const queryClient = useQueryClient();
 
@@ -28,56 +26,89 @@ export default function CompanyUsers() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'admin' | 'user'>('user');
 
-  const { data: limitData } = useResourceLimit('max_users', 'user_roles');
-
+  // ── Fonte única de verdade: profiles + user_roles via user_id ──
+  // Single-tenant: lista TODOS os usuários cadastrados no sistema.
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ['company-users', isAdmin ? 'all' : company?.id],
+    queryKey: ['admin-users-list'],
+    enabled: isAdmin,
     queryFn: async () => {
-      // Se for admin global (sem company_id), lista TODOS os usuários.
-      // Se for admin de empresa, lista apenas os daquela empresa.
-      let query = supabase
+      // 1. Buscar todos os profiles
+      const { data: profiles, error: pErr } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email, created_at')
+        .order('created_at', { ascending: false });
+
+      if (pErr) throw pErr;
+
+      // 2. Buscar todos os roles
+      const { data: roles, error: rErr } = await supabase
         .from('user_roles')
-        .select('*, profiles:profiles!inner(full_name, user_id)')
-        .eq('role', 'user') // Fonte única: Dashboard e Listagem mostram apenas usuários finais
-        .order('created_at');
+        .select('id, user_id, role');
 
-      // Em sistema single-tenant, admins veem TODOS os usuários finais sem filtro de empresa
-      if (!isAdmin && company?.id) {
-        query = query.eq('company_id', company.id);
-      }
+      if (rErr) throw rErr;
 
-      const { data, error } = await query;
-      if (error) {
-        console.error('Erro ao buscar usuários:', error);
-        throw error;
-      }
-      return data;
+      const roleMap = new Map((roles || []).map(r => [r.user_id, r]));
+
+      // 3. Mesclar
+      return (profiles || []).map(p => {
+        const r = roleMap.get(p.user_id);
+        return {
+          user_id: p.user_id,
+          full_name: p.full_name,
+          email: p.email,
+          created_at: p.created_at,
+          role: r?.role || 'user',
+          role_id: r?.id || null,
+        };
+      });
     },
-    enabled: isAdmin || !!company?.id,
   });
 
+  // Apenas usuários finais (excluindo admin) — para a contagem
+  const totalEndUsers = users.filter(u => u.role === 'user').length;
+
   const updateRole = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      const { error } = await supabase.from('user_roles').update({ role: role as any }).eq('id', id);
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      // Upsert: deletar role antiga e inserir nova (single-tenant: 1 role por usuário)
+      const { data: tenant } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('slug', 'main-tenant')
+        .maybeSingle();
+
+      await supabase.from('user_roles').delete().eq('user_id', userId);
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: role as any, company_id: tenant?.id || null });
+
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['company-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       toast({ title: 'Papel atualizado' });
     },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('user_roles').delete().eq('id', id);
+    mutationFn: async (userId: string) => {
+      // Remover via auth admin (cascata para profile + role)
+      const { error } = await supabase.functions.invoke('seed-users', {
+        body: { action: 'delete', user_id: userId },
+      });
       if (error) throw error;
+
+      // Fallback: apagar diretamente
+      await supabase.from('user_roles').delete().eq('user_id', userId);
+      await supabase.from('profiles').delete().eq('user_id', userId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['company-users'] });
-      queryClient.invalidateQueries({ queryKey: ['resource-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       toast({ title: 'Usuário removido' });
     },
+    onError: (e: any) => toast({ title: 'Erro ao remover', description: e.message, variant: 'destructive' }),
   });
 
   const createUser = useMutation({
@@ -95,7 +126,7 @@ export default function CompanyUsers() {
       if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['company-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       toast({ title: 'Usuário criado' });
       setDialogOpen(false);
@@ -104,14 +135,15 @@ export default function CompanyUsers() {
     onError: (e: any) => toast({ title: 'Erro ao criar', description: e.message, variant: 'destructive' }),
   });
 
-  const limitReached = limitData ? !limitData.allowed : false;
-
   const columns: Column<any>[] = [
     {
-      key: 'profiles',
+      key: 'full_name',
       label: 'Nome',
       render: (row) => (
-        <span className="font-medium text-foreground">{(row.profiles as any)?.full_name || '—'}</span>
+        <div className="flex flex-col">
+          <span className="font-medium text-foreground">{row.full_name || '—'}</span>
+          <span className="text-xs text-muted-foreground">{row.email || 'sem email'}</span>
+        </div>
       ),
       sortable: true,
     },
@@ -134,7 +166,7 @@ export default function CompanyUsers() {
         return (
           <Select
             value={row.role}
-            onValueChange={(v) => updateRole.mutate({ id: row.id, role: v })}
+            onValueChange={(v) => updateRole.mutate({ userId: row.user_id, role: v })}
           >
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -164,16 +196,9 @@ export default function CompanyUsers() {
             </div>
             Usuários
           </h1>
-          {!isAdmin && limitData && (
-            <p className="text-sm text-muted-foreground mt-1">
-              <span className="text-foreground font-semibold">{limitData.current}</span> / {limitData.max} usuários utilizados
-            </p>
-          )}
-          {isAdmin && (
-            <p className="text-sm text-muted-foreground mt-1">
-              <span className="text-foreground font-semibold">{users.length}</span> {users.length === 1 ? 'usuário cadastrado' : 'usuários cadastrados'}
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground mt-1">
+            <span className="text-foreground font-semibold">{totalEndUsers}</span> {totalEndUsers === 1 ? 'usuário final' : 'usuários finais'} · {users.length} no total
+          </p>
         </div>
         {isAdmin && !isSuspended && (
           <Button onClick={() => setDialogOpen(true)}>
@@ -192,8 +217,6 @@ export default function CompanyUsers() {
         </Alert>
       )}
 
-      {!isAdmin && limitData && <LimitReachedBanner current={limitData.current} max={limitData.max} resourceLabel="usuários" />}
-
       <DataTable
         data={users}
         columns={columns}
@@ -204,7 +227,7 @@ export default function CompanyUsers() {
             <ConfirmDialog
               title="Remover usuário?"
               description="O usuário perderá acesso ao sistema."
-              onConfirm={() => deleteMutation.mutate(row.id)}
+              onConfirm={() => deleteMutation.mutate(row.user_id)}
               trigger={
                 <Button variant="ghost" size="icon" className="hover:bg-destructive/10">
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -221,7 +244,7 @@ export default function CompanyUsers() {
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" /> Novo Usuário
             </DialogTitle>
-            <DialogDescription>Cadastre um novo usuário no sistema. Ele poderá fazer login com o email e senha definidos.</DialogDescription>
+            <DialogDescription>Cadastre um novo usuário no sistema. Ele poderá fazer login com o email e senha definidos. Nenhum plano será aplicado automaticamente.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">

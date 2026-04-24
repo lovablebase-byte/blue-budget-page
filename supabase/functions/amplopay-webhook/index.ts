@@ -187,13 +187,15 @@ serve(async (req) => {
     console.error("[amplopay-webhook] ERROR:", error.message);
 
     // Registrar falha
-    await svc.from("payment_events").insert({
-      event_type: "processing_error",
-      payload: { error: error.message },
-      result: "error",
-      received_at: new Date().toISOString(),
-      processed_at: new Date().toISOString(),
-    }).catch(() => {});
+    try {
+      await svc.from("payment_events").insert({
+        event_type: "processing_error",
+        payload: { error: error.message },
+        result: "error",
+        received_at: new Date().toISOString(),
+        processed_at: new Date().toISOString(),
+      });
+    } catch {}
 
     return jsonRes({ status: "error", message: error.message });
   }

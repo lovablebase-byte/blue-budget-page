@@ -62,7 +62,9 @@ export function useAdminDashboard() {
         invoicesPaidRes,
       ] = await Promise.all([
         supabase.from('companies').select('id', { count: 'exact', head: true }),
-        supabase.from('user_roles').select('id, profiles!inner(id)', { count: 'exact', head: true }).eq('role', 'user'),
+        // Fonte única: contagem de usuários finais = profiles cujo role é 'user'.
+        // Mesma regra usada na tela Admin > Usuários.
+        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', 'user'),
         supabase.from('instances').select('id, status, provider'),
         supabase.from('plans').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('subscriptions').select('id, status'),
