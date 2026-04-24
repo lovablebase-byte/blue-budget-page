@@ -226,7 +226,11 @@ export default function AdminUsers() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Nome</span>
-                <span className="font-medium text-foreground">{(detailUser.profiles as any)?.full_name || '—'}</span>
+                <span className="font-medium text-foreground">{detailUser.full_name || '—'}</span>
+              </div>
+              <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-medium text-foreground">{detailUser.email || '—'}</span>
               </div>
               <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Papel</span>
