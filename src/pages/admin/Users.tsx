@@ -55,11 +55,21 @@ export default function AdminUsers() {
   });
 
   const updateRole = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      const { error } = await supabase.from('user_roles').update({ role: role as any }).eq('id', id);
+    mutationFn: async ({ id, role, userId }: { id?: string; role: string; userId: string }) => {
+      const { error } = await supabase
+        .from('user_roles')
+        .upsert({ 
+          ...(id ? { id } : {}),
+          user_id: userId,
+          role: role as any 
+        }, { onConflict: 'user_id, company_id' });
+      
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); toast({ title: 'Papel atualizado' }); },
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] }); 
+      toast({ title: 'Papel atualizado' }); 
+    },
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
