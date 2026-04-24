@@ -97,14 +97,23 @@ export default function AdminUsers() {
 
   const columns: Column<any>[] = [
     {
-      key: 'profiles', label: 'Nome',
-      render: (row) => <span className="font-medium text-foreground">{(row.profiles as any)?.full_name || '—'}</span>,
+      key: 'full_name', label: 'Nome',
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-foreground">{row.full_name || '—'}</span>
+          <span className="text-xs text-muted-foreground">{row.email || 'sem email'}</span>
+        </div>
+      ),
       sortable: true,
     },
     {
       key: 'role', label: 'Papel',
       render: (row) => (
-        <Select value={row.role} onValueChange={(v) => updateRole.mutate({ id: row.id, role: v })}>
+        <Select 
+          value={row.role} 
+          onValueChange={(v) => updateRole.mutate({ id: row.role_id, role: v })}
+          disabled={!row.role_id}
+        >
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="admin">Admin</SelectItem>
@@ -147,7 +156,7 @@ export default function AdminUsers() {
       <DataTable
         data={filtered}
         columns={columns}
-        searchKey="profiles"
+        searchKey="full_name"
         searchPlaceholder="Buscar usuário..."
         loading={isLoading}
         emptyMessage="Nenhum usuário"
@@ -159,8 +168,8 @@ export default function AdminUsers() {
             <ConfirmDialog
               title="Remover usuário?"
               description="O vínculo será removido permanentemente."
-              onConfirm={() => deleteMutation.mutate(row.id)}
-              trigger={<Button variant="ghost" size="icon" className="hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+              onConfirm={() => deleteMutation.mutate(row.role_id)}
+              trigger={<Button variant="ghost" size="icon" className="hover:bg-destructive/10" disabled={!row.role_id}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
             />
           </div>
         )}
