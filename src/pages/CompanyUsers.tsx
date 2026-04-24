@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { DataTable, Column } from '@/components/DataTable';
@@ -14,6 +13,13 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { Trash2, AlertCircle, Users, UserPlus } from 'lucide-react';
+import {
+  listAdminUsers,
+  createAdminUser,
+  deleteAdminUser,
+  updateAdminUserRole,
+  type AdminUserRow,
+} from '@/services/admin-users';
 
 export default function CompanyUsers() {
   const { user, isAdmin } = useAuth();
@@ -26,113 +32,57 @@ export default function CompanyUsers() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'admin' | 'user'>('user');
 
-  // ── Fonte única de verdade: profiles + user_roles via user_id ──
-  // Single-tenant: lista TODOS os usuários cadastrados no sistema.
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading } = useQuery<AdminUserRow[]>({
     queryKey: ['admin-users-list'],
     enabled: isAdmin,
-    queryFn: async () => {
-      // 1. Buscar todos os profiles
-      const { data: profiles, error: pErr } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email, created_at')
-        .order('created_at', { ascending: false });
-
-      if (pErr) throw pErr;
-
-      // 2. Buscar todos os roles
-      const { data: roles, error: rErr } = await supabase
-        .from('user_roles')
-        .select('id, user_id, role');
-
-      if (rErr) throw rErr;
-
-      const roleMap = new Map((roles || []).map(r => [r.user_id, r]));
-
-      // 3. Mesclar
-      return (profiles || []).map(p => {
-        const r = roleMap.get(p.user_id);
-        return {
-          user_id: p.user_id,
-          full_name: p.full_name,
-          email: p.email,
-          created_at: p.created_at,
-          role: r?.role || 'user',
-          role_id: r?.id || null,
-        };
-      });
-    },
+    queryFn: listAdminUsers,
   });
 
-  // Apenas usuários finais (excluindo admin) — para a contagem
-  const totalEndUsers = users.filter(u => u.role === 'user').length;
+  const totalEndUsers = users.filter((u) => u.role === 'user').length;
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-users-list'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+  };
 
   const updateRole = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      // Upsert: deletar role antiga e inserir nova (single-tenant: 1 role por usuário)
-      const { data: tenant } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('slug', 'main-tenant')
-        .maybeSingle();
-
-      await supabase.from('user_roles').delete().eq('user_id', userId);
-      const { error } = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role: role as any, company_id: tenant?.id || null });
-
-      if (error) throw error;
-    },
+    mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'user' }) =>
+      updateAdminUserRole(userId, role),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users-list'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+      invalidate();
       toast({ title: 'Papel atualizado' });
     },
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      // Remover via auth admin (cascata para profile + role)
-      const { error } = await supabase.functions.invoke('seed-users', {
-        body: { action: 'delete', user_id: userId },
-      });
-      if (error) throw error;
-
-      // Fallback: apagar diretamente
-      await supabase.from('user_roles').delete().eq('user_id', userId);
-      await supabase.from('profiles').delete().eq('user_id', userId);
-    },
+    mutationFn: deleteAdminUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users-list'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+      invalidate();
       toast({ title: 'Usuário removido' });
     },
-    onError: (e: any) => toast({ title: 'Erro ao remover', description: e.message, variant: 'destructive' }),
+    onError: (e: any) =>
+      toast({ title: 'Erro ao remover', description: e.message, variant: 'destructive' }),
   });
 
   const createUser = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => {
       if (!newEmail) throw new Error('Email é obrigatório');
-      const { data, error } = await supabase.functions.invoke('seed-users', {
-        body: {
-          email: newEmail,
-          full_name: newName || newEmail,
-          password: newPassword || undefined,
-          role: newRole,
-        },
+      return createAdminUser({
+        email: newEmail,
+        full_name: newName || newEmail,
+        password: newPassword || undefined,
+        role: newRole,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users-list'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+      invalidate();
       toast({ title: 'Usuário criado' });
       setDialogOpen(false);
       setNewEmail(''); setNewName(''); setNewPassword(''); setNewRole('user');
     },
-    onError: (e: any) => toast({ title: 'Erro ao criar', description: e.message, variant: 'destructive' }),
+    onError: (e: any) =>
+      toast({ title: 'Erro ao criar', description: e.message, variant: 'destructive' }),
   });
 
   const columns: Column<any>[] = [
@@ -166,7 +116,7 @@ export default function CompanyUsers() {
         return (
           <Select
             value={row.role}
-            onValueChange={(v) => updateRole.mutate({ userId: row.user_id, role: v })}
+            onValueChange={(v) => updateRole.mutate({ userId: row.user_id, role: v as 'admin' | 'user' })}
           >
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>

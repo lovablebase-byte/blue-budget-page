@@ -1892,7 +1892,7 @@ export type Database = {
     Functions: {
       change_subscription_plan: {
         Args: { _new_plan_id: string }
-        Returns: undefined
+        Returns: Json
       }
       get_effective_limit: {
         Args: { _company_id: string; _limit_key: string }

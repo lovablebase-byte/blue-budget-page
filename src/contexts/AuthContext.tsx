@@ -13,6 +13,8 @@ interface AuthContextType {
   permissions: ModulePermission[];
   isAdmin: boolean;
   isReadOnly: boolean;
+  /** Erro estrutural ao ler role (ausência ou falha de query). UI deve mostrar tela de bloqueio. */
+  roleError: string | null;
   hasPermission: (module: string, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<ModulePermission[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [userDataLoaded, setUserDataLoaded] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
 
@@ -106,20 +109,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setPermissions(mapped);
         }
       } else {
-        // Safe fallback if still no role
-        console.warn('User has no role and creation failed. Setting default user role in state.');
-        setRole('user');
+        // SEM fallback perigoso: se não tem role, registra erro controlado
+        console.error('[AuthContext] Usuário sem role no banco:', userId);
+        setRole(null);
+        setRoleError('Sua conta não possui um papel configurado. Contate o administrador.');
       }
-    } catch (err) {
-      console.error('Error in fetchUserData:', err);
-      // Ensure we don't block the UI forever even on critical failure
+    } catch (err: any) {
+      console.error('[AuthContext] Erro ao carregar dados do usuário:', err);
       if (isMountedRef.current) {
-        setRole('user'); 
+        setRole(null);
+        setRoleError(err?.message || 'Falha ao carregar permissões. Tente novamente.');
       }
     } finally {
       if (isMountedRef.current) {
         setUserDataLoaded(true);
-        console.log('User data loading finished');
       }
     }
   }, []);
@@ -162,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissions([]);
     setIsReadOnly(false);
     setUserDataLoaded(false);
+    setRoleError(null);
   };
 
   // Effect 1: Listen to auth state changes
@@ -220,7 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user, session, loading, role, userRole, company,
-        permissions, isAdmin, isReadOnly,
+        permissions, isAdmin, isReadOnly, roleError,
         hasPermission, signOut, refreshAuth,
       }}
     >
@@ -232,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 const defaultAuthContext: AuthContextType = {
   user: null, session: null, loading: true, role: null,
   userRole: null, company: null, permissions: [],
-  isAdmin: false, isReadOnly: false,
+  isAdmin: false, isReadOnly: false, roleError: null,
   hasPermission: () => false,
   signOut: async () => {},
   refreshAuth: async () => {},

@@ -6,107 +6,156 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // ── AUTH: caller deve ser admin ──
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return jsonResponse({ error: "Não autenticado" }, 401);
+  }
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: claims, error: claimsErr } = await userClient.auth.getClaims(
+    authHeader.replace("Bearer ", ""),
+  );
+  if (claimsErr || !claims?.claims?.sub) {
+    return jsonResponse({ error: "Sessão inválida" }, 401);
+  }
+
+  const callerId = claims.claims.sub as string;
+  const { data: callerRole } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", callerId)
+    .maybeSingle();
+
+  if (!callerRole || (callerRole.role !== "admin" && callerRole.role !== "super_admin")) {
+    return jsonResponse({ error: "Apenas administradores podem gerenciar usuários" }, 403);
+  }
+
+  let body: any = {};
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    body = await req.json();
+  } catch {
+    body = {};
+  }
 
-    const results: string[] = [];
-    const body = req.headers.get('content-type')?.includes('application/json')
-      ? await req.json().catch(() => ({}))
-      : {};
+  const action = body.action || "create";
 
-    const email = body.email;
-    const fullName = body.full_name || email || 'Novo Usuário';
-    const password = body.password || '123456';
-    const requestedRole = body.role === 'admin' ? 'admin' : 'user';
+  try {
+    // ── DELETE ──
+    if (action === "delete") {
+      const targetId = body.user_id;
+      if (!targetId) return jsonResponse({ error: "user_id é obrigatório" }, 400);
+      if (targetId === callerId) {
+        return jsonResponse({ error: "Você não pode remover sua própria conta" }, 400);
+      }
 
-    if (!email) {
-      throw new Error("Email é obrigatório");
+      console.log(`[seed-users] DELETE user_id=${targetId} by admin=${callerId}`);
+
+      // Limpa relações (RLS bypass via service role)
+      await admin.from("permissions").delete().in(
+        "user_role_id",
+        (await admin.from("user_roles").select("id").eq("user_id", targetId)).data?.map((r: any) => r.id) || [],
+      );
+      await admin.from("user_roles").delete().eq("user_id", targetId);
+      await admin.from("profiles").delete().eq("user_id", targetId);
+
+      const { error: delAuthErr } = await admin.auth.admin.deleteUser(targetId);
+      if (delAuthErr) {
+        console.error("[seed-users] auth.deleteUser failed:", delAuthErr);
+        return jsonResponse({ error: `Falha ao remover usuário: ${delAuthErr.message}` }, 500);
+      }
+
+      return jsonResponse({ success: true, deleted: targetId });
     }
 
-    // ── Single-tenant: SEMPRE vincular ao tenant principal ──
-    let { data: mainTenant } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('slug', 'main-tenant')
+    // ── CREATE / UPSERT ──
+    const email = body.email;
+    const fullName = body.full_name || email || "Novo Usuário";
+    const password = body.password || "123456";
+    const requestedRole = body.role === "admin" ? "admin" : "user";
+
+    if (!email) return jsonResponse({ error: "Email é obrigatório" }, 400);
+
+    console.log(`[seed-users] CREATE email=${email} role=${requestedRole} by admin=${callerId}`);
+
+    // Single-tenant: pegar tenant principal
+    let { data: mainTenant } = await admin
+      .from("companies")
+      .select("id")
+      .eq("slug", "main-tenant")
       .maybeSingle();
 
     if (!mainTenant) {
-      const { data: anyCompany } = await supabase
-        .from('companies')
-        .select('id')
-        .order('created_at')
+      const { data: anyCompany } = await admin
+        .from("companies")
+        .select("id")
+        .order("created_at")
         .limit(1)
         .maybeSingle();
-      
-      if (anyCompany) {
-        mainTenant = anyCompany;
-      } else {
-        const { data: newTenant, error: createErr } = await supabase
-          .from('companies')
-          .insert({ name: 'Tenant Principal', slug: 'main-tenant', is_active: true })
-          .select('id')
-          .single();
-        if (createErr) throw createErr;
-        mainTenant = newTenant;
-      }
+      mainTenant = anyCompany;
+    }
+
+    if (!mainTenant) {
+      return jsonResponse({ error: "Tenant principal não configurado" }, 500);
     }
 
     const companyId = mainTenant.id;
 
-    // Verificar se usuário já existe
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    // Verifica se já existe
+    const { data: existingUsers } = await admin.auth.admin.listUsers();
     const existing = existingUsers?.users?.find((eu: any) => eu.email === email);
 
     let userId: string;
     if (existing) {
       userId = existing.id;
-      await supabase.auth.admin.updateUserById(userId, { password });
-      results.push(`${email} já existe (senha atualizada)`);
+      await admin.auth.admin.updateUserById(userId, { password });
     } else {
-      const { data: newUser, error: authErr } = await supabase.auth.admin.createUser({
+      const { data: newUser, error: authErr } = await admin.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
         user_metadata: { full_name: fullName },
       });
-      if (authErr) throw authErr;
+      if (authErr) return jsonResponse({ error: authErr.message }, 500);
       userId = newUser.user.id;
-      results.push(`${email} criado`);
     }
 
-    // Garantir profile
-    await supabase
-      .from('profiles')
-      .upsert({ user_id: userId, full_name: fullName, email }, { onConflict: 'user_id' });
+    // Profile
+    await admin
+      .from("profiles")
+      .upsert({ user_id: userId, full_name: fullName, email }, { onConflict: "user_id" });
 
-    // Garantir UM ÚNICO role (upsert via delete + insert)
-    await supabase.from('user_roles').delete().eq('user_id', userId);
-    
-    const { error: roleErr } = await supabase
-      .from('user_roles')
+    // Single-tenant: 1 role por usuário (delete + insert)
+    await admin.from("user_roles").delete().eq("user_id", userId);
+    const { error: roleErr } = await admin
+      .from("user_roles")
       .insert({ user_id: userId, company_id: companyId, role: requestedRole });
-    
-    if (roleErr) throw roleErr;
-    results.push(`Role '${requestedRole}' atribuído a ${email}`);
 
-    // IMPORTANTE: NÃO criar assinatura automática.
-    // Usuário começa sem plano e deve escolher manualmente.
+    if (roleErr) return jsonResponse({ error: roleErr.message }, 500);
 
-    return new Response(JSON.stringify({ success: true, results, user_id: userId }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Sem assinatura automática.
+    return jsonResponse({ success: true, user_id: userId, role: requestedRole });
   } catch (error: any) {
-    console.error('seed-users error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("[seed-users] error:", error);
+    return jsonResponse({ error: error.message || "Erro desconhecido" }, 500);
   }
 });

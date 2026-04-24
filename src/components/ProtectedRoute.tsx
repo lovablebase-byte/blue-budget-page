@@ -43,23 +43,9 @@ function getFallbackRoute(
 }
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
-  const { user, loading, role, hasPermission, permissions } = useAuth();
+  const { user, loading, role, hasPermission, permissions, roleError, signOut } = useAuth();
   const { hasFeature, plan, planLoading } = useCompany();
   const location = useLocation();
-
-  useEffect(() => {
-    if (user) {
-      console.log('ProtectedRoute Debug:', {
-        userId: user.id,
-        role,
-        loading,
-        planLoading,
-        requiredModule,
-        requiredRole,
-        pathname: location.pathname,
-      });
-    }
-  }, [user, role, loading, planLoading, requiredModule, requiredRole, location.pathname]);
 
   const isAdminRoute = location.pathname.startsWith('/admin') || ['/dashboard', '/users', '/settings', '/branding'].includes(location.pathname);
   const adminRouteDenied = role === 'user' && isAdminRoute;
@@ -67,14 +53,11 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
 
   const getPermDenied = (): boolean => {
     if (!role || role === 'admin' || !requiredModule) return false;
-
     const featureKey = moduleFeatureMap[requiredModule];
     if (featureKey) {
       if (!plan || !hasFeature(featureKey)) return true;
     }
-
     if (permissions.length > 0) return !hasPermission(requiredModule, requiredAction);
-
     return false;
   };
 
@@ -99,13 +82,27 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   }
 
   if (!user) {
-    console.log('ProtectedRoute: No user found, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
 
-  if (role === null) {
-    console.warn('ProtectedRoute: User has no role. Redirecting safely to /account (never admin fallback).');
-    return <Navigate to="/account" replace />;
+  // Erro estrutural ao carregar role: bloqueia com tela controlada (sem fallback perigoso)
+  if (roleError || role === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-xl font-bold text-destructive">Acesso indisponível</h1>
+          <p className="text-sm text-muted-foreground">
+            {roleError || 'Sua conta não possui um papel configurado. Contate o administrador.'}
+          </p>
+          <button
+            onClick={() => signOut().then(() => (window.location.href = '/auth'))}
+            className="text-sm text-primary underline"
+          >
+            Sair e tentar novamente
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (role !== 'admin' && planLoading) {

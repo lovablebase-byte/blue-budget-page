@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { countEndUsers } from '@/services/admin-users';
 
 export interface AdminStats {
   companies: number;
@@ -53,18 +54,15 @@ export function useAdminDashboard() {
     queryKey: ['admin-dashboard-stats'],
     queryFn: async (): Promise<AdminStats> => {
       const [
-        companiesRes,
-        usersRes,
+        endUsersCount,
         instancesRes,
         plansRes,
         subsRes,
         invoicesRes,
         invoicesPaidRes,
       ] = await Promise.all([
-        supabase.from('companies').select('id', { count: 'exact', head: true }),
-        // Fonte única: contagem de usuários finais = profiles cujo role é 'user'.
-        // Mesma regra usada na tela Admin > Usuários.
-        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', 'user'),
+        // Fonte ÚNICA de verdade — mesma regra usada na tela Admin > Usuários
+        countEndUsers(),
         supabase.from('instances').select('id, status, provider'),
         supabase.from('plans').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('subscriptions').select('id, status'),
@@ -85,7 +83,7 @@ export function useAdminDashboard() {
       });
 
       const expired = subs.filter((s: any) => s.status === 'canceled').length;
-      const pending = subs.filter((s: any) => s.status === 'past_due').length;
+      const pending = subs.filter((s: any) => s.status === 'past_due' || s.status === 'pending_payment').length;
 
       const openInvoices = invoicesRes.data || [];
       const paidInvoices = invoicesPaidRes.data || [];
@@ -93,8 +91,8 @@ export function useAdminDashboard() {
       const paidRevenue = paidInvoices.reduce((sum: number, i: any) => sum + (i.amount_cents || 0), 0);
 
       return {
-        companies: companiesRes.count ?? 0,
-        users: usersRes.count ?? 0,
+        companies: 1, // single-tenant: sempre 1
+        users: endUsersCount,
         instances: instances.length,
         instancesOnline: statusCounts.online,
         instancesOffline: statusCounts.offline,
