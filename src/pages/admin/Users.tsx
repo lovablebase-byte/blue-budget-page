@@ -28,12 +28,29 @@ export default function AdminUsers() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
+      // Buscamos perfis e seus respectivos papéis para garantir que todos apareçam
       const { data, error } = await supabase
-        .from('user_roles')
-        .select('*, profiles:profiles!inner(full_name, user_id)')
+        .from('profiles')
+        .select(`
+          *,
+          user_roles (
+            id,
+            role,
+            created_at
+          )
+        `)
         .order('created_at', { ascending: false });
+      
       if (error) throw error;
-      return data;
+
+      // Transformamos os dados para que cada linha represente um usuário único
+      return data.map(profile => ({
+        ...profile,
+        // Pegamos o papel (role) do primeiro registro de user_roles, ou 'user' como padrão
+        role: profile.user_roles?.[0]?.role || 'user',
+        role_id: profile.user_roles?.[0]?.id,
+        created_at: profile.created_at || new Date().toISOString()
+      }));
     },
   });
 
