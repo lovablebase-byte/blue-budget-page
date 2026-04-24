@@ -33,8 +33,6 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   const { hasFeature, plan, planLoading } = useCompany();
   const location = useLocation();
 
-  // Evita loop: se já estamos no destino seguro de fallback, não redirecionar.
-  const safeFallbackPaths = ['/account', '/subscription'];
 
   const isAdminRoute = location.pathname.startsWith('/admin') || ['/dashboard', '/users', '/settings', '/branding'].includes(location.pathname);
   const adminRouteDenied = role === 'user' && isAdminRoute;
