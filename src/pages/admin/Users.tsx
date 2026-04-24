@@ -44,7 +44,7 @@ export default function AdminUsers() {
       if (error) throw error;
 
       // Transformamos os dados para que cada linha represente um usuário único
-      return data.map(profile => ({
+      return (data as any[]).map(profile => ({
         ...profile,
         // Pegamos o papel (role) do primeiro registro de user_roles, ou 'user' como padrão
         role: profile.user_roles?.[0]?.role || 'user',
