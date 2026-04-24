@@ -28,30 +28,64 @@ export default function AdminUsers() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
+      // Buscamos perfis e seus respectivos papéis para garantir que todos apareçam
       const { data, error } = await supabase
-        .from('user_roles')
-        .select('*, profiles:profiles!inner(full_name, user_id)')
+        .from('profiles')
+        .select(`
+          *,
+          user_roles (
+            id,
+            role,
+            created_at
+          )
+        `)
         .order('created_at', { ascending: false });
+      
       if (error) throw error;
-      return data;
+
+      // Transformamos os dados para que cada linha represente um usuário único
+      return (data as any[]).map(profile => ({
+        ...profile,
+        // Pegamos o papel (role) do primeiro registro de user_roles, ou 'user' como padrão
+        role: profile.user_roles?.[0]?.role || 'user',
+        role_id: profile.user_roles?.[0]?.id,
+        created_at: profile.created_at || new Date().toISOString()
+      }));
     },
   });
 
   const updateRole = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      const { error } = await supabase.from('user_roles').update({ role: role as any }).eq('id', id);
+    mutationFn: async ({ id, role, userId }: { id?: string; role: string; userId: string }) => {
+      const { error } = await supabase
+        .from('user_roles')
+        .upsert({ 
+          ...(id ? { id } : {}),
+          user_id: userId,
+          role: role as any 
+        }, { onConflict: 'user_id, company_id' });
+      
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); toast({ title: 'Papel atualizado' }); },
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] }); 
+      toast({ title: 'Papel atualizado' }); 
+    },
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('user_roles').delete().eq('id', id);
-      if (error) throw error;
+    mutationFn: async (userId: string) => {
+      // Removemos o perfil e o papel (o banco deve ter cascata ou removemos ambos)
+      const { error: roleError } = await supabase.from('user_roles').delete().eq('user_id', userId);
+      if (roleError) throw roleError;
+      
+      const { error: profileError } = await supabase.from('profiles').delete().eq('user_id', userId);
+      if (profileError) throw profileError;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); toast({ title: 'Usuário removido' }); },
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] }); 
+      toast({ title: 'Usuário removido da listagem' }); 
+    },
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
@@ -80,14 +114,22 @@ export default function AdminUsers() {
 
   const columns: Column<any>[] = [
     {
-      key: 'profiles', label: 'Nome',
-      render: (row) => <span className="font-medium text-foreground">{(row.profiles as any)?.full_name || '—'}</span>,
+      key: 'full_name', label: 'Nome',
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-foreground">{row.full_name || '—'}</span>
+          <span className="text-xs text-muted-foreground">{row.email || 'sem email'}</span>
+        </div>
+      ),
       sortable: true,
     },
     {
       key: 'role', label: 'Papel',
       render: (row) => (
-        <Select value={row.role} onValueChange={(v) => updateRole.mutate({ id: row.id, role: v })}>
+        <Select 
+          value={row.role} 
+          onValueChange={(v) => updateRole.mutate({ id: row.role_id, role: v, userId: row.user_id })}
+        >
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="admin">Admin</SelectItem>
@@ -130,7 +172,7 @@ export default function AdminUsers() {
       <DataTable
         data={filtered}
         columns={columns}
-        searchKey="profiles"
+        searchKey="full_name"
         searchPlaceholder="Buscar usuário..."
         loading={isLoading}
         emptyMessage="Nenhum usuário"
@@ -142,7 +184,7 @@ export default function AdminUsers() {
             <ConfirmDialog
               title="Remover usuário?"
               description="O vínculo será removido permanentemente."
-              onConfirm={() => deleteMutation.mutate(row.id)}
+              onConfirm={() => deleteMutation.mutate(row.user_id)}
               trigger={<Button variant="ghost" size="icon" className="hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
             />
           </div>
@@ -200,7 +242,11 @@ export default function AdminUsers() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Nome</span>
-                <span className="font-medium text-foreground">{(detailUser.profiles as any)?.full_name || '—'}</span>
+                <span className="font-medium text-foreground">{detailUser.full_name || '—'}</span>
+              </div>
+              <div className="flex justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-medium text-foreground">{detailUser.email || '—'}</span>
               </div>
               <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20 border border-border/30">
                 <span className="text-muted-foreground">Papel</span>
