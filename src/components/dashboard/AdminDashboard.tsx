@@ -107,7 +107,19 @@ export default function AdminDashboard() {
         </div>
       ) : s ? (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <StatCard title="Usuários" value={s.users} icon={Users} subtitle="no sistema" colorClass="metric-green" />
+          <StatCard
+            title="Usuários"
+            value={s.users}
+            icon={Users}
+            subtitle={
+              s.usersSource === 'fallback'
+                ? 'no sistema (fallback)'
+                : s.usersSource === 'unavailable'
+                  ? 'indisponível'
+                  : 'no sistema'
+            }
+            colorClass="metric-green"
+          />
           <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" colorClass="metric-cyan" />
           <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" colorClass="metric-purple" />
           <StatCard title="Faturas Abertas" value={s.openInvoices} icon={FileText} subtitle="pendentes" colorClass="metric-orange" />
