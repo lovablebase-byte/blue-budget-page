@@ -107,7 +107,14 @@ export default function Subscription() {
       }).then(({ error: aErr }) => {
         if (aErr) console.warn('[Subscription] audit log failed', aErr);
       });
-      return data as { success: boolean; is_free: boolean; status: string; requires_payment: boolean };
+      return data as {
+        success: boolean;
+        is_free: boolean;
+        status: string;
+        requires_payment: boolean;
+        plan_changed: boolean;
+        preserved_current_plan?: boolean;
+      };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['effective-plan'] });
@@ -117,8 +124,10 @@ export default function Subscription() {
       queryClient.invalidateQueries({ queryKey: ['feature-enabled'] });
       if (result?.requires_payment) {
         toast({
-          title: 'Plano selecionado — pagamento pendente',
-          description: 'A assinatura só será ativada após a confirmação do pagamento.',
+          title: 'Pagamento pendente',
+          description: result.preserved_current_plan
+            ? 'Seu plano atual continua ativo até a confirmação do pagamento do novo plano.'
+            : 'A assinatura só será ativada após a confirmação do pagamento.',
         });
       } else {
         toast({ title: 'Plano alterado com sucesso', description: 'Os novos limites e recursos já estão ativos.' });
@@ -127,6 +136,23 @@ export default function Subscription() {
     },
     onError: (e: any) => {
       toast({ title: 'Erro ao trocar plano', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  // Cancel pending plan change intent
+  const cancelPendingMutation = useMutation({
+    mutationFn: async () => {
+      console.log('[Subscription] cancel_pending_plan_change');
+      const { data, error } = await supabase.rpc('cancel_pending_plan_change');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['effective-plan'] });
+      toast({ title: 'Intenção de troca cancelada', description: 'Você voltou ao estado anterior.' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'Erro ao cancelar', description: e.message, variant: 'destructive' });
     },
   });
 

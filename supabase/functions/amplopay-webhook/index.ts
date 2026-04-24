@@ -155,22 +155,31 @@ serve(async (req) => {
         .update({ status: "paid", paid_at: new Date().toISOString() })
         .eq("id", charge.id);
 
-      // Ativar/renovar assinatura (PDF seção 5.4)
+      // Ativar/renovar assinatura via RPC que aplica pending_plan_id se houver
       if (charge.subscription_id) {
-        const now = new Date();
-        const nextMonth = new Date(now);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        // 1) Tenta confirmar troca pendente (preserva regra: plano só troca após pagamento)
+        const { data: confirmRes } = await svc.rpc("confirm_pending_plan_change", {
+          _subscription_id: charge.subscription_id,
+        });
+        console.log("[amplopay-webhook] confirm_pending_plan_change:", confirmRes);
 
-        await svc
-          .from("subscriptions")
-          .update({
-            status: "active",
-            started_at: now.toISOString(),
-            expires_at: nextMonth.toISOString(),
-            canceled_at: null,
-            suspended_at: null,
-          })
-          .eq("id", charge.subscription_id);
+        // 2) Se não havia intent pendente, apenas renova a assinatura existente
+        if (!confirmRes || (confirmRes as any).success === false) {
+          const now = new Date();
+          const nextMonth = new Date(now);
+          nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+          await svc
+            .from("subscriptions")
+            .update({
+              status: "active",
+              started_at: now.toISOString(),
+              expires_at: nextMonth.toISOString(),
+              canceled_at: null,
+              suspended_at: null,
+            })
+            .eq("id", charge.subscription_id);
+        }
 
         console.log("[amplopay-webhook] Subscription activated:", charge.subscription_id);
       }
