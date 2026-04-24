@@ -116,7 +116,7 @@ export default function CompanyUsers() {
         return (
           <Select
             value={row.role}
-            onValueChange={(v) => updateRole.mutate({ userId: row.user_id, role: v })}
+            onValueChange={(v) => updateRole.mutate({ userId: row.user_id, role: v as 'admin' | 'user' })}
           >
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
