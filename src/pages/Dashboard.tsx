@@ -1,13 +1,9 @@
-import { useAuth } from '@/contexts/AuthContext';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
-import ClientDashboard from '@/components/dashboard/ClientDashboard';
 
+/**
+ * Dashboard é EXCLUSIVO do admin. Usuário comum nunca chega aqui
+ * (bloqueado por ProtectedRoute com role={['admin']} em App.tsx).
+ */
 export default function Dashboard() {
-  const { isAdmin } = useAuth();
-
-  if (isAdmin) {
-    return <AdminDashboard />;
-  }
-
-  return <ClientDashboard />;
+  return <AdminDashboard />;
 }
