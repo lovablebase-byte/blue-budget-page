@@ -48,8 +48,6 @@ export default function CompanyUsers() {
       }
 
       const { data, error } = await query;
-
-      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
