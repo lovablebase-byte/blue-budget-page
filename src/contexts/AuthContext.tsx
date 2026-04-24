@@ -13,6 +13,8 @@ interface AuthContextType {
   permissions: ModulePermission[];
   isAdmin: boolean;
   isReadOnly: boolean;
+  /** Erro estrutural ao ler role (ausência ou falha de query). UI deve mostrar tela de bloqueio. */
+  roleError: string | null;
   hasPermission: (module: string, action: 'view' | 'create' | 'edit' | 'delete') => boolean;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
