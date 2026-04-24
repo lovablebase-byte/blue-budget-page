@@ -62,6 +62,7 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   }, [user, role, loading, planLoading, requiredModule, requiredRole, location.pathname]);
 
   const isAdminRoute = location.pathname.startsWith('/admin') || ['/dashboard', '/users', '/settings', '/branding'].includes(location.pathname);
+  const adminRouteDenied = role === 'user' && isAdminRoute;
   const roleDenied = !!(role && requiredRole && !requiredRole.includes(role));
 
   const getPermDenied = (): boolean => {
@@ -78,7 +79,6 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   };
 
   const permDenied = getPermDenied();
-  const adminRouteDenied = role === 'user' && isAdminRoute;
 
   useDeniedToast(
     adminRouteDenied
@@ -103,21 +103,16 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     return <Navigate to="/auth" replace />;
   }
 
+  if (role === null) {
+    console.warn('ProtectedRoute: User has no role. Redirecting safely to /account (never admin fallback).');
+    return <Navigate to="/account" replace />;
+  }
+
   if (role !== 'admin' && planLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         <span className="ml-3 text-sm text-muted-foreground animate-pulse">Carregando plano...</span>
-      </div>
-    );
-  }
-
-  if (role === null) {
-    console.warn('ProtectedRoute: User has no role. Waiting instead of assuming admin.');
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        <span className="ml-3 text-sm text-muted-foreground animate-pulse">Finalizando configuração...</span>
       </div>
     );
   }
@@ -128,8 +123,8 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   }
 
   if (roleDenied) {
-    console.log('ProtectedRoute: Role denied, redirecting to fallback');
-    return <Navigate to={getFallbackRoute(role, hasPermission)} replace />;
+    console.log('ProtectedRoute: Role denied, redirecting to safe home');
+    return <Navigate to={getSafeHomeRoute(role)} replace />;
   }
 
   if (permDenied) {
