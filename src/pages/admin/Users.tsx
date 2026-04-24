@@ -128,8 +128,7 @@ export default function AdminUsers() {
       render: (row) => (
         <Select 
           value={row.role} 
-          onValueChange={(v) => updateRole.mutate({ id: row.role_id, role: v })}
-          disabled={!row.role_id}
+          onValueChange={(v) => updateRole.mutate({ id: row.role_id, role: v, userId: row.user_id })}
         >
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
