@@ -56,29 +56,91 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
   });
 }
 
-/** Conta usuários finais (excluindo admins) — para limites de plano e dashboard. */
-export async function countEndUsers(): Promise<number> {
-  const { count, error } = await supabase
-    .from('user_roles')
-    .select('id', { count: 'exact', head: true })
-    .eq('role', 'user');
-  if (error) {
-    console.error('[admin-users] countEndUsers error:', error);
-    throw error;
-  }
-  return count ?? 0;
+/**
+ * Resultado de contagem com fallback controlado.
+ * - source='primary'  → contagem via user_roles (canônica)
+ * - source='fallback' → contagem via profiles − admins (após falha da primária)
+ * - source='unavailable' → ambas falharam; count=0 e error preenchido
+ */
+export interface CountResult {
+  count: number;
+  source: 'primary' | 'fallback' | 'unavailable';
+  error?: string;
 }
 
-/** Conta TODOS os usuários reais (admin + user). */
-export async function countAllUsers(): Promise<number> {
-  const { count, error } = await supabase
-    .from('profiles')
-    .select('id', { count: 'exact', head: true });
-  if (error) {
-    console.error('[admin-users] countAllUsers error:', error);
-    throw error;
+/**
+ * Conta usuários finais (role='user') com fallback seguro.
+ *
+ * Regras:
+ * - dedup por user_id (evita inflar por user_roles duplicadas legadas)
+ * - exclui admins
+ * - exclui órfãos (user sem profile correspondente)
+ * - se primária falhar, recalcula via profiles − admins
+ */
+export async function countEndUsers(): Promise<CountResult> {
+  // PRIMÁRIA: user_roles + dedup + exige profile correspondente
+  try {
+    const [rolesRes, profilesRes] = await Promise.all([
+      supabase.from('user_roles').select('user_id, role'),
+      supabase.from('profiles').select('user_id'),
+    ]);
+
+    if (rolesRes.error) throw rolesRes.error;
+    if (profilesRes.error) throw profilesRes.error;
+
+    const validUserIds = new Set((profilesRes.data || []).map((p) => p.user_id));
+    const seen = new Set<string>();
+    let count = 0;
+    for (const r of rolesRes.data || []) {
+      if (seen.has(r.user_id)) continue; // dedup
+      seen.add(r.user_id);
+      if (!validUserIds.has(r.user_id)) continue; // órfão
+      const normalized = r.role === 'super_admin' ? 'admin' : r.role;
+      if (normalized === 'user') count++;
+    }
+    return { count, source: 'primary' };
+  } catch (primaryErr: any) {
+    console.error('[admin-users] countEndUsers primary failed, trying fallback:', primaryErr);
+
+    // FALLBACK: profiles totais − admins (não infla porque admin é raro e único)
+    try {
+      const [profilesRes, adminsRes] = await Promise.all([
+        supabase.from('profiles').select('user_id'),
+        supabase.from('user_roles').select('user_id').in('role', ['admin', 'super_admin']),
+      ]);
+      if (profilesRes.error) throw profilesRes.error;
+      if (adminsRes.error) throw adminsRes.error;
+
+      const adminIds = new Set((adminsRes.data || []).map((a) => a.user_id));
+      const count = (profilesRes.data || []).filter((p) => !adminIds.has(p.user_id)).length;
+      return {
+        count,
+        source: 'fallback',
+        error: primaryErr?.message || 'Falha na contagem primária',
+      };
+    } catch (fallbackErr: any) {
+      console.error('[admin-users] countEndUsers fallback failed:', fallbackErr);
+      return {
+        count: 0,
+        source: 'unavailable',
+        error: fallbackErr?.message || primaryErr?.message || 'Contagem indisponível',
+      };
+    }
   }
-  return count ?? 0;
+}
+
+/** Conta TODOS os usuários reais (admin + user) — baseado em profiles. */
+export async function countAllUsers(): Promise<CountResult> {
+  try {
+    const { count, error } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true });
+    if (error) throw error;
+    return { count: count ?? 0, source: 'primary' };
+  } catch (err: any) {
+    console.error('[admin-users] countAllUsers error:', err);
+    return { count: 0, source: 'unavailable', error: err?.message };
+  }
 }
 
 /** Cria (ou faz upsert) usuário via edge function `seed-users`. */
