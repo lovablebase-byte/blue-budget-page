@@ -175,8 +175,8 @@ export default function AdminUsers() {
             <ConfirmDialog
               title="Remover usuário?"
               description="O vínculo será removido permanentemente."
-              onConfirm={() => deleteMutation.mutate(row.role_id)}
-              trigger={<Button variant="ghost" size="icon" className="hover:bg-destructive/10" disabled={!row.role_id}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+              onConfirm={() => deleteMutation.mutate(row.user_id)}
+              trigger={<Button variant="ghost" size="icon" className="hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
             />
           </div>
         )}
