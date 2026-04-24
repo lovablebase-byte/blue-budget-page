@@ -23,7 +23,7 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, isAdmin, hasPermission, permissions, signOut, company, user } = useAuth();
+  const { role, isAdmin, hasPermission, permissions, signOut, user } = useAuth();
   const { hasFeature, plan, planLoading } = useCompany();
 
   const isActive = (path: string) => location.pathname === path;
@@ -33,37 +33,24 @@ export function AppSidebar() {
     if (isAdmin) return false;
     const featureKey = moduleFeatureMap[module];
     if (!featureKey) return false;
-    // No plan loaded yet or no subscription → locked
     if (!plan) return true;
     return !hasFeature(featureKey);
   };
 
-  /**
-   * Visibility logic for operational menu items:
-   * 1. Admin → always visible
-   * 2. No module → always visible (e.g. dashboard)
-   * 3. Plan still loading → show skeleton / show all (handled by planLoading)
-   * 4. Plan feature flag exists and is DISABLED (or no plan) → hide entirely
-   * 5. If user has granular permissions configured → respect hasPermission
-   * 6. If user has NO granular permissions → show (plan feature controls access)
-   */
   const visibleOperational = operationalRoutes.filter(item => {
     if (isAdmin) return true;
+    if (item.path === '/dashboard') return false;
     if (!item.module) return true;
-    // While plan is loading, show all items to avoid flicker
     if (planLoading) return true;
 
-    // Check plan feature — if plan disables it OR no plan exists, hide from menu
     const featureKey = moduleFeatureMap[item.module];
     if (featureKey) {
       if (!plan || !hasFeature(featureKey)) return false;
     }
 
-    // If user has a specific granular permission for THIS module, respect it
     const modulePerm = permissions.find(p => p.module === item.module);
     if (modulePerm) return modulePerm.can_view;
 
-    // No specific permission for this module → plan feature is enough to show
     return true;
   });
 
@@ -129,7 +116,6 @@ export function AppSidebar() {
       <SidebarSeparator className="border-white/8" />
 
       <SidebarContent>
-        {/* Operacional */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-accent/80 uppercase tracking-widest text-[10px] font-bold">Operacional</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -139,13 +125,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Administração (admin only) */}
         {isAdmin && (
           <>
             <SidebarSeparator className="border-white/8" />
             <Collapsible defaultOpen={
               location.pathname.startsWith('/admin') ||
-              ['/users', '/settings', '/branding'].includes(location.pathname)
+              ['/dashboard', '/users', '/settings', '/branding'].includes(location.pathname)
             }>
               <SidebarGroup>
                 <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-[10px] font-bold text-accent/80 uppercase tracking-widest hover:bg-white/[0.04] hover:text-accent transition-all">
@@ -164,7 +149,6 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Pessoal */}
         <SidebarSeparator className="border-white/8" />
         <SidebarGroup>
           <SidebarGroupLabel className="text-accent/80 uppercase tracking-widest text-[10px] font-bold">Pessoal</SidebarGroupLabel>

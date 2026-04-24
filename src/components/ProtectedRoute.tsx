@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { routeOrderForRedirect, moduleFeatureMap } from '@/lib/routes';
@@ -22,18 +22,31 @@ function useDeniedToast(message: string, shouldShow: boolean) {
   }, [shouldShow, message]);
 }
 
-function getFallbackRoute(hasPermission: (m: string, a: string) => boolean): string {
+function getSafeHomeRoute(role: 'admin' | 'user' | null): string {
+  if (role === 'admin') return '/dashboard';
+  return '/account';
+}
+
+function getFallbackRoute(
+  role: 'admin' | 'user' | null,
+  hasPermission: (m: string, a: string) => boolean,
+): string {
+  if (role === 'admin') return '/dashboard';
+
   for (const route of routeOrderForRedirect) {
+    if (route.path.startsWith('/admin')) continue;
+    if (route.path === '/dashboard') continue;
     if (hasPermission(route.module, 'view')) return route.path;
   }
+
   return '/account';
 }
 
 export function ProtectedRoute({ children, requiredModule, requiredAction = 'view', requiredRole }: ProtectedRouteProps) {
   const { user, loading, role, hasPermission, permissions } = useAuth();
   const { hasFeature, plan, planLoading } = useCompany();
+  const location = useLocation();
 
-  // Console logs for debugging (as requested)
   useEffect(() => {
     if (user) {
       console.log('ProtectedRoute Debug:', {
@@ -42,11 +55,13 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
         loading,
         planLoading,
         requiredModule,
-        requiredRole
+        requiredRole,
+        pathname: location.pathname,
       });
     }
-  }, [user, role, loading, planLoading, requiredModule, requiredRole]);
+  }, [user, role, loading, planLoading, requiredModule, requiredRole, location.pathname]);
 
+  const isAdminRoute = location.pathname.startsWith('/admin') || ['/dashboard', '/users', '/settings', '/branding'].includes(location.pathname);
   const roleDenied = !!(role && requiredRole && !requiredRole.includes(role));
 
   const getPermDenied = (): boolean => {
@@ -63,15 +78,17 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   };
 
   const permDenied = getPermDenied();
+  const adminRouteDenied = role === 'user' && isAdminRoute;
 
   useDeniedToast(
-    roleDenied
-      ? 'Você não tem o papel necessário para acessar este recurso.'
-      : 'Você não tem permissão para acessar este módulo.',
-    roleDenied || permDenied,
+    adminRouteDenied
+      ? 'Você não tem permissão para acessar a área administrativa.'
+      : roleDenied
+        ? 'Você não tem o papel necessário para acessar este recurso.'
+        : 'Você não tem permissão para acessar este módulo.',
+    adminRouteDenied || roleDenied || permDenied,
   );
 
-  // Still loading session or basic auth state
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -81,13 +98,11 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     );
   }
 
-  // Not logged in
   if (!user) {
     console.log('ProtectedRoute: No user found, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
 
-  // Session loaded, but waiting for plan data (only if not admin)
   if (role !== 'admin' && planLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -97,11 +112,8 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     );
   }
 
-  // User has no role assigned yet (should be rare with auto-creation)
   if (role === null) {
-    console.warn('ProtectedRoute: User has no role. Fallback to user role.');
-    // If it's been loading for a while and still no role, we could show an error
-    // but here we trust the AuthContext fallback. If we are here, something is slow.
+    console.warn('ProtectedRoute: User has no role. Waiting instead of assuming admin.');
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -110,21 +122,19 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
     );
   }
 
-  // Admin bypass
-  if (role === 'admin') {
-    return <>{children}</>;
+  if (adminRouteDenied) {
+    console.log('ProtectedRoute: User tried to access admin route, redirecting to safe home');
+    return <Navigate to={getSafeHomeRoute(role)} replace />;
   }
 
-  // Role check
   if (roleDenied) {
     console.log('ProtectedRoute: Role denied, redirecting to fallback');
-    return <Navigate to={getFallbackRoute(hasPermission)} replace />;
+    return <Navigate to={getFallbackRoute(role, hasPermission)} replace />;
   }
 
-  // Permission check
   if (permDenied) {
     console.log('ProtectedRoute: Permission denied, redirecting to fallback');
-    return <Navigate to={getFallbackRoute(hasPermission)} replace />;
+    return <Navigate to={getFallbackRoute(role, hasPermission)} replace />;
   }
 
   return <>{children}</>;
