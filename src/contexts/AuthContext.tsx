@@ -38,21 +38,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserData = useCallback(async (userId: string) => {
     console.log('Fetching user data for:', userId);
     try {
-      // Fetch user role
-      const { data: roleData, error: roleError } = await supabase
+      // Fetch all roles for the user
+      const { data: roles, error: roleError } = await supabase
         .from('user_roles')
         .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
 
       if (!isMountedRef.current) return;
 
       if (roleError) {
-        console.error('Error fetching user role:', roleError);
+        console.error('Error fetching user roles:', roleError);
         throw roleError;
       }
 
-      let activeRoleData = roleData;
+      // Prioritize roles: 'admin' > 'user', and roles with company_id > NULL company_id
+      const sortedRoles = (roles || []).sort((a, b) => {
+        // Admin first
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        if (a.role !== 'admin' && b.role === 'admin') return 1;
+        
+        // Super admin first (if applicable)
+        if (a.role === 'super_admin' && b.role !== 'super_admin') return -1;
+        if (a.role !== 'super_admin' && b.role === 'super_admin') return 1;
+
+        // Company assigned first
+        if (a.company_id && !b.company_id) return -1;
+        if (!a.company_id && b.company_id) return 1;
+        
+        return 0;
+      });
+
+      let activeRoleData = sortedRoles.length > 0 ? sortedRoles[0] : null;
 
       // Fallback: If no role found, create one automatically (self-healing)
       if (!activeRoleData) {
