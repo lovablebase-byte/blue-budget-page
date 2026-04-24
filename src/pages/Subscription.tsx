@@ -32,6 +32,7 @@ const statusConfig: Record<string, { label: string; icon: React.ElementType; col
   active: { label: 'Ativa', icon: CheckCircle2, color: 'text-success' },
   trialing: { label: 'Período de teste', icon: Clock, color: 'text-info' },
   past_due: { label: 'Pagamento pendente', icon: AlertTriangle, color: 'text-warning' },
+  pending_payment: { label: 'Aguardando pagamento', icon: Clock, color: 'text-warning' },
   canceled: { label: 'Cancelada', icon: XCircle, color: 'text-destructive' },
   suspended: { label: 'Suspensa', icon: XCircle, color: 'text-destructive' },
 };
