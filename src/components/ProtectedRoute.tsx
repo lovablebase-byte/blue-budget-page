@@ -35,13 +35,27 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
 
 
   const isAdminRoute = location.pathname.startsWith('/admin') || ['/dashboard', '/users', '/settings', '/branding'].includes(location.pathname);
-  const adminRouteDenied = role === 'user' && isAdminRoute;
-  const roleDenied = !!(role && requiredRole && !requiredRole.includes(role));
+
+  // Aguarda TODOS os dados críticos antes de avaliar acesso. Sem isso,
+  // o primeiro render (plan=null, permissions=[]) gera falso "Acesso restrito".
+  const needsPlan = role === 'user';
+  const isFullyLoaded =
+    !loading &&
+    !!user &&
+    role !== null &&
+    !roleError &&
+    (!needsPlan || !planLoading);
+
+  const adminRouteDenied = isFullyLoaded && role === 'user' && isAdminRoute;
+  const roleDenied = isFullyLoaded && !!(role && requiredRole && !requiredRole.includes(role));
 
   const getPermDenied = (): boolean => {
+    if (!isFullyLoaded) return false;
     if (!role || role === 'admin' || !requiredModule) return false;
     const featureKey = moduleFeatureMap[requiredModule];
     if (featureKey) {
+      // plan já está resolvido aqui (planLoading=false). Se ainda assim for null,
+      // é bloqueio real (sem assinatura ativa).
       if (!plan || !hasFeature(featureKey)) return true;
     }
     if (permissions.length > 0) return !hasPermission(requiredModule, requiredAction);
@@ -49,6 +63,7 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
   };
 
   const permDenied = getPermDenied();
+  const shouldShowDeniedToast = isFullyLoaded && (adminRouteDenied || roleDenied || permDenied);
 
   useDeniedToast(
     adminRouteDenied
@@ -56,7 +71,7 @@ export function ProtectedRoute({ children, requiredModule, requiredAction = 'vie
       : roleDenied
         ? 'Você não tem o papel necessário para acessar este recurso.'
         : 'Você não tem permissão para acessar este módulo.',
-    adminRouteDenied || roleDenied || permDenied,
+    shouldShowDeniedToast,
   );
 
   if (loading) {
