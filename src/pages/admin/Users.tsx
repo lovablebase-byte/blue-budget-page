@@ -64,11 +64,18 @@ export default function AdminUsers() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('user_roles').delete().eq('id', id);
-      if (error) throw error;
+    mutationFn: async (userId: string) => {
+      // Removemos o perfil e o papel (o banco deve ter cascata ou removemos ambos)
+      const { error: roleError } = await supabase.from('user_roles').delete().eq('user_id', userId);
+      if (roleError) throw roleError;
+      
+      const { error: profileError } = await supabase.from('profiles').delete().eq('user_id', userId);
+      if (profileError) throw profileError;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); toast({ title: 'Usuário removido' }); },
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] }); 
+      toast({ title: 'Usuário removido da listagem' }); 
+    },
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
