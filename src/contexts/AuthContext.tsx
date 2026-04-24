@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .single();
           
           if (!isMountedRef.current) return;
-          if (subData && (subData.status === 'past_due' || subData.status === 'canceled')) {
+          if (subData && (subData.status === 'past_due' || subData.status === 'canceled' || subData.status === 'pending_payment')) {
             setIsReadOnly(true);
           }
         }
