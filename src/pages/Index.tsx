@@ -5,16 +5,21 @@ import { Button } from '@/components/ui/button';
 import { MessageCircle, ArrowRight, Smartphone, Bot, Megaphone, Shield } from 'lucide-react';
 
 const Index = () => {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role, roleError } = useAuth();
 
   if (loading) return null;
 
   // Authenticated users → redirect by role
   if (user) {
-    // Admin vai para o painel admin
+    // Erro de role: deixa ProtectedRoute lidar via /account (que mostrará a tela de bloqueio)
+    if (roleError) return <Navigate to="/account" replace />;
+    // Admin SEMPRE vai para o painel admin
     if (role === 'admin') return <Navigate to="/dashboard" replace />;
-    // Usuário comum vai SEMPRE para sua área pessoal (nunca admin)
-    return <Navigate to="/account" replace />;
+    // Usuário comum vai para a primeira área operacional disponível.
+    // Se nenhuma estiver disponível, vai para /account (área pessoal).
+    if (role === 'user') return <Navigate to="/instances" replace />;
+    // role === null sem erro (transição): aguarda
+    return null;
   }
 
   // Public landing page

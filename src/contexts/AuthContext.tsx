@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (activeRoleData) {
         // Normalize: treat any legacy super_admin as admin
         const normalizedRole = (activeRoleData.role === 'super_admin' ? 'admin' : activeRoleData.role) as AppRole;
-        console.log('Setting user role:', normalizedRole);
+        console.log(`[AuthContext] Role carregada: user=${userId} role=${normalizedRole}`);
         setRole(normalizedRole);
         setUserRole({ ...activeRoleData, role: normalizedRole } as UserRoleData);
 
