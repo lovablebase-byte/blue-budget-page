@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { countEndUsers } from '@/services/admin-users';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -172,7 +173,7 @@ export default function Subscription() {
       });
   }, [company?.id]);
 
-  // Fetch usage counts (users count excludes admins — only end users count toward plan)
+  // Fetch usage counts — usuários vêm da fonte ÚNICA (admin-users service) com fallback seguro
   useEffect(() => {
     if (!company?.id) return;
     setUsageLoading(true);
@@ -180,17 +181,20 @@ export default function Subscription() {
       supabase.from('instances').select('id, provider', { count: 'exact' }).eq('company_id', company.id),
       supabase.from('ai_agents').select('id', { count: 'exact' }).eq('company_id', company.id),
       supabase.from('campaigns').select('id', { count: 'exact' }).eq('company_id', company.id),
-      supabase.from('user_roles').select('id', { count: 'exact' }).eq('company_id', company.id).eq('role', 'user'),
-    ]).then(([inst, agents, campaigns, users]) => {
+      countEndUsers(),
+    ]).then(([inst, agents, campaigns, usersResult]) => {
       const providerCounts: Record<string, number> = {};
       (inst.data || []).forEach((i: any) => {
         providerCounts[i.provider] = (providerCounts[i.provider] || 0) + 1;
       });
+      if (usersResult.source !== 'primary') {
+        console.warn(`[subscription] users count via ${usersResult.source}`, usersResult.error);
+      }
       setUsage({
         instances: inst.count ?? 0,
         ai_agents: agents.count ?? 0,
         campaigns: campaigns.count ?? 0,
-        users: users.count ?? 0,
+        users: usersResult.count,
         ...Object.fromEntries(Object.entries(providerCounts).map(([k, v]) => [`provider_${k}`, v])),
       });
       setUsageLoading(false);
