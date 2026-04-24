@@ -109,20 +109,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setPermissions(mapped);
         }
       } else {
-        // Safe fallback if still no role
-        console.warn('User has no role and creation failed. Setting default user role in state.');
-        setRole('user');
+        // SEM fallback perigoso: se não tem role, registra erro controlado
+        console.error('[AuthContext] Usuário sem role no banco:', userId);
+        setRole(null);
+        setRoleError('Sua conta não possui um papel configurado. Contate o administrador.');
       }
-    } catch (err) {
-      console.error('Error in fetchUserData:', err);
-      // Ensure we don't block the UI forever even on critical failure
+    } catch (err: any) {
+      console.error('[AuthContext] Erro ao carregar dados do usuário:', err);
       if (isMountedRef.current) {
-        setRole('user'); 
+        setRole(null);
+        setRoleError(err?.message || 'Falha ao carregar permissões. Tente novamente.');
       }
     } finally {
       if (isMountedRef.current) {
         setUserDataLoaded(true);
-        console.log('User data loading finished');
       }
     }
   }, []);
