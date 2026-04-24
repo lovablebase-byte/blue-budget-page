@@ -37,36 +37,45 @@ serve(async (req) => {
 
     const results: string[] = [];
 
-    // 1. Check/create "Empresa Demo"
+    // 1. Determine company (Multi-tenant)
     let companyId: string;
-    const { data: existingCompany } = await supabase
-      .from("companies").select("id").eq("slug", "empresa-demo").single();
+    const body = req.headers.get('content-type')?.includes('application/json')
+      ? await req.json().catch(() => ({}))
+      : {};
 
-    if (existingCompany) {
-      companyId = existingCompany.id;
-      results.push("Empresa Demo já existe");
-    } else {
-      const { data: newCompany, error: companyErr } = await supabase
-        .from("companies").insert({ name: "Empresa Demo", slug: "empresa-demo" }).select("id").single();
-      if (companyErr) throw companyErr;
-      companyId = newCompany.id;
-      results.push("Empresa Demo criada");
+    const fullName = body.full_name || body.email || 'Novo Usuário';
+    const email = body.email;
+
+    if (!email && !body.is_seed) {
+      throw new Error("Email é obrigatório");
     }
 
-    // 2. Check/create subscription with Pro plan
-    const { data: plan } = await supabase.from("plans").select("id").eq("name", "Pro").single();
-    if (plan) {
-      const { data: existingSub } = await supabase
-        .from("subscriptions").select("id").eq("company_id", companyId).single();
-      if (!existingSub) {
+    if (body.company_id) {
+      companyId = body.company_id;
+    } else {
+      // Create a NEW company for each user (unless it's a seed request for demo)
+      const slug = `empresa-${Math.random().toString(36).substring(2, 10)}`;
+      const { data: newCompany, error: companyErr } = await supabase
+        .from("companies")
+        .insert({ name: `${fullName} - Empresa`, slug })
+        .select("id")
+        .single();
+      
+      if (companyErr) throw companyErr;
+      companyId = newCompany.id;
+      results.push(`Empresa criada: ${slug}`);
+    }
+
+    // 2. Check/create subscription (ONLY if explicitly requested or for legacy demo seed)
+    if (body.include_subscription) {
+      const { data: plan } = await supabase.from("plans").select("id").eq("name", "Pro").single();
+      if (plan) {
         await supabase.from("subscriptions").insert({
           company_id: companyId, plan_id: plan.id, status: "active",
           started_at: new Date().toISOString(),
           expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         });
         results.push("Assinatura Pro criada");
-      } else {
-        results.push("Assinatura já existe");
       }
     }
 
@@ -74,23 +83,18 @@ serve(async (req) => {
     const { data: modules } = await supabase.from("modules").select("id, name");
     const moduleMap = new Map((modules || []).map((m: any) => [m.name, m.id]));
 
-    // 4. Seed users — accept optional payload from request body to create a single user
+    // 4. Seed users
     let users: any[] = [];
-    try {
-      const body = req.headers.get('content-type')?.includes('application/json')
-        ? await req.json().catch(() => ({}))
-        : {};
-      if (body && body.email) {
-        users = [{
-          email: body.email,
-          password: body.password || '123456',
-          fullName: body.full_name || body.email,
-          role: body.role === 'admin' ? 'admin' : 'user',
-          companyId,
-          perms: body.role === 'admin' ? ADMIN_DEFAULT_PERMISSIONS : OPERATOR_DEFAULT_PERMISSIONS,
-        }];
-      }
-    } catch {}
+    if (body && body.email) {
+      users = [{
+        email: body.email,
+        password: body.password || '123456',
+        fullName: body.full_name || body.email,
+        role: body.role === 'admin' ? 'admin' : 'user',
+        companyId,
+        perms: body.role === 'admin' ? ADMIN_DEFAULT_PERMISSIONS : OPERATOR_DEFAULT_PERMISSIONS,
+      }];
+    }
 
     if (users.length === 0) {
       // Default seed: create demo admin and operator
