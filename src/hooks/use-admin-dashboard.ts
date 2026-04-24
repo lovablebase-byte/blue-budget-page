@@ -57,7 +57,7 @@ export function useAdminDashboard() {
     queryKey: ['admin-dashboard-stats'],
     queryFn: async (): Promise<AdminStats> => {
       const [
-        endUsersCount,
+        endUsersResult,
         instancesRes,
         plansRes,
         subsRes,
@@ -72,6 +72,13 @@ export function useAdminDashboard() {
         supabase.from('invoices').select('id, amount_cents, status').eq('status', 'pending'),
         supabase.from('invoices').select('amount_cents').eq('status', 'paid'),
       ]);
+
+      if (endUsersResult.source !== 'primary') {
+        console.warn(
+          `[admin-dashboard] users count via ${endUsersResult.source}`,
+          endUsersResult.error,
+        );
+      }
 
       const instances = instancesRes.data || [];
       const subs = subsRes.data || [];
@@ -95,7 +102,9 @@ export function useAdminDashboard() {
 
       return {
         companies: 1, // single-tenant: sempre 1
-        users: endUsersCount,
+        users: endUsersResult.count,
+        usersSource: endUsersResult.source,
+        usersError: endUsersResult.error,
         instances: instances.length,
         instancesOnline: statusCounts.online,
         instancesOffline: statusCounts.offline,
