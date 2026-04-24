@@ -90,19 +90,39 @@ export default function Subscription() {
   // Change plan mutation — uses SECURITY DEFINER RPC to bypass RLS
   const changePlanMutation = useMutation({
     mutationFn: async (newPlanId: string) => {
-      const { error } = await supabase.rpc('change_subscription_plan', {
+      console.log('[Subscription] change_subscription_plan ->', newPlanId);
+      const { data, error } = await supabase.rpc('change_subscription_plan', {
         _new_plan_id: newPlanId,
       });
-      if (error) throw error;
+      if (error) {
+        console.error('[Subscription] change_subscription_plan error', error);
+        throw error;
+      }
+      // Audit log (best-effort, non-blocking)
+      supabase.rpc('log_audit', {
+        _action: 'change_plan',
+        _entity_type: 'subscription',
+        _entity_id: newPlanId,
+        _payload: (data ?? {}) as any,
+      }).then(({ error: aErr }) => {
+        if (aErr) console.warn('[Subscription] audit log failed', aErr);
+      });
+      return data as { success: boolean; is_free: boolean; status: string; requires_payment: boolean };
     },
-    onSuccess: () => {
-      // Invalidate all plan-related queries to refresh immediately
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['effective-plan'] });
       queryClient.invalidateQueries({ queryKey: ['allowed-providers'] });
       queryClient.invalidateQueries({ queryKey: ['available-plans'] });
       queryClient.invalidateQueries({ queryKey: ['resource-limit'] });
       queryClient.invalidateQueries({ queryKey: ['feature-enabled'] });
-      toast({ title: 'Plano alterado com sucesso', description: 'Os novos limites e recursos já estão ativos.' });
+      if (result?.requires_payment) {
+        toast({
+          title: 'Plano selecionado — pagamento pendente',
+          description: 'A assinatura só será ativada após a confirmação do pagamento.',
+        });
+      } else {
+        toast({ title: 'Plano alterado com sucesso', description: 'Os novos limites e recursos já estão ativos.' });
+      }
       setConfirmPlan(null);
     },
     onError: (e: any) => {
