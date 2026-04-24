@@ -146,7 +146,7 @@ export default function Subscription() {
       });
   }, [company?.id]);
 
-  // Fetch usage counts
+  // Fetch usage counts (users count excludes admins — only end users count toward plan)
   useEffect(() => {
     if (!company?.id) return;
     setUsageLoading(true);
@@ -154,7 +154,7 @@ export default function Subscription() {
       supabase.from('instances').select('id, provider', { count: 'exact' }).eq('company_id', company.id),
       supabase.from('ai_agents').select('id', { count: 'exact' }).eq('company_id', company.id),
       supabase.from('campaigns').select('id', { count: 'exact' }).eq('company_id', company.id),
-      supabase.from('user_roles').select('id', { count: 'exact' }).eq('company_id', company.id),
+      supabase.from('user_roles').select('id', { count: 'exact' }).eq('company_id', company.id).eq('role', 'user'),
     ]).then(([inst, agents, campaigns, users]) => {
       const providerCounts: Record<string, number> = {};
       (inst.data || []).forEach((i: any) => {
@@ -165,7 +165,6 @@ export default function Subscription() {
         ai_agents: agents.count ?? 0,
         campaigns: campaigns.count ?? 0,
         users: users.count ?? 0,
-        teste: 0, // Mock for "Teste" card
         ...Object.fromEntries(Object.entries(providerCounts).map(([k, v]) => [`provider_${k}`, v])),
       });
       setUsageLoading(false);
