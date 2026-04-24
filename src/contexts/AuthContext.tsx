@@ -165,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissions([]);
     setIsReadOnly(false);
     setUserDataLoaded(false);
+    setRoleError(null);
   };
 
   // Effect 1: Listen to auth state changes
