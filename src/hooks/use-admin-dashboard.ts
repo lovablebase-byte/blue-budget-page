@@ -5,6 +5,9 @@ import { countEndUsers } from '@/services/admin-users';
 export interface AdminStats {
   companies: number;
   users: number;
+  /** Indica origem da contagem de usuários: 'primary' | 'fallback' | 'unavailable'. */
+  usersSource: 'primary' | 'fallback' | 'unavailable';
+  usersError?: string;
   instances: number;
   instancesOnline: number;
   instancesOffline: number;
