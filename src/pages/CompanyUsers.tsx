@@ -38,17 +38,19 @@ export default function CompanyUsers() {
       let query = supabase
         .from('user_roles')
         .select('*, profiles:profiles!inner(full_name, user_id)')
+        .eq('role', 'user') // Fonte única: Dashboard e Listagem mostram apenas usuários finais
         .order('created_at');
 
+      // Em sistema single-tenant, admins veem TODOS os usuários finais sem filtro de empresa
       if (!isAdmin && company?.id) {
         query = query.eq('company_id', company.id);
-      } else if (isAdmin && company?.id) {
-        // Se for admin mas estiver "contextualizado" em uma empresa, mostramos todos
-        // Mas o dashboard espera a mesma fonte, então removemos o filtro de role='user'
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar usuários:', error);
+        throw error;
+      }
       return data;
     },
     enabled: isAdmin || !!company?.id,
