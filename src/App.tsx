@@ -72,8 +72,10 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Operational */}
-              <Route path="/dashboard" element={<ProtectedPage module="dashboard"><Dashboard /></ProtectedPage>} />
+              {/* Dashboard é EXCLUSIVO do admin */}
+              <Route path="/dashboard" element={<ProtectedPage role={['admin']}><Dashboard /></ProtectedPage>} />
+
+              {/* Operational (admin + user) */}
               <Route path="/instances" element={<ProtectedPage module="instances"><Instances /></ProtectedPage>} />
               <Route path="/instances/:id" element={<ProtectedPage module="instances"><InstanceDetail /></ProtectedPage>} />
               
