@@ -1890,8 +1890,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_pending_plan_change: { Args: never; Returns: Json }
       change_subscription_plan: {
         Args: { _new_plan_id: string }
+        Returns: Json
+      }
+      confirm_pending_plan_change: {
+        Args: { _subscription_id: string }
         Returns: Json
       }
       get_effective_limit: {
