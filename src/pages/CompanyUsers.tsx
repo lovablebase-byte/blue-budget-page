@@ -33,17 +33,21 @@ export default function CompanyUsers() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['company-users', isAdmin ? 'all' : company?.id],
     queryFn: async () => {
-      // Lista apenas usuários finais reais (role='user'). Admins não aparecem aqui.
-      // Mesma regra usada no card "Usuários" do Dashboard — fonte única de verdade.
+      // Se for admin global (sem company_id), lista TODOS os usuários.
+      // Se for admin de empresa, lista apenas os daquela empresa.
       let query = supabase
         .from('user_roles')
         .select('*, profiles:profiles!inner(full_name, user_id)')
-        .eq('role', 'user')
         .order('created_at');
 
       if (!isAdmin && company?.id) {
         query = query.eq('company_id', company.id);
+      } else if (isAdmin && company?.id) {
+        // Se for admin mas estiver "contextualizado" em uma empresa, mostramos todos
+        // Mas o dashboard espera a mesma fonte, então removemos o filtro de role='user'
       }
+
+      const { data, error } = await query;
 
       const { data, error } = await query;
       if (error) throw error;
