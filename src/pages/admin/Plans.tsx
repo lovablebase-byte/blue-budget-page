@@ -344,7 +344,7 @@ export default function AdminPlans() {
               <TabsContent value="providers" className="space-y-4 mt-4">
                 <p className="text-sm text-muted-foreground">Selecione os providers de WhatsApp permitidos. Se nenhum for selecionado, todos serão permitidos.</p>
                 <div className="space-y-3">
-                  {['evolution', 'evolution_go', 'wuzapi'].map(provider => (
+                  {['evolution', 'evolution_go', 'wuzapi', 'wppconnect'].map(provider => (
                     <label key={provider} className="flex items-center gap-3 border border-border/30 rounded-md p-3 cursor-pointer bg-muted/10 hover:bg-muted/20 transition-colors">
                       <Checkbox
                         checked={selectedProviders.includes(provider)}
@@ -356,10 +356,16 @@ export default function AdminPlans() {
                       />
                       <div>
                         <p className="text-sm font-medium capitalize">
-                          {provider === 'evolution' ? 'Evolution API' : provider === 'evolution_go' ? 'Evolution Go (v2)' : 'WuzAPI'}
+                          {provider === 'evolution' ? 'Evolution API'
+                            : provider === 'evolution_go' ? 'Evolution Go (v2)'
+                            : provider === 'wuzapi' ? 'WuzAPI'
+                            : 'WPPConnect'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {provider === 'evolution' ? 'API v1 (Node.js)' : provider === 'evolution_go' ? 'API v2 escrita em Go — alta performance' : 'API leve e direta'}
+                          {provider === 'evolution' ? 'API v1 (Node.js)'
+                            : provider === 'evolution_go' ? 'API v2 escrita em Go — alta performance'
+                            : provider === 'wuzapi' ? 'API leve e direta'
+                            : 'API REST baseada em WhatsApp Web/WPPConnect Server'}
                         </p>
                       </div>
                     </label>
