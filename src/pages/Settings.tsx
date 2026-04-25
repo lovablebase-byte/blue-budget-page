@@ -175,9 +175,18 @@ export default function Settings() {
 
   const handleSaveProvider = async (provider: ProviderKey) => {
     const [state, setState] = providerStateMap[provider];
+    if (provider === 'wppconnect') {
+      const validationError = validateProviderInputs(provider, state);
+      if (validationError) { toast.error(validationError); return; }
+    }
+    const normalizedUrl = normalizeBaseUrl(state.baseUrl);
+    if (normalizedUrl !== state.baseUrl) {
+      setState(prev => ({ ...prev, baseUrl: normalizedUrl }));
+    }
+    const stateToUse = { ...state, baseUrl: normalizedUrl };
     setState(prev => ({ ...prev, saving: true }));
     try {
-      await saveProvider(provider, state);
+      await saveProvider(provider, stateToUse);
       toast.success(`Integração ${providerLabel(provider)} salva`);
     } catch (e: any) {
       toast.error(e.message);
@@ -186,12 +195,57 @@ export default function Settings() {
     }
   };
 
+  const normalizeBaseUrl = (url: string) => url.trim().replace(/\/+$/, '');
+
+  const validateProviderInputs = (provider: ProviderKey, state: ProviderState): string | null => {
+    const url = state.baseUrl.trim();
+    const key = state.apiKey.trim();
+    if (provider === 'wppconnect') {
+      if (!url) return 'Informe a URL base do WPPConnect Server.';
+      if (!key) return 'Informe a Secret Key do WPPConnect.';
+      if (!/^https?:\/\//i.test(url)) return 'A URL do WPPConnect deve começar com http:// ou https://';
+      if (/\/\/+$/.test(url) || /[^:]\/\/+/.test(url.replace(/^https?:\/\//i, ''))) {
+        return 'A URL do WPPConnect contém barras duplicadas. Verifique o endereço.';
+      }
+    } else {
+      if (!url || !key) return 'Preencha a URL e a API Key';
+    }
+    return null;
+  };
+
+  const friendlyTestError = (provider: ProviderKey, raw: string): string => {
+    const msg = (raw || '').toLowerCase();
+    if (provider !== 'wppconnect') return raw || 'Não foi possível conectar';
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('econnrefused') || msg.includes('timeout')) {
+      return 'Não foi possível alcançar o WPPConnect Server. Verifique se a URL está correta e o servidor está online.';
+    }
+    if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid token') || msg.includes('forbidden') || msg.includes('403')) {
+      return 'Secret Key inválida. Verifique a chave configurada no servidor WPPConnect.';
+    }
+    if (msg.includes('404') || msg.includes('not found')) {
+      return 'Endpoint não encontrado. Confirme se a URL aponta para um WPPConnect Server compatível.';
+    }
+    if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
+      return 'O WPPConnect Server retornou um erro. Tente novamente em instantes.';
+    }
+    return raw || 'Não foi possível conectar ao WPPConnect Server';
+  };
+
   const testConnection = async (provider: ProviderKey) => {
     const [state, setState] = providerStateMap[provider];
-    if (!state.baseUrl || !state.apiKey) { toast.error('Preencha a URL e a API Key'); return; }
+    const validationError = validateProviderInputs(provider, state);
+    if (validationError) { toast.error(validationError); return; }
+
+    // Normalize URL (remove trailing slashes) before saving/testing
+    const normalizedUrl = normalizeBaseUrl(state.baseUrl);
+    if (normalizedUrl !== state.baseUrl) {
+      setState(prev => ({ ...prev, baseUrl: normalizedUrl }));
+    }
+    const stateToUse = { ...state, baseUrl: normalizedUrl };
+
     setState(prev => ({ ...prev, testing: true, testStatus: 'idle' }));
     try {
-      await saveProvider(provider, state);
+      await saveProvider(provider, stateToUse);
       queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
       const res = await supabase.functions.invoke('whatsapp-provider-proxy', { body: { action: 'testConnection', provider } });
       if (res.error) {
@@ -206,7 +260,7 @@ export default function Settings() {
       toast.success('Conexão bem-sucedida!');
     } catch (err: any) {
       setState(prev => ({ ...prev, testStatus: 'error' }));
-      toast.error(err.message || 'Não foi possível conectar');
+      toast.error(friendlyTestError(provider, err?.message || ''));
     } finally {
       setState(prev => ({ ...prev, testing: false }));
     }
@@ -282,13 +336,29 @@ export default function Settings() {
               <AlertDescription>Este provider não está disponível no seu plano atual.</AlertDescription>
             </Alert>
           )}
+          {provider === 'wppconnect' && (
+            <p className="text-xs text-muted-foreground -mb-1">
+              Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">URL da API</Label>
-            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} placeholder={placeholder} disabled={!canEdit} />
+            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} onBlur={() => {
+              if (provider === 'wppconnect' && state.baseUrl) {
+                const norm = normalizeBaseUrl(state.baseUrl);
+                if (norm !== state.baseUrl) setState(prev => ({ ...prev, baseUrl: norm }));
+              }
+            }} placeholder={placeholder} disabled={!canEdit} />
+            {provider === 'wppconnect' && (
+              <p className="text-[11px] text-muted-foreground">Sem barra final. Ex.: https://sua-wppconnect.com</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">{apiKeyLabel}</Label>
-            <Input type="password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
+            <Input type="password" autoComplete="new-password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
+            {provider === 'wppconnect' && (
+              <p className="text-[11px] text-muted-foreground">A Secret Key fica armazenada com segurança no servidor e nunca é exibida em logs.</p>
+            )}
           </div>
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <p className="text-sm font-medium">Ativar integração</p>
@@ -399,7 +469,7 @@ export default function Settings() {
         {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API v1 para gerenciamento de WhatsApp')}
         {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
         {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
-        {renderProviderCard('wppconnect', 'WPPConnect', 'WPPConnect Server — API REST para gerenciamento de sessões WhatsApp via WhatsApp Web')}
+        {renderProviderCard('wppconnect', 'WPPConnect', 'Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.')}
 
         <Card className="border-border/40 bg-card/80">
           <CardHeader>
