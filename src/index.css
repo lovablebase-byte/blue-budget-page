@@ -212,11 +212,11 @@
   }
 
   .metric-green {
-    --icon-color: #24FF91;
-    --icon-bg: rgba(36, 255, 145, 0.16);
-    --icon-border: rgba(36, 255, 145, 0.28);
-    --icon-shadow: rgba(36, 255, 145, 0.45);
-    color: #24FF91;
+    --icon-color: #00E676;
+    --icon-bg: rgba(0, 230, 118, 0.16);
+    --icon-border: rgba(0, 230, 118, 0.3);
+    --icon-shadow: rgba(0, 230, 118, 0.5);
+    color: #00E676;
   }
 
   .metric-cyan {
@@ -252,11 +252,11 @@
   }
 
   .metric-mint {
-    --icon-color: #24FF91;
-    --icon-bg: rgba(36, 255, 145, 0.16);
-    --icon-border: rgba(36, 255, 145, 0.28);
-    --icon-shadow: rgba(36, 255, 145, 0.45);
-    color: #24FF91;
+    --icon-color: #00E676;
+    --icon-bg: rgba(0, 230, 118, 0.16);
+    --icon-border: rgba(0, 230, 118, 0.3);
+    --icon-shadow: rgba(0, 230, 118, 0.5);
+    color: #00E676;
   }
 
   .metric-pink {
