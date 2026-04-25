@@ -978,7 +978,7 @@ serve(async (req) => {
       }
     }
 
-    if (resolvedProvider !== "evolution" && resolvedProvider !== "wuzapi" && resolvedProvider !== "evolution_go") {
+    if (resolvedProvider !== "evolution" && resolvedProvider !== "wuzapi" && resolvedProvider !== "evolution_go" && resolvedProvider !== "wppconnect") {
       throw new Error(`Provider desconhecido: ${resolvedProvider}`);
     }
 
