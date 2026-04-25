@@ -804,7 +804,8 @@ async function handleWppConnect(
 ) {
   switch (action) {
     case "testConnection": {
-      const r = await wppFetch(baseUrl, "GET", "/api/show-all-sessions", secretKey);
+      // WPPConnect: secret key vai na URL, não como bearer
+      const r = await wppFetch(baseUrl, "GET", `/api/${encodeURIComponent(secretKey)}/show-all-sessions`, null);
       if (r.ok) return { ok: true, status: 200, body: r.data };
       // Fallback probe: try generating a token for a throwaway session name
       const probe = await wppGenerateToken(baseUrl, secretKey, "lovable_probe");
