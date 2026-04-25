@@ -1204,6 +1204,8 @@ export type Database = {
       payment_charges: {
         Row: {
           amount_cents: number
+          capture_method: string | null
+          checkout_url: string | null
           company_id: string
           created_at: string
           description: string | null
@@ -1213,19 +1215,26 @@ export type Database = {
           gateway: string
           gateway_payment_id: string | null
           id: string
+          invoice_slug: string | null
+          order_nsu: string | null
           paid_at: string | null
+          payment_method: string | null
           pix_copy_paste: string | null
           qr_code: string | null
           qr_code_base64: string | null
           raw_response: Json | null
+          receipt_url: string | null
           status: string
           status_detail: string | null
           subscription_id: string | null
           ticket_url: string | null
+          transaction_nsu: string | null
           updated_at: string
         }
         Insert: {
           amount_cents?: number
+          capture_method?: string | null
+          checkout_url?: string | null
           company_id: string
           created_at?: string
           description?: string | null
@@ -1235,19 +1244,26 @@ export type Database = {
           gateway?: string
           gateway_payment_id?: string | null
           id?: string
+          invoice_slug?: string | null
+          order_nsu?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           pix_copy_paste?: string | null
           qr_code?: string | null
           qr_code_base64?: string | null
           raw_response?: Json | null
+          receipt_url?: string | null
           status?: string
           status_detail?: string | null
           subscription_id?: string | null
           ticket_url?: string | null
+          transaction_nsu?: string | null
           updated_at?: string
         }
         Update: {
           amount_cents?: number
+          capture_method?: string | null
+          checkout_url?: string | null
           company_id?: string
           created_at?: string
           description?: string | null
@@ -1257,15 +1273,20 @@ export type Database = {
           gateway?: string
           gateway_payment_id?: string | null
           id?: string
+          invoice_slug?: string | null
+          order_nsu?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           pix_copy_paste?: string | null
           qr_code?: string | null
           qr_code_base64?: string | null
           raw_response?: Json | null
+          receipt_url?: string | null
           status?: string
           status_detail?: string | null
           subscription_id?: string | null
           ticket_url?: string | null
+          transaction_nsu?: string | null
           updated_at?: string
         }
         Relationships: [
