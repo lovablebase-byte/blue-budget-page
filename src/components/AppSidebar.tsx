@@ -28,6 +28,25 @@ export function AppSidebar() {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Cores dos ícones por rota (apenas visual)
+  const iconColorMap: Record<string, string> = {
+    '/dashboard': '#00E676',
+    '/instances': '#00D2FF',
+    '/ai-agents': '#8B5CF6',
+    '/campaigns': '#FFD600',
+    '/users': '#00E676',
+    '/admin/plans': '#A855F7',
+    '/admin/subscriptions': '#2563EB',
+    '/admin/reports': '#FF9F43',
+    '/admin/gateways': '#00F5D4',
+    '/admin/logs': '#FF3B7A',
+    '/branding': '#FF2D92',
+    '/settings': '#38BDF8',
+    '/admin/health': '#7CFF00',
+    '/account': '#00B4FF',
+    '/subscription': '#8B5CF6',
+  };
+
   const isFeatureLocked = (module?: string): boolean => {
     if (!module) return false;
     if (isAdmin) return false;
@@ -63,6 +82,7 @@ export function AppSidebar() {
     const locked = isFeatureLocked(item.module);
     const active = isActive(item.path);
     const Icon = item.icon!;
+    const iconColor = iconColorMap[item.path] ?? '#94A3B8';
 
     if (locked) {
       return (
@@ -87,10 +107,17 @@ export function AppSidebar() {
           <NavLink
             to={item.path}
             end
-            className="rounded-xl border border-transparent bg-white/[0.03] text-muted-foreground dark:text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[hsl(var(--glow)/0.22)] hover:bg-white/[0.07] hover:text-foreground dark:hover:text-white hover:shadow-[0_0_0_1px_hsl(var(--glow)/0.14),0_0_20px_-10px_hsl(var(--glow)/0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-200"
-            activeClassName="border-[hsl(var(--glow)/0.3)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--glow)/0.1))] text-foreground dark:text-white font-semibold shadow-[0_0_0_1px_hsl(var(--glow)/0.18),0_0_26px_-10px_hsl(var(--glow)/0.5),inset_0_1px_0_rgba(255,255,255,0.12)]"
+            className="rounded-xl border border-transparent bg-transparent text-muted-foreground dark:text-white/85 hover:border-white/10 hover:bg-white/[0.05] hover:text-foreground dark:hover:text-white transition-all duration-200"
+            activeClassName="border-[rgba(0,230,118,0.45)] bg-[rgba(0,230,118,0.12)] text-foreground dark:text-white font-semibold shadow-[0_0_0_1px_rgba(0,230,118,0.25),0_0_22px_-8px_rgba(0,230,118,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]"
           >
-            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_8px_hsl(var(--glow)/0.7)]' : 'text-muted-foreground dark:text-white/80'}`} />
+            <Icon
+              className="h-4 w-4 transition-all"
+              style={
+                active
+                  ? { color: '#00E676', filter: 'drop-shadow(0 0 8px rgba(0,230,118,0.8))' }
+                  : { color: iconColor, filter: `drop-shadow(0 0 6px ${iconColor}55)` }
+              }
+            />
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         </SidebarMenuButton>

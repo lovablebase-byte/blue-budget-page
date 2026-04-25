@@ -14,17 +14,17 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 14%;
 
-    /* Verde global único do sistema: #24FF91 */
-    --theme-green: 150 100% 57%;
+    /* Verde oficial do sistema: #00E676 */
+    --theme-green: 142 100% 45%;
     --theme-green-foreground: 220 20% 14%;
-    --theme-green-soft: 150 100% 57%;
+    --theme-green-soft: 142 100% 45%;
     --theme-green-soft-foreground: 220 20% 14%;
-    --theme-green-border: 150 100% 57%;
-    --theme-green-ring: 150 100% 57%;
-    --theme-green-glow: 150 100% 57%;
-    --theme-green-hover: 150 100% 52%;
-    --theme-green-active: 150 100% 47%;
-    --theme-green-muted: 150 100% 57%;
+    --theme-green-border: 142 100% 45%;
+    --theme-green-ring: 142 100% 45%;
+    --theme-green-glow: 142 100% 45%;
+    --theme-green-hover: 142 100% 50%;
+    --theme-green-active: 142 100% 40%;
+    --theme-green-muted: 142 100% 45%;
 
     --primary: var(--theme-green);
     --primary-foreground: var(--theme-green-foreground);
@@ -89,17 +89,17 @@
     --popover: 210 63% 6%;
     --popover-foreground: 210 40% 98%;
 
-    /* Verde global único do sistema: #24FF91 */
-    --theme-green: 150 100% 57%;
+    /* Verde oficial do sistema: #00E676 */
+    --theme-green: 142 100% 45%;
     --theme-green-foreground: 220 69% 3%;
-    --theme-green-soft: 150 100% 57%;
+    --theme-green-soft: 142 100% 45%;
     --theme-green-soft-foreground: 220 69% 3%;
-    --theme-green-border: 150 100% 57%;
-    --theme-green-ring: 150 100% 57%;
-    --theme-green-glow: 150 100% 57%;
-    --theme-green-hover: 150 100% 62%;
-    --theme-green-active: 150 100% 50%;
-    --theme-green-muted: 150 100% 57%;
+    --theme-green-border: 142 100% 45%;
+    --theme-green-ring: 142 100% 45%;
+    --theme-green-glow: 142 100% 45%;
+    --theme-green-hover: 142 100% 50%;
+    --theme-green-active: 142 100% 40%;
+    --theme-green-muted: 142 100% 45%;
 
     --primary: var(--theme-green);
     --primary-foreground: var(--theme-green-foreground);
@@ -212,11 +212,11 @@
   }
 
   .metric-green {
-    --icon-color: #24FF91;
-    --icon-bg: rgba(36, 255, 145, 0.16);
-    --icon-border: rgba(36, 255, 145, 0.28);
-    --icon-shadow: rgba(36, 255, 145, 0.45);
-    color: #24FF91;
+    --icon-color: #00E676;
+    --icon-bg: rgba(0, 230, 118, 0.16);
+    --icon-border: rgba(0, 230, 118, 0.3);
+    --icon-shadow: rgba(0, 230, 118, 0.5);
+    color: #00E676;
   }
 
   .metric-cyan {
@@ -252,11 +252,11 @@
   }
 
   .metric-mint {
-    --icon-color: #24FF91;
-    --icon-bg: rgba(36, 255, 145, 0.16);
-    --icon-border: rgba(36, 255, 145, 0.28);
-    --icon-shadow: rgba(36, 255, 145, 0.45);
-    color: #24FF91;
+    --icon-color: #00E676;
+    --icon-bg: rgba(0, 230, 118, 0.16);
+    --icon-border: rgba(0, 230, 118, 0.3);
+    --icon-shadow: rgba(0, 230, 118, 0.5);
+    color: #00E676;
   }
 
   .metric-pink {
@@ -284,11 +284,11 @@
   }
 
   .metric-red {
-    --icon-color: #FF4D4D;
-    --icon-bg: rgba(255, 77, 77, 0.16);
-    --icon-border: rgba(255, 77, 77, 0.28);
-    --icon-shadow: rgba(255, 77, 77, 0.45);
-    color: #FF4D4D;
+    --icon-color: #FF4D5A;
+    --icon-bg: rgba(255, 77, 90, 0.16);
+    --icon-border: rgba(255, 77, 90, 0.3);
+    --icon-shadow: rgba(255, 77, 90, 0.5);
+    color: #FF4D5A;
   }
 
   .metric-violet {
@@ -339,12 +339,23 @@
     color: #FFB300;
   }
 
-  .metric-red {
-    --icon-color: #FF5A5F;
-    --icon-bg: rgba(255, 90, 95, 0.16);
-    --icon-border: rgba(255, 90, 95, 0.28);
-    --icon-shadow: rgba(255, 90, 95, 0.42);
-    color: #FF5A5F;
+  /* premium-card: card com linha luminosa superior usando a cor temática (--icon-color) */
+  .premium-card {
+    position: relative;
+    isolation: isolate;
+  }
+  .premium-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--icon-color, hsl(var(--primary))) 20%, var(--icon-color, hsl(var(--primary))) 80%, transparent 100%);
+    box-shadow: 0 0 12px var(--icon-shadow, rgba(0,230,118,0.5)), 0 0 24px var(--icon-shadow, rgba(0,230,118,0.35));
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* Light mode: softer glows */
