@@ -749,6 +749,173 @@ async function handleWuzapi(
   }
 }
 
+// ---------- WPPConnect action handlers ----------
+// Reference: https://wppconnect.io/docs/
+// Auth: secret key generates a per-session bearer token via
+// POST /api/{session}/{secretkey}/generate-token, then all session
+// endpoints use Authorization: Bearer <token>.
+
+async function wppFetch(
+  baseUrl: string,
+  method: string,
+  path: string,
+  bearer: string | null,
+  body?: Record<string, any>,
+) {
+  const url = `${baseUrl}${path}`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (bearer) headers.Authorization = `Bearer ${bearer}`;
+  console.log(`[wppconnect] ${method} ${path}`);
+  const res = await fetch(url, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
+  console.log(`[wppconnect] ${method} ${path} => ${res.status}`);
+  return { ok: res.ok, status: res.status, data };
+}
+
+async function wppGenerateToken(baseUrl: string, secretKey: string, session: string): Promise<string | null> {
+  const r = await wppFetch(
+    baseUrl,
+    "POST",
+    `/api/${encodeURIComponent(session)}/${encodeURIComponent(secretKey)}/generate-token`,
+    null,
+  );
+  if (!r.ok) return null;
+  return r.data?.token || r.data?.full || null;
+}
+
+function mapWppConnectStatus(raw: string | undefined): string {
+  const s = String(raw || "").toUpperCase();
+  if (s === "CONNECTED" || s === "INCHAT" || s === "OPEN") return "open";
+  if (s === "QRCODE" || s === "STARTING" || s === "CONNECTING") return "connecting";
+  if (s === "CLOSED" || s === "DISCONNECTED" || s === "NOTLOGGED") return "close";
+  return "close";
+}
+
+async function handleWppConnect(
+  baseUrl: string,
+  secretKey: string,
+  action: string,
+  instanceName: string | undefined,
+  payload: any,
+) {
+  switch (action) {
+    case "testConnection": {
+      const r = await wppFetch(baseUrl, "GET", "/api/show-all-sessions", secretKey);
+      if (r.ok) return { ok: true, status: 200, body: r.data };
+      // Fallback probe: try generating a token for a throwaway session name
+      const probe = await wppGenerateToken(baseUrl, secretKey, "lovable_probe");
+      if (probe) return { ok: true, status: 200, body: { mode: "token_probe" } };
+      return { ok: false, status: r.status, body: r.data };
+    }
+    case "create": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const sessionToken = await wppGenerateToken(baseUrl, secretKey, instanceName);
+      if (!sessionToken) {
+        return { ok: false, status: 401, body: { error: "WPPConnect: falha ao gerar token (verifique Secret Key)" } };
+      }
+      const startBody: any = { waitQrCode: true };
+      if (payload?.webhook) startBody.webhook = payload.webhook;
+      const r = await wppFetch(baseUrl, "POST", `/api/${encodeURIComponent(instanceName)}/start-session`, sessionToken, startBody);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          instanceId: instanceName,
+          instanceName,
+          sessionToken,
+          qrCode: r.data?.qrcode || r.data?.base64 || null,
+          status: r.data?.status || "created",
+          raw: r.data,
+        },
+      };
+    }
+    case "connect": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const sessionToken = await wppGenerateToken(baseUrl, secretKey, instanceName);
+      if (!sessionToken) {
+        return { ok: false, status: 401, body: { error: "WPPConnect: falha ao gerar token de sessão" } };
+      }
+      const startBody: any = { waitQrCode: true };
+      if (payload?.webhook) startBody.webhook = payload.webhook;
+      await wppFetch(baseUrl, "POST", `/api/${encodeURIComponent(instanceName)}/start-session`, sessionToken, startBody);
+      const qr = await wppFetch(baseUrl, "GET", `/api/${encodeURIComponent(instanceName)}/qrcode-session`, sessionToken);
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          qrCode: qr.data?.qrcode || qr.data?.base64 || null,
+          pairingCode: null,
+          raw: qr.data,
+        },
+      };
+    }
+    case "status": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const sessionToken = await wppGenerateToken(baseUrl, secretKey, instanceName);
+      if (!sessionToken) {
+        return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
+      }
+      const r = await wppFetch(baseUrl, "GET", `/api/${encodeURIComponent(instanceName)}/status-session`, sessionToken);
+      if (r.status === 404) {
+        return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
+      }
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      const state = mapWppConnectStatus(r.data?.status);
+      return { ok: true, status: 200, body: { instance: { state, instanceName }, raw: r.data } };
+    }
+    case "delete": {
+      if (!instanceName) return { ok: true, status: 200, body: { status: "deleted_already" } };
+      const sessionToken = await wppGenerateToken(baseUrl, secretKey, instanceName);
+      if (!sessionToken) return { ok: true, status: 200, body: { status: "deleted_already" } };
+      const r = await wppFetch(baseUrl, "POST", `/api/${encodeURIComponent(instanceName)}/close-session`, sessionToken);
+      if (r.status === 404) return { ok: true, status: 200, body: { status: "deleted_already" } };
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    case "logout": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const sessionToken = await wppGenerateToken(baseUrl, secretKey, instanceName);
+      if (!sessionToken) return { ok: true, status: 200, body: { status: "logged_out_already" } };
+      const r = await wppFetch(baseUrl, "POST", `/api/${encodeURIComponent(instanceName)}/logout-session`, sessionToken);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    case "fetchInstances": {
+      const r = await wppFetch(baseUrl, "GET", "/api/show-all-sessions", secretKey);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      const list: any[] = Array.isArray(r.data?.response) ? r.data.response : Array.isArray(r.data) ? r.data : [];
+      const items = list.map((entry: any) => {
+        const session = typeof entry === "string" ? entry : entry?.session || entry?.name || "";
+        return { instanceName: session, instanceId: session, status: "unknown", raw: entry };
+      });
+      return { ok: true, status: 200, body: { data: items } };
+    }
+    case "sendText": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const sessionToken = await wppGenerateToken(baseUrl, secretKey, instanceName);
+      if (!sessionToken) return { ok: false, status: 401, body: { error: "WPPConnect: token de sessão indisponível" } };
+      const phone = (payload?.number || payload?.phone || "").replace(/\D/g, "");
+      const text = payload?.text || payload?.textMessage?.text || payload?.message || payload?.body || "";
+      const r = await wppFetch(baseUrl, "POST", `/api/${encodeURIComponent(instanceName)}/send-message`, sessionToken, {
+        phone,
+        isGroup: false,
+        isNewsletter: false,
+        isLid: false,
+        message: text,
+      });
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    default:
+      return { ok: false, status: 400, body: { error: `Ação não suportada para WPPConnect: ${action}` } };
+  }
+}
+
 // ---------- Main handler ----------
 
 serve(async (req) => {
