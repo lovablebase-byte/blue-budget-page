@@ -10,9 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MercadoPagoCard from './MercadoPagoCard';
 import {
   Plug, Save, TestTube, Loader2, CheckCircle2, XCircle, Clock, Eye, EyeOff, Copy,
-  AlertTriangle, RefreshCw, Shield, Activity,
+  AlertTriangle, RefreshCw, Shield, Activity, Wallet,
 } from 'lucide-react';
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -207,18 +209,31 @@ export default function AdminGateways() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Gateway de Pagamento</h1>
-          <p className="text-muted-foreground">Integração PIX exclusiva via Amplo Pay</p>
-        </div>
-        {gateway && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Ativo</span>
-            <Switch checked={gateway.is_active} onCheckedChange={(v) => toggleMutation.mutate(v)} />
-          </div>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold">Gateways de Pagamento</h1>
+        <p className="text-muted-foreground">
+          Configure e ative os gateways disponíveis. Apenas um pode estar como padrão por vez.
+        </p>
       </div>
+
+      <Tabs defaultValue="amplopay" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="amplopay" className="gap-2">
+            <Plug className="h-4 w-4" /> Amplo Pay
+          </TabsTrigger>
+          <TabsTrigger value="mercadopago" className="gap-2">
+            <Wallet className="h-4 w-4" /> Mercado Pago
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="amplopay" className="space-y-6">
+          {/* Switch ativar Amplo Pay */}
+          {gateway && (
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-sm text-muted-foreground">Gateway ativo</span>
+              <Switch checked={gateway.is_active} onCheckedChange={(v) => toggleMutation.mutate(v)} />
+            </div>
+          )}
 
       {/* Identification card (PDF seção 10 — Identificação) */}
       <Card>
@@ -461,6 +476,12 @@ export default function AdminGateways() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="mercadopago" className="space-y-6">
+          <MercadoPagoCard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getActivePaymentGateway } from '@/lib/payment-gateway';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -543,10 +544,12 @@ export default function AdminSubscriptions() {
                     const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
                     const session = await supabase.auth.getSession();
                     const token = session.data?.session?.access_token;
+                    const active = await getActivePaymentGateway();
+                    if (!active) { toast.error('Nenhum gateway de pagamento ativo'); setPixLoading(false); return; }
                     // Get plan price
                     const { data: plan } = await supabase.from('plans').select('price_cents, name').eq('id', pixRow.plan_id).single();
                     const resp = await fetch(
-                      `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/amplopay-proxy?action=create-charge`,
+                      `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/${active.proxyAction}?action=create-charge`,
                       {
                         method: 'POST',
                         headers: {
@@ -624,8 +627,10 @@ export default function AdminSubscriptions() {
                       const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
                       const session = await supabase.auth.getSession();
                       const token = session.data?.session?.access_token;
+                      const active = await getActivePaymentGateway();
+                      const proxy = active?.proxyAction || 'amplopay-proxy';
                       const resp = await fetch(
-                        `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/amplopay-proxy?action=query-charge&charge_id=${pixResult.charge_id}`,
+                        `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/${proxy}?action=query-charge&charge_id=${pixResult.charge_id}`,
                         {
                           method: 'POST',
                           headers: {

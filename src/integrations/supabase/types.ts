@@ -1209,12 +1209,19 @@ export type Database = {
           description: string | null
           expires_at: string | null
           external_id: string | null
+          external_reference: string | null
+          gateway: string
+          gateway_payment_id: string | null
           id: string
           paid_at: string | null
           pix_copy_paste: string | null
           qr_code: string | null
+          qr_code_base64: string | null
+          raw_response: Json | null
           status: string
+          status_detail: string | null
           subscription_id: string | null
+          ticket_url: string | null
           updated_at: string
         }
         Insert: {
@@ -1224,12 +1231,19 @@ export type Database = {
           description?: string | null
           expires_at?: string | null
           external_id?: string | null
+          external_reference?: string | null
+          gateway?: string
+          gateway_payment_id?: string | null
           id?: string
           paid_at?: string | null
           pix_copy_paste?: string | null
           qr_code?: string | null
+          qr_code_base64?: string | null
+          raw_response?: Json | null
           status?: string
+          status_detail?: string | null
           subscription_id?: string | null
+          ticket_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -1239,12 +1253,19 @@ export type Database = {
           description?: string | null
           expires_at?: string | null
           external_id?: string | null
+          external_reference?: string | null
+          gateway?: string
+          gateway_payment_id?: string | null
           id?: string
           paid_at?: string | null
           pix_copy_paste?: string | null
           qr_code?: string | null
+          qr_code_base64?: string | null
+          raw_response?: Json | null
           status?: string
+          status_detail?: string | null
           subscription_id?: string | null
+          ticket_url?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1269,9 +1290,12 @@ export type Database = {
           charge_id: string | null
           event_type: string
           external_id: string | null
+          gateway: string
           id: string
           payload: Json | null
+          processed: boolean
           processed_at: string | null
+          raw_event_id: string | null
           received_at: string
           result: string | null
         }
@@ -1279,9 +1303,12 @@ export type Database = {
           charge_id?: string | null
           event_type: string
           external_id?: string | null
+          gateway?: string
           id?: string
           payload?: Json | null
+          processed?: boolean
           processed_at?: string | null
+          raw_event_id?: string | null
           received_at?: string
           result?: string | null
         }
@@ -1289,9 +1316,12 @@ export type Database = {
           charge_id?: string | null
           event_type?: string
           external_id?: string | null
+          gateway?: string
           id?: string
           payload?: Json | null
+          processed?: boolean
           processed_at?: string | null
+          raw_event_id?: string | null
           received_at?: string
           result?: string | null
         }
@@ -1309,6 +1339,7 @@ export type Database = {
         Row: {
           config: Json | null
           created_at: string
+          environment: string
           id: string
           is_active: boolean
           name: string
@@ -1318,6 +1349,7 @@ export type Database = {
         Insert: {
           config?: Json | null
           created_at?: string
+          environment?: string
           id?: string
           is_active?: boolean
           name: string
@@ -1327,6 +1359,7 @@ export type Database = {
         Update: {
           config?: Json | null
           created_at?: string
+          environment?: string
           id?: string
           is_active?: boolean
           name?: string
