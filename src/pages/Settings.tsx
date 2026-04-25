@@ -186,12 +186,57 @@ export default function Settings() {
     }
   };
 
+  const normalizeBaseUrl = (url: string) => url.trim().replace(/\/+$/, '');
+
+  const validateProviderInputs = (provider: ProviderKey, state: ProviderState): string | null => {
+    const url = state.baseUrl.trim();
+    const key = state.apiKey.trim();
+    if (provider === 'wppconnect') {
+      if (!url) return 'Informe a URL base do WPPConnect Server.';
+      if (!key) return 'Informe a Secret Key do WPPConnect.';
+      if (!/^https?:\/\//i.test(url)) return 'A URL do WPPConnect deve começar com http:// ou https://';
+      if (/\/\/+$/.test(url) || /[^:]\/\/+/.test(url.replace(/^https?:\/\//i, ''))) {
+        return 'A URL do WPPConnect contém barras duplicadas. Verifique o endereço.';
+      }
+    } else {
+      if (!url || !key) return 'Preencha a URL e a API Key';
+    }
+    return null;
+  };
+
+  const friendlyTestError = (provider: ProviderKey, raw: string): string => {
+    const msg = (raw || '').toLowerCase();
+    if (provider !== 'wppconnect') return raw || 'Não foi possível conectar';
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('econnrefused') || msg.includes('timeout')) {
+      return 'Não foi possível alcançar o WPPConnect Server. Verifique se a URL está correta e o servidor está online.';
+    }
+    if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid token') || msg.includes('forbidden') || msg.includes('403')) {
+      return 'Secret Key inválida. Verifique a chave configurada no servidor WPPConnect.';
+    }
+    if (msg.includes('404') || msg.includes('not found')) {
+      return 'Endpoint não encontrado. Confirme se a URL aponta para um WPPConnect Server compatível.';
+    }
+    if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
+      return 'O WPPConnect Server retornou um erro. Tente novamente em instantes.';
+    }
+    return raw || 'Não foi possível conectar ao WPPConnect Server';
+  };
+
   const testConnection = async (provider: ProviderKey) => {
     const [state, setState] = providerStateMap[provider];
-    if (!state.baseUrl || !state.apiKey) { toast.error('Preencha a URL e a API Key'); return; }
+    const validationError = validateProviderInputs(provider, state);
+    if (validationError) { toast.error(validationError); return; }
+
+    // Normalize URL (remove trailing slashes) before saving/testing
+    const normalizedUrl = normalizeBaseUrl(state.baseUrl);
+    if (normalizedUrl !== state.baseUrl) {
+      setState(prev => ({ ...prev, baseUrl: normalizedUrl }));
+    }
+    const stateToUse = { ...state, baseUrl: normalizedUrl };
+
     setState(prev => ({ ...prev, testing: true, testStatus: 'idle' }));
     try {
-      await saveProvider(provider, state);
+      await saveProvider(provider, stateToUse);
       queryClient.invalidateQueries({ queryKey: ['whatsapp-api-configs'] });
       const res = await supabase.functions.invoke('whatsapp-provider-proxy', { body: { action: 'testConnection', provider } });
       if (res.error) {
@@ -206,7 +251,7 @@ export default function Settings() {
       toast.success('Conexão bem-sucedida!');
     } catch (err: any) {
       setState(prev => ({ ...prev, testStatus: 'error' }));
-      toast.error(err.message || 'Não foi possível conectar');
+      toast.error(friendlyTestError(provider, err?.message || ''));
     } finally {
       setState(prev => ({ ...prev, testing: false }));
     }
