@@ -19,7 +19,7 @@ export function InstanceStatsCards({
 
   return (
     <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-      <Card className="premium-card __TOKEN__ overflow-hidden">
+      <Card className="premium-card metric-cyan overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-semibold uppercase tracking-wider metric-cyan">Total</span>
@@ -36,7 +36,7 @@ export function InstanceStatsCards({
         </CardContent>
       </Card>
 
-      <Card className="premium-card __TOKEN__ overflow-hidden">
+      <Card className="premium-card metric-green overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-semibold uppercase tracking-wider metric-green">Online</span>
@@ -48,7 +48,7 @@ export function InstanceStatsCards({
         </CardContent>
       </Card>
 
-      <Card className="premium-card __TOKEN__ overflow-hidden">
+      <Card className="premium-card metric-red overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-semibold uppercase tracking-wider metric-red">Desconectado</span>
@@ -60,7 +60,7 @@ export function InstanceStatsCards({
         </CardContent>
       </Card>
 
-      <Card className="premium-card __TOKEN__ overflow-hidden">
+      <Card className="premium-card metric-yellow overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-semibold uppercase tracking-wider metric-yellow">Conectando</span>
@@ -72,7 +72,7 @@ export function InstanceStatsCards({
         </CardContent>
       </Card>
 
-      <Card className="premium-card __TOKEN__ overflow-hidden">
+      <Card className="premium-card metric-amber overflow-hidden">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-semibold uppercase tracking-wider metric-amber">Limite do plano</span>
