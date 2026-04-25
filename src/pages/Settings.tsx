@@ -336,13 +336,29 @@ export default function Settings() {
               <AlertDescription>Este provider não está disponível no seu plano atual.</AlertDescription>
             </Alert>
           )}
+          {provider === 'wppconnect' && (
+            <p className="text-xs text-muted-foreground -mb-1">
+              Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">URL da API</Label>
-            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} placeholder={placeholder} disabled={!canEdit} />
+            <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} onBlur={() => {
+              if (provider === 'wppconnect' && state.baseUrl) {
+                const norm = normalizeBaseUrl(state.baseUrl);
+                if (norm !== state.baseUrl) setState(prev => ({ ...prev, baseUrl: norm }));
+              }
+            }} placeholder={placeholder} disabled={!canEdit} />
+            {provider === 'wppconnect' && (
+              <p className="text-[11px] text-muted-foreground">Sem barra final. Ex.: https://sua-wppconnect.com</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">{apiKeyLabel}</Label>
-            <Input type="password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
+            <Input type="password" autoComplete="new-password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
+            {provider === 'wppconnect' && (
+              <p className="text-[11px] text-muted-foreground">A Secret Key fica armazenada com segurança no servidor e nunca é exibida em logs.</p>
+            )}
           </div>
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <p className="text-sm font-medium">Ativar integração</p>
