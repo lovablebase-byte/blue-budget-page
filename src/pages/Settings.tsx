@@ -11,7 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Save, Globe, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy, AlertCircle, Info, Lock } from 'lucide-react';
+import { Save, Globe, Webhook, Plug, Loader2, CheckCircle2, XCircle, Star, Copy, AlertCircle, Info, Lock, Zap, Rocket, MessageCircle, Cable, Radio } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { getCompanySettings, getEffectiveSetting } from '@/services/admin-settings';
 
 interface ProviderState {
@@ -493,14 +494,54 @@ export default function Settings() {
 
         <div className="space-y-2">
           <h2 className="text-lg font-semibold tracking-tight text-foreground">Provedores WhatsApp</h2>
-          <p className="text-sm text-muted-foreground">Configure os provedores de API WhatsApp disponíveis para sua conta</p>
+          <p className="text-sm text-muted-foreground">
+            Selecione um provedor abaixo para visualizar e configurar suas credenciais. Apenas um provedor pode ser definido como padrão por vez.
+          </p>
         </div>
 
-        {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API v1 para gerenciamento de WhatsApp')}
-        {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
-        {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
-        {renderProviderCard('wppconnect', 'WPPConnect', 'Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.')}
-        {renderProviderCard('quepasa', 'QuePasa', 'QuePasa — API HTTP open-source para conexão WhatsApp Web, QR Code, envio de mensagens e webhooks.')}
+        <Tabs defaultValue="evolution" className="space-y-4">
+          <div className="overflow-x-auto -mx-1 px-1">
+            <TabsList className="inline-flex w-auto min-w-full sm:min-w-0">
+              {([
+                { value: 'evolution', label: 'Evolution API', icon: Zap, state: evo },
+                { value: 'evolution_go', label: 'Evolution Go', icon: Rocket, state: ego },
+                { value: 'wuzapi', label: 'WuzAPI', icon: MessageCircle, state: wuz },
+                { value: 'wppconnect', label: 'WPPConnect', icon: Cable, state: wpp },
+                { value: 'quepasa', label: 'QuePasa', icon: Radio, state: qp },
+              ] as const).map((p) => {
+                const Icon = p.icon;
+                return (
+                  <TabsTrigger key={p.value} value={p.value} className="gap-2 whitespace-nowrap">
+                    <Icon className="h-4 w-4" />
+                    <span>{p.label}</span>
+                    {p.state.isDefault && (
+                      <Star className="h-3 w-3 text-warning fill-warning" />
+                    )}
+                    {p.state.isActive && !p.state.isDefault && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_hsl(var(--success))]" />
+                    )}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
+
+          <TabsContent value="evolution" className="mt-4">
+            {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API v1 para gerenciamento de WhatsApp')}
+          </TabsContent>
+          <TabsContent value="evolution_go" className="mt-4">
+            {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
+          </TabsContent>
+          <TabsContent value="wuzapi" className="mt-4">
+            {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
+          </TabsContent>
+          <TabsContent value="wppconnect" className="mt-4">
+            {renderProviderCard('wppconnect', 'WPPConnect', 'Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.')}
+          </TabsContent>
+          <TabsContent value="quepasa" className="mt-4">
+            {renderProviderCard('quepasa', 'QuePasa', 'QuePasa — API HTTP open-source para conexão WhatsApp Web, QR Code, envio de mensagens e webhooks.')}
+          </TabsContent>
+        </Tabs>
 
         <Card className="border-border/40 bg-card/80">
           <CardHeader>
