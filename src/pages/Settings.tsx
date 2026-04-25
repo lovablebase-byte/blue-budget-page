@@ -39,6 +39,7 @@ export default function Settings() {
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
   const [ego, setEgo] = useState<ProviderState>(defaultProviderState());
   const [wpp, setWpp] = useState<ProviderState>(defaultProviderState());
+  const [qp, setQp] = useState<ProviderState>(defaultProviderState());
 
   const { data: companyData } = useQuery({
     queryKey: ['company-settings', company?.id],
@@ -94,6 +95,7 @@ export default function Settings() {
     const wuzConfig = waConfigs?.find((c: any) => c.provider === 'wuzapi');
     const egoConfig = waConfigs?.find((c: any) => c.provider === 'evolution_go');
     const wppConfig = waConfigs?.find((c: any) => c.provider === 'wppconnect');
+    const qpConfig = waConfigs?.find((c: any) => c.provider === 'quepasa');
     if (evoConfig) {
       setEvo(prev => ({ ...prev, baseUrl: evoConfig.base_url, apiKey: evoConfig.api_key || '', isActive: evoConfig.is_active, isDefault: evoConfig.is_default }));
     } else if (legacyEvoConfig) {
@@ -107,6 +109,9 @@ export default function Settings() {
     }
     if (wppConfig) {
       setWpp(prev => ({ ...prev, baseUrl: wppConfig.base_url, apiKey: wppConfig.api_key || '', isActive: wppConfig.is_active, isDefault: wppConfig.is_default }));
+    }
+    if (qpConfig) {
+      setQp(prev => ({ ...prev, baseUrl: qpConfig.base_url, apiKey: qpConfig.api_key || '', isActive: qpConfig.is_active, isDefault: qpConfig.is_default }));
     }
   }, [waConfigs, legacyEvoConfig]);
 
@@ -123,20 +128,22 @@ export default function Settings() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go' | 'wppconnect';
+  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go' | 'wppconnect' | 'quepasa';
 
   const providerStateMap: Record<ProviderKey, [ProviderState, React.Dispatch<React.SetStateAction<ProviderState>>]> = {
     evolution: [evo, setEvo],
     wuzapi: [wuz, setWuz],
     evolution_go: [ego, setEgo],
     wppconnect: [wpp, setWpp],
+    quepasa: [qp, setQp],
   };
 
   const providerLabel = (p: ProviderKey) =>
     p === 'evolution' ? 'Evolution API'
     : p === 'wuzapi' ? 'Wuzapi'
     : p === 'evolution_go' ? 'Evolution Go'
-    : 'WPPConnect';
+    : p === 'wppconnect' ? 'WPPConnect'
+    : 'QuePasa';
 
   const saveProvider = async (provider: ProviderKey, state: ProviderState) => {
     if (!company?.id) throw new Error('Conta não identificada');
