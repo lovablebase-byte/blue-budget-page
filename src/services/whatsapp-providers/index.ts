@@ -2,6 +2,7 @@ import type { WhatsAppProvider, ProviderName } from './types';
 import { evolutionProvider } from './evolution';
 import { wuzapiProvider } from './wuzapi';
 import { evolutionGoProvider } from './evolution-go';
+import { wppconnectProvider } from './wppconnect';
 
 export type { WhatsAppProvider, ProviderName, ProviderConfig, ProviderResult } from './types';
 export type {
@@ -16,6 +17,7 @@ const providers: Record<ProviderName, WhatsAppProvider> = {
   evolution: evolutionProvider,
   wuzapi: wuzapiProvider,
   evolution_go: evolutionGoProvider,
+  wppconnect: wppconnectProvider,
 };
 
 export function getProvider(name: ProviderName): WhatsAppProvider {
@@ -25,7 +27,7 @@ export function getProvider(name: ProviderName): WhatsAppProvider {
 }
 
 export function isValidProvider(name: string): name is ProviderName {
-  return name === 'evolution' || name === 'wuzapi' || name === 'evolution_go';
+  return name === 'evolution' || name === 'wuzapi' || name === 'evolution_go' || name === 'wppconnect';
 }
 
-export { evolutionProvider, wuzapiProvider, evolutionGoProvider };
+export { evolutionProvider, wuzapiProvider, evolutionGoProvider, wppconnectProvider };
