@@ -355,6 +355,138 @@ function truncate(value: string, limit = 4000): string {
   return `${value.slice(0, limit)}...[truncated ${value.length - limit} chars]`;
 }
 
+// ============================================================
+// Multi-provider sender — abstracts evolution / evolution_go /
+// wuzapi / wppconnect / quepasa so api-send-text works with
+// any active provider configured for the company.
+// Returns { ok, status, response } and never throws.
+// ============================================================
+async function resolveProviderConfig(
+  supabase: any,
+  companyId: string,
+  provider: string,
+): Promise<{ baseUrl: string; apiKey: string } | null> {
+  const { data: cfg } = await supabase
+    .from("whatsapp_api_configs")
+    .select("base_url, api_key, is_active")
+    .eq("company_id", companyId)
+    .eq("provider", provider)
+    .maybeSingle();
+  if (cfg?.is_active && cfg.base_url) {
+    return { baseUrl: cfg.base_url.replace(/\/+$/, ""), apiKey: cfg.api_key || "" };
+  }
+  if (provider === "evolution") {
+    const { data: legacy } = await supabase
+      .from("evolution_api_config")
+      .select("base_url, api_key, is_active")
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (legacy?.is_active && legacy.base_url) {
+      return { baseUrl: legacy.base_url.replace(/\/+$/, ""), apiKey: legacy.api_key || "" };
+    }
+  }
+  return null;
+}
+
+async function wppGenerateTokenLocal(baseUrl: string, secretKey: string, session: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${baseUrl}/api/${encodeURIComponent(session)}/${encodeURIComponent(secretKey)}/generate-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await r.json().catch(() => ({}));
+    return data?.token || data?.full || null;
+  } catch {
+    return null;
+  }
+}
+
+async function sendViaProvider(
+  supabase: any,
+  instance: { id: string; name: string; company_id: string; provider: string; provider_instance_id: string | null; evolution_instance_id: string | null },
+  phone: string,
+  text: string,
+): Promise<{ ok: boolean; status: number; response: any; endpoint: string; provider: string }> {
+  const provider = instance.provider || "evolution";
+  const cfg = await resolveProviderConfig(supabase, instance.company_id, provider);
+  if (!cfg) {
+    return { ok: false, status: 400, response: { error: `Provider '${provider}' não configurado ou inativo` }, endpoint: "", provider };
+  }
+  const { baseUrl, apiKey } = cfg;
+  const phoneDigits = phone.replace(/\D/g, "");
+
+  try {
+    if (provider === "evolution") {
+      const evoName = instance.evolution_instance_id || instance.name;
+      const url = `${baseUrl}/message/sendText/${evoName}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: apiKey },
+        body: JSON.stringify({ number: phoneDigits, text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, endpoint: url, provider };
+    }
+    if (provider === "evolution_go") {
+      const instanceToken = instance.provider_instance_id || "";
+      if (!instanceToken) return { ok: false, status: 400, response: { error: "Token Evolution Go ausente" }, endpoint: "", provider };
+      const url = `${baseUrl}/send/text`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: instanceToken },
+        body: JSON.stringify({ number: phoneDigits, text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, endpoint: url, provider };
+    }
+    if (provider === "wuzapi") {
+      const userToken = instance.provider_instance_id || "";
+      if (!userToken) return { ok: false, status: 400, response: { error: "Token Wuzapi ausente" }, endpoint: "", provider };
+      const url = `${baseUrl}/chat/send/text`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Token: userToken },
+        body: JSON.stringify({ Phone: phoneDigits, Body: text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, endpoint: url, provider };
+    }
+    if (provider === "wppconnect") {
+      const session = instance.name;
+      const sessionToken = await wppGenerateTokenLocal(baseUrl, apiKey, session);
+      if (!sessionToken) return { ok: false, status: 401, response: { error: "WPPConnect: falha ao gerar token de sessão" }, endpoint: "", provider };
+      const url = `${baseUrl}/api/${encodeURIComponent(session)}/send-message`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ phone: phoneDigits, isGroup: false, isNewsletter: false, isLid: false, message: text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, endpoint: url, provider };
+    }
+    if (provider === "quepasa") {
+      const sessionToken = instance.provider_instance_id || apiKey;
+      const url = `${baseUrl}/send`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-QUEPASA-TOKEN": sessionToken,
+          "X-QUEPASA-CHATID": phoneDigits.includes("@") ? phoneDigits : `${phoneDigits}@s.whatsapp.net`,
+          "X-QUEPASA-TRACKID": instance.name,
+        },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, endpoint: url, provider };
+    }
+    return { ok: false, status: 400, response: { error: `Provider desconhecido: ${provider}` }, endpoint: "", provider };
+  } catch (err: any) {
+    return { ok: false, status: 500, response: { error: err.message }, endpoint: "", provider };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -456,7 +588,7 @@ serve(async (req) => {
 
     const { data: instance, error: instErr } = await supabase
       .from("instances")
-      .select("id, name, company_id, evolution_instance_id, status, access_token")
+      .select("id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token")
       .eq("id", uuid)
       .single();
 
@@ -470,29 +602,13 @@ serve(async (req) => {
       return jsonResponse({ error: "Invalid access_token", request_id: requestId }, 401);
     }
 
-    console.log(`[api-send-text] Instance validated: id=${instance.id}, name=${instance.name}, company=${instance.company_id}`);
-
-    // ============================================================
-    // Get Evolution API config
-    // ============================================================
-    const { data: evoConfig } = await supabase
-      .from("evolution_api_config")
-      .select("base_url, api_key, is_active")
-      .eq("company_id", instance.company_id)
-      .single();
-
-    if (!evoConfig?.is_active || !evoConfig.base_url || !evoConfig.api_key) {
-      return jsonResponse({ error: "Evolution API not configured or inactive", request_id: requestId }, 400);
-    }
+    console.log(`[api-send-text] Instance validated: id=${instance.id}, name=${instance.name}, provider=${instance.provider}, company=${instance.company_id}`);
 
     // ============================================================
     // Auto-detect action
     // ============================================================
     const action = detectAction(body);
     console.log(`[api-send-text] Detected action: ${action}`);
-
-    const evoBaseUrl = evoConfig.base_url.replace(/\/+$/, "");
-    const evoInstanceName = instance.evolution_instance_id || instance.name;
 
     // ============================================================
     // ACTION: simple send text (direct message)
@@ -538,46 +654,39 @@ serve(async (req) => {
 
       const normalizedPhone = normalizePhone(String(phone));
       const normalizedText = sanitizeMessage(text);
-      const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
       const sendPayload = { number: normalizedPhone, text: normalizedText };
 
-      console.log(`[api-send-text] Sending direct text to ${normalizedPhone}`);
-      console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
-      console.log(`[api-send-text] Evolution payload: ${JSON.stringify(sendPayload)}`);
+      console.log(`[api-send-text] Sending direct text via ${instance.provider} to ${normalizedPhone}`);
 
       try {
-        const res = await fetch(sendUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: evoConfig.api_key },
-          body: JSON.stringify(sendPayload),
-        });
-        const data = await res.json().catch(() => ({ status: res.status }));
-
-        console.log(`[api-send-text] Evolution response status=${res.status} body=${JSON.stringify(data)}`);
+        const sent = await sendViaProvider(supabase, instance as any, normalizedPhone, normalizedText);
+        console.log(`[api-send-text] ${sent.provider} response status=${sent.status}`);
 
         await supabase.from("delivery_send_logs").insert({
           company_id: instance.company_id,
           event_key: normalizeText(body.event || action || "send_text") || "send_text",
           phone: normalizedPhone,
           message: normalizedText,
-          status: res.ok ? "sent" : "failed",
-          error: res.ok ? null : `HTTP ${res.status}`,
+          status: sent.ok ? "sent" : "failed",
+          error: sent.ok ? null : `HTTP ${sent.status}`,
           api_response: {
             request_id: requestId,
             parser_used: parserUsed,
             raw_body: truncate(rawBody),
             parsed_body: body,
-            evo_response: data,
-            endpoint: sendUrl,
+            provider: sent.provider,
+            provider_response: sent.response,
+            endpoint: sent.endpoint,
             payload_sent: sendPayload,
             elapsed_ms: Date.now() - startTime,
           },
         });
 
         return jsonResponse({
-          success: res.ok,
-          status: res.ok ? "sent" : "failed",
-          response: data,
+          success: sent.ok,
+          status: sent.ok ? "sent" : "failed",
+          response: sent.response,
+          provider: sent.provider,
           instance: instance.name,
           request_id: requestId,
           elapsed_ms: Date.now() - startTime,
@@ -771,29 +880,27 @@ serve(async (req) => {
       console.log(`[api-send-text] Message source: ${messageSource}, length: ${renderedMessage.length}`);
       console.log(`[api-send-text] Destination phone: ${normalizedPhone}`);
 
-      const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
       renderedMessage = sanitizeMessage(renderedMessage);
       const sendPayload = { number: normalizedPhone, text: renderedMessage };
 
-      console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
-      console.log(`[api-send-text] Evolution payload: ${JSON.stringify(sendPayload)}`);
+      console.log(`[api-send-text] Sending order status via ${instance.provider} to ${normalizedPhone}`);
 
       let apiResponse: any = null;
       let sendStatus = "sent";
       let sendError: string | null = null;
+      let endpointUsed = "";
+      let providerUsed = instance.provider;
 
       try {
-        const res = await fetch(sendUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: evoConfig.api_key },
-          body: JSON.stringify(sendPayload),
-        });
-        apiResponse = await res.json().catch(() => ({ status: res.status }));
-        console.log(`[api-send-text] Evolution response status=${res.status} body=${JSON.stringify(apiResponse)}`);
+        const sent = await sendViaProvider(supabase, instance as any, normalizedPhone, renderedMessage);
+        apiResponse = sent.response;
+        endpointUsed = sent.endpoint;
+        providerUsed = sent.provider;
+        console.log(`[api-send-text] ${sent.provider} response status=${sent.status}`);
 
-        if (!res.ok) {
+        if (!sent.ok) {
           sendStatus = "failed";
-          sendError = `Evolution HTTP ${res.status}: ${JSON.stringify(apiResponse)}`;
+          sendError = `${sent.provider} HTTP ${sent.status}: ${JSON.stringify(apiResponse)}`;
           console.error(`[api-send-text] SEND FAILED:`, sendError);
         } else {
           console.log(`[api-send-text] SEND SUCCESS to ${normalizedPhone}`);
@@ -817,10 +924,10 @@ serve(async (req) => {
           parser_used: parserUsed,
           raw_body: truncate(rawBody),
           parsed_body: body,
-          evo_response: apiResponse,
-          endpoint_used: sendUrl,
+          provider: providerUsed,
+          provider_response: apiResponse,
+          endpoint_used: endpointUsed,
           payload_sent: sendPayload,
-          evo_instance_name: evoInstanceName,
           message_source: messageSource,
           elapsed_ms: Date.now() - startTime,
         },

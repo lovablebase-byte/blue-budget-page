@@ -27,6 +27,135 @@ function getInstanceVariation(instanceIndex: number): { pauseMin: number; pauseM
   return { pauseMin: baseMin, pauseMax: Math.min(baseMax, 35) };
 }
 
+async function resolveProviderConfig(
+  supabase: any,
+  companyId: string,
+  provider: string,
+): Promise<{ baseUrl: string; apiKey: string } | null> {
+  const { data: cfg } = await supabase
+    .from('whatsapp_api_configs')
+    .select('base_url, api_key, is_active')
+    .eq('company_id', companyId)
+    .eq('provider', provider)
+    .maybeSingle();
+  if (cfg?.is_active && cfg.base_url) {
+    return { baseUrl: cfg.base_url.replace(/\/+$/, ''), apiKey: cfg.api_key || '' };
+  }
+  if (provider === 'evolution') {
+    const { data: legacy } = await supabase
+      .from('evolution_api_config')
+      .select('base_url, api_key, is_active')
+      .eq('company_id', companyId)
+      .maybeSingle();
+    if (legacy?.is_active && legacy.base_url) {
+      return { baseUrl: legacy.base_url.replace(/\/+$/, ''), apiKey: legacy.api_key || '' };
+    }
+  }
+  return null;
+}
+
+async function wppGenerateTokenLocal(baseUrl: string, secretKey: string, session: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${baseUrl}/api/${encodeURIComponent(session)}/${encodeURIComponent(secretKey)}/generate-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await r.json().catch(() => ({}));
+    return data?.token || data?.full || null;
+  } catch {
+    return null;
+  }
+}
+
+async function sendViaProvider(
+  supabase: any,
+  instance: { id: string; name: string; company_id: string; provider: string; provider_instance_id: string | null; evolution_instance_id: string | null },
+  phone: string,
+  text: string,
+  opts?: { typingMs?: number },
+): Promise<{ ok: boolean; status: number; response: any; provider: string }> {
+  const provider = instance.provider || 'evolution';
+  const cfg = await resolveProviderConfig(supabase, instance.company_id, provider);
+  if (!cfg) return { ok: false, status: 400, response: { error: `Provider '${provider}' não configurado` }, provider };
+  const { baseUrl, apiKey } = cfg;
+  const phoneDigits = phone.replace(/\D/g, '');
+  try {
+    if (provider === 'evolution') {
+      const evoName = instance.evolution_instance_id || instance.name;
+      // Best-effort presence (typing) for Evolution only
+      if (opts?.typingMs) {
+        try {
+          await fetch(`${baseUrl}/chat/updatePresence/${evoName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: apiKey },
+            body: JSON.stringify({ number: phoneDigits, presence: 'composing', delay: Math.round(opts.typingMs) }),
+          });
+        } catch (_) { /* best-effort */ }
+      }
+      const res = await fetch(`${baseUrl}/message/sendText/${evoName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: apiKey },
+        body: JSON.stringify({ number: phoneDigits, text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'evolution_go') {
+      const instanceToken = instance.provider_instance_id || '';
+      if (!instanceToken) return { ok: false, status: 400, response: { error: 'Token Evolution Go ausente' }, provider };
+      const res = await fetch(`${baseUrl}/send/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: instanceToken },
+        body: JSON.stringify({ number: phoneDigits, text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'wuzapi') {
+      const userToken = instance.provider_instance_id || '';
+      if (!userToken) return { ok: false, status: 400, response: { error: 'Token Wuzapi ausente' }, provider };
+      const res = await fetch(`${baseUrl}/chat/send/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Token: userToken },
+        body: JSON.stringify({ Phone: phoneDigits, Body: text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'wppconnect') {
+      const session = instance.name;
+      const sessionToken = await wppGenerateTokenLocal(baseUrl, apiKey, session);
+      if (!sessionToken) return { ok: false, status: 401, response: { error: 'WPPConnect: token de sessão indisponível' }, provider };
+      const res = await fetch(`${baseUrl}/api/${encodeURIComponent(session)}/send-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ phone: phoneDigits, isGroup: false, isNewsletter: false, isLid: false, message: text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'quepasa') {
+      const sessionToken = instance.provider_instance_id || apiKey;
+      const res = await fetch(`${baseUrl}/send`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-QUEPASA-TOKEN': sessionToken,
+          'X-QUEPASA-CHATID': phoneDigits.includes('@') ? phoneDigits : `${phoneDigits}@s.whatsapp.net`,
+          'X-QUEPASA-TRACKID': instance.name,
+        },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    return { ok: false, status: 400, response: { error: `Provider desconhecido: ${provider}` }, provider };
+  } catch (err: any) {
+    return { ok: false, status: 500, response: { error: err.message }, provider };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -134,7 +263,7 @@ serve(async (req) => {
 
       const { data: pending } = await supabase
         .from('message_queue')
-        .select('*, instances(name, status, evolution_instance_id)')
+        .select('*, instances(id, name, company_id, status, provider, provider_instance_id, evolution_instance_id)')
         .eq('campaign_id', campaign_id)
         .eq('status', 'pending')
         .lte('scheduled_at', new Date().toISOString())
@@ -266,64 +395,43 @@ serve(async (req) => {
           }
         }
 
-        // === Send via Evolution API with typing indicator ===
+        // === Send via configured provider (multi-provider) ===
         const instanceRecord = instance || (msg as any).instances;
-        const evoInstanceName = instanceRecord?.evolution_instance_id || instanceRecord?.name;
 
-        if (evoInstanceName) {
-          // Fetch Evolution API config for the company
-          const { data: evoConfig } = await supabase
-            .from('evolution_api_config')
-            .select('base_url, api_key, is_active')
-            .eq('company_id', msg.company_id)
-            .single();
+        if (instanceRecord) {
+          // Typing simulation (best-effort, only providers that support presence)
+          let typingMs = 0;
+          if (humanModeEnabled && hb.typing_simulation_enabled) {
+            typingMs = Math.min(
+              calcTypingDelay((msg.message || '').length, Number(hb.typing_speed_min), Number(hb.typing_speed_max)),
+              15000
+            );
+            await new Promise(r => setTimeout(r, Math.min(typingMs / 5, 3000)));
+          }
 
-          if (evoConfig?.is_active && evoConfig.base_url && evoConfig.api_key) {
-            const evoBase = evoConfig.base_url.replace(/\/+$/, '');
-            const evoHeaders = { 'Content-Type': 'application/json', apikey: evoConfig.api_key };
+          const sent = await sendViaProvider(
+            supabase,
+            {
+              id: instanceRecord.id || msg.instance_id,
+              name: instanceRecord.name,
+              company_id: instanceRecord.company_id || msg.company_id,
+              provider: instanceRecord.provider || 'evolution',
+              provider_instance_id: instanceRecord.provider_instance_id || null,
+              evolution_instance_id: instanceRecord.evolution_instance_id || null,
+            },
+            msg.phone,
+            msg.message,
+            { typingMs },
+          );
 
-            // 1. Send "composing" presence (typing indicator)
-            if (humanModeEnabled && hb.typing_simulation_enabled) {
-              const typingDuration = Math.min(
-                calcTypingDelay((msg.message || '').length, Number(hb.typing_speed_min), Number(hb.typing_speed_max)),
-                15000
-              );
-              try {
-                await fetch(`${evoBase}/chat/updatePresence/${evoInstanceName}`, {
-                  method: 'POST',
-                  headers: evoHeaders,
-                  body: JSON.stringify({
-                    number: msg.phone,
-                    presence: 'composing',
-                    delay: Math.round(typingDuration),
-                  }),
-                });
-                // Wait for part of the typing duration
-                await new Promise(r => setTimeout(r, Math.min(typingDuration / 5, 3000)));
-              } catch (_) { /* typing is best-effort */ }
-            }
-
-            // 2. Send the actual message
-            try {
-              const sendRes = await fetch(`${evoBase}/message/sendText/${evoInstanceName}`, {
-                method: 'POST',
-                headers: evoHeaders,
-                body: JSON.stringify({
-                  number: msg.phone,
-                  text: msg.message,
-                }),
-              });
-              if (!sendRes.ok) {
-                const errData = await sendRes.json().catch(() => ({}));
-                throw new Error(errData.message || `HTTP ${sendRes.status}`);
-              }
-            } catch (sendErr: any) {
-              await supabase.from('message_queue').update({
-                status: 'failed', error: sendErr.message, attempts: msg.attempts + 1,
-              }).eq('id', msg.id);
-              failed++;
-              continue;
-            }
+          if (!sent.ok) {
+            await supabase.from('message_queue').update({
+              status: 'failed',
+              error: `${sent.provider} HTTP ${sent.status}: ${JSON.stringify(sent.response).slice(0, 300)}`,
+              attempts: msg.attempts + 1,
+            }).eq('id', msg.id);
+            failed++;
+            continue;
           }
         }
 

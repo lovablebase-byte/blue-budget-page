@@ -201,6 +201,104 @@ function normalizeWppConnectEvent(body: any): {
   };
 }
 
+// ---------- QuePasa event normalization ----------
+// Reference: https://github.com/nocodeleaks/quepasa
+// QuePasa emits events like: message, receipt, status, qrcode, system,
+// disconnected, ready. The exact key may live in `event`, `type`, `eventname`
+// or be inferred from the payload shape. Direction is taken from `fromme`.
+function normalizeQuePasaEvent(body: any): {
+  eventType: string;
+  direction: string;
+  remoteJid: string | null;
+  messageId: string | null;
+  connectionState: string | null;
+  qrCode: string | null;
+} {
+  const rawEvent = String(
+    body?.event || body?.eventname || body?.type || body?.kind || ""
+  ).toLowerCase();
+  const data = body?.message || body?.data || body?.payload || body;
+
+  const eventMap: Record<string, string> = {
+    message: "message.received",
+    "message.received": "message.received",
+    receipt: "delivery.status",
+    ack: "delivery.status",
+    status: "connection.update",
+    system: "connection.update",
+    ready: "connection.update",
+    connected: "connection.update",
+    disconnected: "connection.update",
+    logout: "connection.update",
+    qrcode: "qr.updated",
+    qr: "qr.updated",
+  };
+
+  // Detect message events when the key is missing but body looks like a message
+  let detected = rawEvent;
+  if (!detected && (data?.text || data?.body || data?.content)
+      && (data?.chatid || data?.chat?.id || data?.from || data?.sender)) {
+    detected = "message";
+  }
+  if (!detected && (data?.qrcode || body?.qrcode)) {
+    detected = "qrcode";
+  }
+
+  const eventType = eventMap[detected] || detected || "unknown";
+
+  // Direction: QuePasa uses fromme/FromMe boolean
+  const fromMe =
+    data?.fromme === true || data?.FromMe === true ||
+    body?.fromme === true || body?.FromMe === true;
+  const direction = fromMe ? "outbound" : "inbound";
+
+  // Connection state mapping
+  let connectionState: string | null = null;
+  if (eventType === "connection.update") {
+    const statusVal = String(
+      data?.status || data?.state || body?.status || body?.state || rawEvent || ""
+    ).toLowerCase();
+    if (
+      statusVal.includes("ready") ||
+      statusVal.includes("connected") ||
+      statusVal.includes("logged") ||
+      statusVal === "open"
+    ) {
+      connectionState = "open";
+    } else if (
+      statusVal.includes("disconnect") ||
+      statusVal.includes("logout") ||
+      statusVal.includes("closed") ||
+      statusVal === "close"
+    ) {
+      connectionState = "close";
+    } else if (
+      statusVal.includes("qr") ||
+      statusVal.includes("scan") ||
+      statusVal.includes("starting") ||
+      statusVal.includes("connecting")
+    ) {
+      connectionState = "connecting";
+    }
+  }
+
+  const qrCode =
+    eventType === "qr.updated"
+      ? (data?.qrcode || data?.qr || data?.base64 || body?.qrcode || null)
+      : null;
+
+  return {
+    eventType,
+    direction,
+    remoteJid:
+      data?.chatid || data?.chat?.id || data?.from || data?.sender ||
+      data?.remoteJid || null,
+    messageId: data?.id || data?.messageid || data?.MessageId || null,
+    connectionState,
+    qrCode,
+  };
+}
+
 // ---------- Main handler ----------
 
 serve(async (req) => {
@@ -299,6 +397,8 @@ serve(async (req) => {
       normalized = normalizeWuzapiEvent(body);
     } else if (provider === "wppconnect") {
       normalized = normalizeWppConnectEvent(body);
+    } else if (provider === "quepasa") {
+      normalized = normalizeQuePasaEvent(body);
     } else {
       // evolution + evolution_go share normalization (v2 events are uppercased upstream)
       normalized = normalizeEvolutionEvent(body);
