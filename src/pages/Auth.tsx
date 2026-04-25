@@ -116,44 +116,51 @@ export default function Auth() {
         }}
       />
 
-      {/* Soft abstract waves */}
-      <svg
-        className="auth-wave hidden md:block"
-        viewBox="0 0 1440 800"
-        preserveAspectRatio="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <linearGradient id="authWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(142 100% 50%)" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="hsl(195 100% 55%)" stopOpacity="0.05" />
-          </linearGradient>
-        </defs>
-        <path
-          d="M0,520 C320,420 520,640 760,520 C1000,400 1200,580 1440,460 L1440,800 L0,800 Z"
-          fill="url(#authWaveGrad)"
-          opacity="0.35"
-        />
-        <path
-          d="M0,620 C280,560 540,720 820,600 C1080,490 1280,640 1440,580"
-          fill="none"
-          stroke="hsl(142 100% 55% / 0.18)"
-          strokeWidth="1"
-        />
-      </svg>
+      {/* Extra soft blobs for depth */}
+      <div
+        className="auth-blob hidden lg:block"
+        style={{
+          top: '60%',
+          left: '8%',
+          width: '260px',
+          height: '260px',
+          background:
+            'radial-gradient(circle, hsl(142 100% 45% / 0.16) 0%, transparent 70%)',
+          animation: 'auth-blob-float-2 34s ease-in-out infinite',
+        }}
+      />
+      <div
+        className="auth-blob hidden lg:block"
+        style={{
+          top: '8%',
+          right: '12%',
+          width: '240px',
+          height: '240px',
+          background:
+            'radial-gradient(circle, hsl(195 100% 50% / 0.12) 0%, transparent 70%)',
+          animation: 'auth-blob-float-3 30s ease-in-out infinite reverse',
+        }}
+      />
 
       {/* Breathing halo behind card */}
       <div className="auth-halo" />
 
-      {/* Floating particles */}
+      {/* Floating green particles - varied sizes & opacities */}
       {[
-        { left: '8%', delay: '0s', dur: '18s', size: 2 },
-        { left: '22%', delay: '4s', dur: '22s', size: 3 },
-        { left: '38%', delay: '9s', dur: '20s', size: 2 },
-        { left: '55%', delay: '2s', dur: '24s', size: 3 },
-        { left: '68%', delay: '11s', dur: '19s', size: 2 },
-        { left: '82%', delay: '6s', dur: '23s', size: 3 },
-        { left: '92%', delay: '14s', dur: '21s', size: 2 },
+        { left: '5%', delay: '0s', dur: '22s', size: 2, opacity: 0.7 },
+        { left: '12%', delay: '7s', dur: '26s', size: 3, opacity: 0.85 },
+        { left: '19%', delay: '3s', dur: '20s', size: 1, opacity: 0.5 },
+        { left: '27%', delay: '12s', dur: '28s', size: 4, opacity: 0.9 },
+        { left: '34%', delay: '5s', dur: '24s', size: 2, opacity: 0.6 },
+        { left: '42%', delay: '15s', dur: '21s', size: 3, opacity: 0.75 },
+        { left: '49%', delay: '9s', dur: '27s', size: 1, opacity: 0.55 },
+        { left: '57%', delay: '2s', dur: '23s', size: 2, opacity: 0.7 },
+        { left: '64%', delay: '11s', dur: '25s', size: 4, opacity: 0.85 },
+        { left: '71%', delay: '6s', dur: '22s', size: 2, opacity: 0.65 },
+        { left: '79%', delay: '14s', dur: '29s', size: 3, opacity: 0.8 },
+        { left: '86%', delay: '4s', dur: '20s', size: 1, opacity: 0.5 },
+        { left: '93%', delay: '17s', dur: '26s', size: 2, opacity: 0.7 },
+        { left: '97%', delay: '8s', dur: '24s', size: 3, opacity: 0.75 },
       ].map((p, i) => (
         <span
           key={i}
@@ -162,6 +169,7 @@ export default function Auth() {
             left: p.left,
             width: `${p.size}px`,
             height: `${p.size}px`,
+            opacity: p.opacity,
             animation: `auth-particle-drift ${p.dur} linear infinite`,
             animationDelay: p.delay,
           }}
