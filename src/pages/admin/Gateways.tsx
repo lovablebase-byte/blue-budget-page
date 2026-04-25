@@ -12,9 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MercadoPagoCard from './MercadoPagoCard';
+import InfinitePayCard from './InfinitePayCard';
 import {
   Plug, Save, TestTube, Loader2, CheckCircle2, XCircle, Clock, Eye, EyeOff, Copy,
-  AlertTriangle, RefreshCw, Shield, Activity, Wallet,
+  AlertTriangle, RefreshCw, Shield, Activity, Wallet, QrCode,
 } from 'lucide-react';
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -223,6 +224,9 @@ export default function AdminGateways() {
           </TabsTrigger>
           <TabsTrigger value="mercadopago" className="gap-2">
             <Wallet className="h-4 w-4" /> Mercado Pago
+          </TabsTrigger>
+          <TabsTrigger value="infinitepay" className="gap-2">
+            <QrCode className="h-4 w-4" /> InfinitePay
           </TabsTrigger>
         </TabsList>
 
@@ -480,6 +484,10 @@ export default function AdminGateways() {
 
         <TabsContent value="mercadopago" className="space-y-6">
           <MercadoPagoCard />
+        </TabsContent>
+
+        <TabsContent value="infinitepay" className="space-y-6">
+          <InfinitePayCard />
         </TabsContent>
       </Tabs>
     </div>
