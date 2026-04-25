@@ -297,6 +297,8 @@ serve(async (req) => {
     let normalized;
     if (provider === "wuzapi") {
       normalized = normalizeWuzapiEvent(body);
+    } else if (provider === "wppconnect") {
+      normalized = normalizeWppConnectEvent(body);
     } else {
       // evolution + evolution_go share normalization (v2 events are uppercased upstream)
       normalized = normalizeEvolutionEvent(body);
