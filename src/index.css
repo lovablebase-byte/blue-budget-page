@@ -284,11 +284,11 @@
   }
 
   .metric-red {
-    --icon-color: #FF4D4D;
-    --icon-bg: rgba(255, 77, 77, 0.16);
-    --icon-border: rgba(255, 77, 77, 0.28);
-    --icon-shadow: rgba(255, 77, 77, 0.45);
-    color: #FF4D4D;
+    --icon-color: #FF4D5A;
+    --icon-bg: rgba(255, 77, 90, 0.16);
+    --icon-border: rgba(255, 77, 90, 0.3);
+    --icon-shadow: rgba(255, 77, 90, 0.5);
+    color: #FF4D5A;
   }
 
   .metric-violet {
@@ -339,12 +339,23 @@
     color: #FFB300;
   }
 
-  .metric-red {
-    --icon-color: #FF5A5F;
-    --icon-bg: rgba(255, 90, 95, 0.16);
-    --icon-border: rgba(255, 90, 95, 0.28);
-    --icon-shadow: rgba(255, 90, 95, 0.42);
-    color: #FF5A5F;
+  /* premium-card: card com linha luminosa superior usando a cor temática (--icon-color) */
+  .premium-card {
+    position: relative;
+    isolation: isolate;
+  }
+  .premium-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--icon-color, hsl(var(--primary))) 20%, var(--icon-color, hsl(var(--primary))) 80%, transparent 100%);
+    box-shadow: 0 0 12px var(--icon-shadow, rgba(0,230,118,0.5)), 0 0 24px var(--icon-shadow, rgba(0,230,118,0.35));
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* Light mode: softer glows */
