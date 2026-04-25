@@ -1030,6 +1030,8 @@ serve(async (req) => {
       result = await handleEvolution(baseUrl, apiKey, action, instanceName, payload);
     } else if (resolvedProvider === "evolution_go") {
       result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload, supabase, companyId);
+    } else if (resolvedProvider === "wppconnect") {
+      result = await handleWppConnect(baseUrl, apiKey, action, instanceName, payload);
     } else {
       result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
     }
