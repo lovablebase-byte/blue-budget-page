@@ -69,6 +69,11 @@ const getProviderInstanceName = (instance: Instance): string => {
   if (instance.provider === 'evolution_go') {
     return instance.provider_instance_id || instance.name;
   }
+  if (instance.provider === 'wppconnect') {
+    // WPPConnect uses the session name (instance.name) as the path segment;
+    // provider_instance_id can hold the generated session token for reference.
+    return instance.name;
+  }
   // Wuzapi uses the token stored in provider_instance_id
   return instance.provider_instance_id || instance.name;
 };
@@ -316,6 +321,9 @@ export default function Instances() {
             throw new Error('Wuzapi não retornou o token da instância. Verifique a configuração.');
           }
           providerInstanceId = createData.instanceToken;
+        } else if (newProvider === 'wppconnect') {
+          // WPPConnect: store the generated per-session token (if any) for reference
+          providerInstanceId = createData?.sessionToken || createData?.instanceToken || null;
         }
         providerActive = true;
         notify.instanceCreated(instanceName);
