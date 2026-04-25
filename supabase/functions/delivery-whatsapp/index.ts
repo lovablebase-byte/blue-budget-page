@@ -612,31 +612,27 @@ serve(async (req) => {
       console.log(`[delivery-whatsapp] Message source: ${messageSource}`);
       console.log(`[delivery-whatsapp] Rendered (${renderedMessage.length} chars): ${renderedMessage.substring(0, 300)}`);
 
-      // Send via Evolution API
-      const evoInstanceName = instance.evolution_instance_id || instance.name;
-      const evoBaseUrl = evoConfig.base_url.replace(/\/+$/, '');
-      const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
+      // Send via configured provider
       const sendPayload = { number: normalizedPhone, text: renderedMessage };
-
-      console.log(`[delivery-whatsapp] POST ${sendUrl}`);
+      console.log(`[delivery-whatsapp] Sending via ${instance.provider} to ${normalizedPhone}`);
 
       let apiResponse: any = null;
       let sendStatus = 'sent';
       let sendError: string | null = null;
+      let endpointUsed = '';
+      let providerUsed = instance.provider;
 
       try {
-        const res = await fetch(sendUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': evoConfig.api_key },
-          body: JSON.stringify(sendPayload),
-        });
-        apiResponse = await res.json().catch(() => ({ status: res.status, statusText: res.statusText }));
-        if (!res.ok) {
+        const sent = await sendViaProvider(supabase, instance as any, normalizedPhone, renderedMessage);
+        apiResponse = sent.response;
+        endpointUsed = sent.endpoint;
+        providerUsed = sent.provider;
+        if (!sent.ok) {
           sendStatus = 'failed';
-          sendError = `Evolution API HTTP ${res.status}: ${JSON.stringify(apiResponse)}`;
+          sendError = `${sent.provider} HTTP ${sent.status}: ${JSON.stringify(apiResponse)}`;
           console.error(`[delivery-whatsapp] SEND FAILED: ${sendError}`);
         } else {
-          console.log(`[delivery-whatsapp] SEND SUCCESS`);
+          console.log(`[delivery-whatsapp] SEND SUCCESS via ${sent.provider}`);
         }
       } catch (err: any) {
         sendStatus = 'failed';
@@ -654,9 +650,9 @@ serve(async (req) => {
         status: sendStatus,
         error: sendError,
         api_response: {
-          evo_response: apiResponse,
-          endpoint_used: sendUrl,
-          evo_instance_name: evoInstanceName,
+          provider: providerUsed,
+          provider_response: apiResponse,
+          endpoint_used: endpointUsed,
           message_source: messageSource,
           payload_sent: sendPayload,
           original_payload: body,
