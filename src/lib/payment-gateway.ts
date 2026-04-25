@@ -1,19 +1,21 @@
-// Helper para descobrir qual gateway de pagamento usar (Amplo Pay, Mercado Pago ou InfinitePay).
-// Regra: usa o gateway com is_active=true. Prioridade quando múltiplos ativos:
-// InfinitePay > Mercado Pago > Amplo Pay.
+// Helper para descobrir qual gateway de pagamento usar.
+// Suporta: Amplo Pay, Mercado Pago, InfinitePay e AbacatePay.
+// Prioridade quando múltiplos ativos:
+// AbacatePay > InfinitePay > Mercado Pago > Amplo Pay.
 import { supabase } from '@/integrations/supabase/client';
 
-export type PaymentGatewayName = 'amplopay' | 'mercadopago' | 'infinitepay';
+export type PaymentGatewayName = 'amplopay' | 'mercadopago' | 'infinitepay' | 'abacatepay';
 
 export interface ActiveGateway {
   provider: PaymentGatewayName;
-  proxyAction: string; // ex: 'mercadopago-proxy' | 'amplopay-proxy' | 'infinitepay-proxy'
+  proxyAction: string; // nome da edge function (sem caminho)
 }
 
 const PROXY_BY_PROVIDER: Record<PaymentGatewayName, string> = {
   amplopay: 'amplopay-proxy',
   mercadopago: 'mercadopago-proxy',
   infinitepay: 'infinitepay-proxy',
+  abacatepay: 'abacatepay-proxy',
 };
 
 export async function getActivePaymentGateway(): Promise<ActiveGateway | null> {
@@ -25,12 +27,14 @@ export async function getActivePaymentGateway(): Promise<ActiveGateway | null> {
   if (!data || data.length === 0) return null;
 
   const providers = data.map((g) => g.provider as PaymentGatewayName);
-  // Prioridade: InfinitePay > Mercado Pago > Amplo Pay
-  const chosen: PaymentGatewayName = providers.includes('infinitepay')
-    ? 'infinitepay'
-    : providers.includes('mercadopago')
-      ? 'mercadopago'
-      : (providers[0] as PaymentGatewayName);
+  // Prioridade: AbacatePay > InfinitePay > Mercado Pago > Amplo Pay
+  const chosen: PaymentGatewayName = providers.includes('abacatepay')
+    ? 'abacatepay'
+    : providers.includes('infinitepay')
+      ? 'infinitepay'
+      : providers.includes('mercadopago')
+        ? 'mercadopago'
+        : (providers[0] as PaymentGatewayName);
 
   return {
     provider: chosen,
