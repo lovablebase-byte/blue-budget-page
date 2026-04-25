@@ -74,6 +74,11 @@ const getProviderInstanceName = (instance: Instance): string => {
     // provider_instance_id can hold the generated session token for reference.
     return instance.name;
   }
+  if (instance.provider === 'quepasa') {
+    // QuePasa uses the session/bot username (instance.name) as identifier;
+    // provider_instance_id stores the per-session token if returned by /scan.
+    return instance.name;
+  }
   // Wuzapi uses the token stored in provider_instance_id
   return instance.provider_instance_id || instance.name;
 };
@@ -324,6 +329,9 @@ export default function Instances() {
         } else if (newProvider === 'wppconnect') {
           // WPPConnect: store the generated per-session token (if any) for reference
           providerInstanceId = createData?.sessionToken || createData?.instanceToken || null;
+        } else if (newProvider === 'quepasa') {
+          // QuePasa: persist token returned by /scan if any (used in subsequent calls)
+          providerInstanceId = createData?.token || createData?.instanceToken || null;
         }
         providerActive = true;
         notify.instanceCreated(instanceName);

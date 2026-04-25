@@ -39,6 +39,7 @@ export default function Settings() {
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
   const [ego, setEgo] = useState<ProviderState>(defaultProviderState());
   const [wpp, setWpp] = useState<ProviderState>(defaultProviderState());
+  const [qp, setQp] = useState<ProviderState>(defaultProviderState());
 
   const { data: companyData } = useQuery({
     queryKey: ['company-settings', company?.id],
@@ -94,6 +95,7 @@ export default function Settings() {
     const wuzConfig = waConfigs?.find((c: any) => c.provider === 'wuzapi');
     const egoConfig = waConfigs?.find((c: any) => c.provider === 'evolution_go');
     const wppConfig = waConfigs?.find((c: any) => c.provider === 'wppconnect');
+    const qpConfig = waConfigs?.find((c: any) => c.provider === 'quepasa');
     if (evoConfig) {
       setEvo(prev => ({ ...prev, baseUrl: evoConfig.base_url, apiKey: evoConfig.api_key || '', isActive: evoConfig.is_active, isDefault: evoConfig.is_default }));
     } else if (legacyEvoConfig) {
@@ -107,6 +109,9 @@ export default function Settings() {
     }
     if (wppConfig) {
       setWpp(prev => ({ ...prev, baseUrl: wppConfig.base_url, apiKey: wppConfig.api_key || '', isActive: wppConfig.is_active, isDefault: wppConfig.is_default }));
+    }
+    if (qpConfig) {
+      setQp(prev => ({ ...prev, baseUrl: qpConfig.base_url, apiKey: qpConfig.api_key || '', isActive: qpConfig.is_active, isDefault: qpConfig.is_default }));
     }
   }, [waConfigs, legacyEvoConfig]);
 
@@ -123,20 +128,22 @@ export default function Settings() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go' | 'wppconnect';
+  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go' | 'wppconnect' | 'quepasa';
 
   const providerStateMap: Record<ProviderKey, [ProviderState, React.Dispatch<React.SetStateAction<ProviderState>>]> = {
     evolution: [evo, setEvo],
     wuzapi: [wuz, setWuz],
     evolution_go: [ego, setEgo],
     wppconnect: [wpp, setWpp],
+    quepasa: [qp, setQp],
   };
 
   const providerLabel = (p: ProviderKey) =>
     p === 'evolution' ? 'Evolution API'
     : p === 'wuzapi' ? 'Wuzapi'
     : p === 'evolution_go' ? 'Evolution Go'
-    : 'WPPConnect';
+    : p === 'wppconnect' ? 'WPPConnect'
+    : 'QuePasa';
 
   const saveProvider = async (provider: ProviderKey, state: ProviderState) => {
     if (!company?.id) throw new Error('Conta não identificada');
@@ -175,7 +182,7 @@ export default function Settings() {
 
   const handleSaveProvider = async (provider: ProviderKey) => {
     const [state, setState] = providerStateMap[provider];
-    if (provider === 'wppconnect') {
+    if (provider === 'wppconnect' || provider === 'quepasa') {
       const validationError = validateProviderInputs(provider, state);
       if (validationError) { toast.error(validationError); return; }
     }
@@ -207,6 +214,13 @@ export default function Settings() {
       if (/\/\/+$/.test(url) || /[^:]\/\/+/.test(url.replace(/^https?:\/\//i, ''))) {
         return 'A URL do WPPConnect contém barras duplicadas. Verifique o endereço.';
       }
+    } else if (provider === 'quepasa') {
+      if (!url) return 'Informe a URL base do servidor QuePasa.';
+      if (!key) return 'Informe o Token / Master Key do QuePasa.';
+      if (!/^https?:\/\//i.test(url)) return 'A URL do QuePasa deve começar com http:// ou https://';
+      if (/\/\/+$/.test(url) || /[^:]\/\/+/.test(url.replace(/^https?:\/\//i, ''))) {
+        return 'A URL do QuePasa contém barras duplicadas. Verifique o endereço.';
+      }
     } else {
       if (!url || !key) return 'Preencha a URL e a API Key';
     }
@@ -215,20 +229,23 @@ export default function Settings() {
 
   const friendlyTestError = (provider: ProviderKey, raw: string): string => {
     const msg = (raw || '').toLowerCase();
-    if (provider !== 'wppconnect') return raw || 'Não foi possível conectar';
+    if (provider !== 'wppconnect' && provider !== 'quepasa') return raw || 'Não foi possível conectar';
+    const label = provider === 'wppconnect' ? 'WPPConnect Server' : 'servidor QuePasa';
     if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('econnrefused') || msg.includes('timeout')) {
-      return 'Não foi possível alcançar o WPPConnect Server. Verifique se a URL está correta e o servidor está online.';
+      return `Não foi possível alcançar o ${label}. Verifique se a URL está correta e o servidor está online.`;
     }
     if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid token') || msg.includes('forbidden') || msg.includes('403')) {
-      return 'Secret Key inválida. Verifique a chave configurada no servidor WPPConnect.';
+      return provider === 'wppconnect'
+        ? 'Secret Key inválida. Verifique a chave configurada no servidor WPPConnect.'
+        : 'Token / Master Key inválido. Verifique a chave configurada no servidor QuePasa.';
     }
     if (msg.includes('404') || msg.includes('not found')) {
-      return 'Endpoint não encontrado. Confirme se a URL aponta para um WPPConnect Server compatível.';
+      return `Endpoint não encontrado. Confirme se a URL aponta para um ${label} compatível.`;
     }
     if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
-      return 'O WPPConnect Server retornou um erro. Tente novamente em instantes.';
+      return `O ${label} retornou um erro. Tente novamente em instantes.`;
     }
-    return raw || 'Não foi possível conectar ao WPPConnect Server';
+    return raw || `Não foi possível conectar ao ${label}`;
   };
 
   const testConnection = async (provider: ProviderKey) => {
@@ -293,10 +310,12 @@ export default function Settings() {
       provider === 'evolution' ? 'https://sua-evolution-api.com'
       : provider === 'wuzapi' ? 'https://sua-wuzapi.com:8080'
       : provider === 'evolution_go' ? 'https://sua-evolution-go.com:8080'
-      : 'https://sua-wppconnect.com';
+      : provider === 'wppconnect' ? 'https://sua-wppconnect.com'
+      : 'https://sua-quepasa.com';
     const apiKeyLabel =
       provider === 'wuzapi' ? 'Admin Token'
       : provider === 'wppconnect' ? 'Secret Key'
+      : provider === 'quepasa' ? 'Token / Master Key'
       : 'API Key (GLOBAL_API_KEY)';
 
     return (
@@ -341,10 +360,15 @@ export default function Settings() {
               Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.
             </p>
           )}
+          {provider === 'quepasa' && (
+            <p className="text-xs text-muted-foreground -mb-1">
+              Informe a URL base do seu servidor QuePasa e o token/masterkey configurado na instalação.
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">URL da API</Label>
             <Input value={state.baseUrl} onChange={e => setState(prev => ({ ...prev, baseUrl: e.target.value, testStatus: 'idle' }))} onBlur={() => {
-              if (provider === 'wppconnect' && state.baseUrl) {
+              if ((provider === 'wppconnect' || provider === 'quepasa') && state.baseUrl) {
                 const norm = normalizeBaseUrl(state.baseUrl);
                 if (norm !== state.baseUrl) setState(prev => ({ ...prev, baseUrl: norm }));
               }
@@ -352,12 +376,18 @@ export default function Settings() {
             {provider === 'wppconnect' && (
               <p className="text-[11px] text-muted-foreground">Sem barra final. Ex.: https://sua-wppconnect.com</p>
             )}
+            {provider === 'quepasa' && (
+              <p className="text-[11px] text-muted-foreground">Sem barra final. Ex.: https://sua-quepasa.com</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">{apiKeyLabel}</Label>
             <Input type="password" autoComplete="new-password" value={state.apiKey} onChange={e => setState(prev => ({ ...prev, apiKey: e.target.value, testStatus: 'idle' }))} disabled={!canEdit} />
             {provider === 'wppconnect' && (
               <p className="text-[11px] text-muted-foreground">A Secret Key fica armazenada com segurança no servidor e nunca é exibida em logs.</p>
+            )}
+            {provider === 'quepasa' && (
+              <p className="text-[11px] text-muted-foreground">O token/masterkey fica armazenado com segurança no servidor e nunca é exibido em logs.</p>
             )}
           </div>
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
@@ -470,6 +500,7 @@ export default function Settings() {
         {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
         {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
         {renderProviderCard('wppconnect', 'WPPConnect', 'Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.')}
+        {renderProviderCard('quepasa', 'QuePasa', 'QuePasa — API HTTP open-source para conexão WhatsApp Web, QR Code, envio de mensagens e webhooks.')}
 
         <Card className="border-border/40 bg-card/80">
           <CardHeader>

@@ -20,6 +20,7 @@ export const providerLabels: Record<string, string> = {
   wuzapi: 'WuzAPI',
   evolution_go: 'Evolution Go',
   wppconnect: 'WPPConnect',
+  quepasa: 'QuePasa',
 };
 
 export const providerColors: Record<string, string> = {
@@ -27,6 +28,7 @@ export const providerColors: Record<string, string> = {
   wuzapi: 'border-sky-500/40 text-sky-500 bg-sky-500/10',
   evolution_go: 'border-success/40 text-success bg-success/10',
   wppconnect: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10',
+  quepasa: 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10',
 };
 
 export const TIMEZONES = [
@@ -51,6 +53,10 @@ export function getProviderEvents(provider: string): string[] {
   if (provider === 'wppconnect') {
     // WPPConnect emits events like onmessage, status-find, qrcode; normalization is server-side
     return ['onmessage', 'onstatuschange', 'qrcode', 'onack'];
+  }
+  if (provider === 'quepasa') {
+    // QuePasa emits message/status/qrcode events; normalization is server-side
+    return ['message', 'receipt', 'status', 'qrcode'];
   }
   return ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'];
 }

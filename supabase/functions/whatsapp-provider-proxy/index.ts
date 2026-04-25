@@ -918,6 +918,155 @@ async function handleWppConnect(
   }
 }
 
+// ---------- QuePasa action handlers ----------
+// Reference: https://github.com/nocodeleaks/quepasa
+// Auth: X-QUEPASA-TOKEN (master/admin), X-QUEPASA-USER for /scan,
+// X-QUEPASA-CHATID + X-QUEPASA-TRACKID for /send.
+
+async function qpFetch(
+  baseUrl: string,
+  method: string,
+  path: string,
+  headers: Record<string, string> = {},
+  body?: Record<string, any>,
+) {
+  const url = `${baseUrl}${path}`;
+  const finalHeaders: Record<string, string> = { Accept: "application/json", ...headers };
+  if (body) finalHeaders["Content-Type"] = "application/json";
+  console.log(`[quepasa] ${method} ${path}`);
+  const res = await fetch(url, {
+    method,
+    headers: finalHeaders,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
+  console.log(`[quepasa] ${method} ${path} => ${res.status}`);
+  return { ok: res.ok, status: res.status, data };
+}
+
+function mapQuePasaState(raw: any): string {
+  const s = String(raw?.status || raw?.state || raw || "").toLowerCase();
+  if (s.includes("ready") || s.includes("connected") || s.includes("open") || s.includes("logged")) return "open";
+  if (s.includes("qr") || s.includes("starting") || s.includes("scan") || s.includes("connecting")) return "connecting";
+  if (s.includes("disconnect") || s.includes("closed") || s.includes("logout") || s.includes("notlogged")) return "close";
+  return "close";
+}
+
+async function handleQuePasa(
+  baseUrl: string,
+  apiKey: string,
+  action: string,
+  instanceName: string | undefined,
+  payload: any,
+) {
+  const baseHeaders = { "X-QUEPASA-TOKEN": apiKey || "" };
+
+  switch (action) {
+    case "testConnection": {
+      const r = await qpFetch(baseUrl, "GET", "/info", baseHeaders);
+      if (r.ok) return { ok: true, status: 200, body: r.data };
+      const fb = await qpFetch(baseUrl, "GET", "/bot", baseHeaders);
+      if (fb.ok) return { ok: true, status: 200, body: fb.data };
+      return { ok: false, status: r.status || fb.status, body: r.data || fb.data };
+    }
+    case "create": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const headers = { ...baseHeaders, "X-QUEPASA-USER": payload?.user || instanceName };
+      const r = await qpFetch(baseUrl, "POST", "/scan", headers);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      const newToken = r.data?.token || r.data?.bot?.token || r.data?.session?.token || null;
+      const qrCode = r.data?.qrcode || r.data?.qr || r.data?.base64 || r.data?.image || null;
+
+      // Try to set webhook if provided (best-effort)
+      if (payload?.webhook && newToken) {
+        await qpFetch(baseUrl, "POST", "/webhook", { ...baseHeaders, "X-QUEPASA-TOKEN": newToken }, {
+          url: payload.webhook,
+          forwardinternal: true,
+          trackid: instanceName,
+          extra: { provider: "quepasa", instanceName },
+        }).catch(() => null);
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          instanceId: instanceName,
+          instanceName,
+          token: newToken,
+          qrCode,
+          status: r.data?.status || "created",
+          raw: r.data,
+        },
+      };
+    }
+    case "connect": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const headers = { ...baseHeaders, "X-QUEPASA-USER": instanceName };
+      const r = await qpFetch(baseUrl, "POST", "/scan", headers);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          qrCode: r.data?.qrcode || r.data?.qr || r.data?.base64 || r.data?.image || null,
+          pairingCode: null,
+          raw: r.data,
+        },
+      };
+    }
+    case "status": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const r = await qpFetch(baseUrl, "GET", `/info/${encodeURIComponent(instanceName)}`, baseHeaders);
+      if (r.status === 404) return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      const state = mapQuePasaState(r.data);
+      return { ok: true, status: 200, body: { instance: { state, instanceName }, raw: r.data } };
+    }
+    case "delete": {
+      if (!instanceName) return { ok: true, status: 200, body: { status: "deleted_already" } };
+      const r = await qpFetch(baseUrl, "DELETE", `/bot/${encodeURIComponent(instanceName)}`, baseHeaders);
+      if (r.status === 404) return { ok: true, status: 200, body: { status: "deleted_already" } };
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    case "logout": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const r = await qpFetch(baseUrl, "POST", `/bot/${encodeURIComponent(instanceName)}/logout`, baseHeaders);
+      if (r.status === 404) return { ok: true, status: 200, body: { status: "logged_out_already" } };
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    case "fetchInstances": {
+      const r = await qpFetch(baseUrl, "GET", "/bot", baseHeaders);
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      const list: any[] = Array.isArray(r.data?.bots) ? r.data.bots : Array.isArray(r.data) ? r.data : [];
+      const items = list.map((entry: any) => ({
+        instanceName: entry?.username || entry?.user || entry?.id || "",
+        instanceId: entry?.id || entry?.token || entry?.username || null,
+        status: mapQuePasaState(entry),
+        raw: entry,
+      }));
+      return { ok: true, status: 200, body: { data: items } };
+    }
+    case "sendText": {
+      if (!instanceName) return { ok: false, status: 400, body: { error: "instanceName obrigatório" } };
+      const phone = (payload?.number || payload?.phone || payload?.chatid || "").replace(/\D/g, "");
+      const text = payload?.text || payload?.textMessage?.text || payload?.message || payload?.body || "";
+      const headers = {
+        ...baseHeaders,
+        "X-QUEPASA-CHATID": phone.includes("@") ? phone : `${phone}@s.whatsapp.net`,
+        "X-QUEPASA-TRACKID": instanceName,
+      };
+      const r = await qpFetch(baseUrl, "POST", "/send", headers, { text });
+      if (!r.ok) return { ok: false, status: r.status, body: r.data };
+      return { ok: true, status: 200, body: r.data };
+    }
+    default:
+      return { ok: false, status: 400, body: { error: `Ação não suportada para QuePasa: ${action}` } };
+  }
+}
+
 // ---------- Main handler ----------
 
 serve(async (req) => {
@@ -980,7 +1129,7 @@ serve(async (req) => {
       }
     }
 
-    if (resolvedProvider !== "evolution" && resolvedProvider !== "wuzapi" && resolvedProvider !== "evolution_go" && resolvedProvider !== "wppconnect") {
+    if (resolvedProvider !== "evolution" && resolvedProvider !== "wuzapi" && resolvedProvider !== "evolution_go" && resolvedProvider !== "wppconnect" && resolvedProvider !== "quepasa") {
       throw new Error(`Provider desconhecido: ${resolvedProvider}`);
     }
 
@@ -1034,6 +1183,8 @@ serve(async (req) => {
       result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload, supabase, companyId);
     } else if (resolvedProvider === "wppconnect") {
       result = await handleWppConnect(baseUrl, apiKey, action, instanceName, payload);
+    } else if (resolvedProvider === "quepasa") {
+      result = await handleQuePasa(baseUrl, apiKey, action, instanceName, payload);
     } else {
       result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
     }
