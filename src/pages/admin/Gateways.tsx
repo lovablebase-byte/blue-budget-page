@@ -485,6 +485,10 @@ export default function AdminGateways() {
         <TabsContent value="mercadopago" className="space-y-6">
           <MercadoPagoCard />
         </TabsContent>
+
+        <TabsContent value="infinitepay" className="space-y-6">
+          <InfinitePayCard />
+        </TabsContent>
       </Tabs>
     </div>
   );
