@@ -28,6 +28,25 @@ export function AppSidebar() {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Cores dos ícones por rota (apenas visual)
+  const iconColorMap: Record<string, string> = {
+    '/dashboard': '#00E676',
+    '/instances': '#00D2FF',
+    '/ai-agents': '#8B5CF6',
+    '/campaigns': '#FFD600',
+    '/users': '#00E676',
+    '/admin/plans': '#A855F7',
+    '/admin/subscriptions': '#2563EB',
+    '/admin/reports': '#FF9F43',
+    '/admin/gateways': '#00F5D4',
+    '/admin/logs': '#FF3B7A',
+    '/branding': '#FF2D92',
+    '/settings': '#38BDF8',
+    '/admin/health': '#7CFF00',
+    '/account': '#00B4FF',
+    '/subscription': '#8B5CF6',
+  };
+
   const isFeatureLocked = (module?: string): boolean => {
     if (!module) return false;
     if (isAdmin) return false;
