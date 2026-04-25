@@ -887,7 +887,8 @@ async function handleWppConnect(
       return { ok: true, status: 200, body: r.data };
     }
     case "fetchInstances": {
-      const r = await wppFetch(baseUrl, "GET", "/api/show-all-sessions", secretKey);
+      // WPPConnect: secret key vai na URL, não como bearer
+      const r = await wppFetch(baseUrl, "GET", `/api/${encodeURIComponent(secretKey)}/show-all-sessions`, null);
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
       const list: any[] = Array.isArray(r.data?.response) ? r.data.response : Array.isArray(r.data) ? r.data : [];
       const items = list.map((entry: any) => {
