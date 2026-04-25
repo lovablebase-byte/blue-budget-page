@@ -469,7 +469,7 @@ export default function Settings() {
         {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API v1 para gerenciamento de WhatsApp')}
         {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
         {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
-        {renderProviderCard('wppconnect', 'WPPConnect', 'WPPConnect Server — API REST para gerenciamento de sessões WhatsApp via WhatsApp Web')}
+        {renderProviderCard('wppconnect', 'WPPConnect', 'Informe a URL base do seu WPPConnect Server e a Secret Key configurada no servidor.')}
 
         <Card className="border-border/40 bg-card/80">
           <CardHeader>
