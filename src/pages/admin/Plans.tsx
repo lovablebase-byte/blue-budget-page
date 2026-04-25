@@ -344,7 +344,7 @@ export default function AdminPlans() {
               <TabsContent value="providers" className="space-y-4 mt-4">
                 <p className="text-sm text-muted-foreground">Selecione os providers de WhatsApp permitidos. Se nenhum for selecionado, todos serão permitidos.</p>
                 <div className="space-y-3">
-                  {['evolution', 'evolution_go', 'wuzapi', 'wppconnect'].map(provider => (
+                  {['evolution', 'evolution_go', 'wuzapi', 'wppconnect', 'quepasa'].map(provider => (
                     <label key={provider} className="flex items-center gap-3 border border-border/30 rounded-md p-3 cursor-pointer bg-muted/10 hover:bg-muted/20 transition-colors">
                       <Checkbox
                         checked={selectedProviders.includes(provider)}
@@ -359,13 +359,15 @@ export default function AdminPlans() {
                           {provider === 'evolution' ? 'Evolution API'
                             : provider === 'evolution_go' ? 'Evolution Go (v2)'
                             : provider === 'wuzapi' ? 'WuzAPI'
-                            : 'WPPConnect'}
+                            : provider === 'wppconnect' ? 'WPPConnect'
+                            : 'QuePasa'}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {provider === 'evolution' ? 'API v1 (Node.js)'
                             : provider === 'evolution_go' ? 'API v2 escrita em Go — alta performance'
                             : provider === 'wuzapi' ? 'API leve e direta'
-                            : 'API REST baseada em WhatsApp Web/WPPConnect Server'}
+                            : provider === 'wppconnect' ? 'API REST baseada em WhatsApp Web/WPPConnect Server'
+                            : 'API HTTP open-source para WhatsApp Web, QR Code, envio de mensagens e webhooks.'}
                         </p>
                       </div>
                     </label>
