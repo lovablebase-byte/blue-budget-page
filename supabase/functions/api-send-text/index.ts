@@ -880,29 +880,27 @@ serve(async (req) => {
       console.log(`[api-send-text] Message source: ${messageSource}, length: ${renderedMessage.length}`);
       console.log(`[api-send-text] Destination phone: ${normalizedPhone}`);
 
-      const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
       renderedMessage = sanitizeMessage(renderedMessage);
       const sendPayload = { number: normalizedPhone, text: renderedMessage };
 
-      console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
-      console.log(`[api-send-text] Evolution payload: ${JSON.stringify(sendPayload)}`);
+      console.log(`[api-send-text] Sending order status via ${instance.provider} to ${normalizedPhone}`);
 
       let apiResponse: any = null;
       let sendStatus = "sent";
       let sendError: string | null = null;
+      let endpointUsed = "";
+      let providerUsed = instance.provider;
 
       try {
-        const res = await fetch(sendUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: evoConfig.api_key },
-          body: JSON.stringify(sendPayload),
-        });
-        apiResponse = await res.json().catch(() => ({ status: res.status }));
-        console.log(`[api-send-text] Evolution response status=${res.status} body=${JSON.stringify(apiResponse)}`);
+        const sent = await sendViaProvider(supabase, instance as any, normalizedPhone, renderedMessage);
+        apiResponse = sent.response;
+        endpointUsed = sent.endpoint;
+        providerUsed = sent.provider;
+        console.log(`[api-send-text] ${sent.provider} response status=${sent.status}`);
 
-        if (!res.ok) {
+        if (!sent.ok) {
           sendStatus = "failed";
-          sendError = `Evolution HTTP ${res.status}: ${JSON.stringify(apiResponse)}`;
+          sendError = `${sent.provider} HTTP ${sent.status}: ${JSON.stringify(apiResponse)}`;
           console.error(`[api-send-text] SEND FAILED:`, sendError);
         } else {
           console.log(`[api-send-text] SEND SUCCESS to ${normalizedPhone}`);
@@ -926,10 +924,10 @@ serve(async (req) => {
           parser_used: parserUsed,
           raw_body: truncate(rawBody),
           parsed_body: body,
-          evo_response: apiResponse,
-          endpoint_used: sendUrl,
+          provider: providerUsed,
+          provider_response: apiResponse,
+          endpoint_used: endpointUsed,
           payload_sent: sendPayload,
-          evo_instance_name: evoInstanceName,
           message_source: messageSource,
           elapsed_ms: Date.now() - startTime,
         },
