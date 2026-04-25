@@ -182,7 +182,7 @@ export default function Settings() {
 
   const handleSaveProvider = async (provider: ProviderKey) => {
     const [state, setState] = providerStateMap[provider];
-    if (provider === 'wppconnect') {
+    if (provider === 'wppconnect' || provider === 'quepasa') {
       const validationError = validateProviderInputs(provider, state);
       if (validationError) { toast.error(validationError); return; }
     }
@@ -214,6 +214,13 @@ export default function Settings() {
       if (/\/\/+$/.test(url) || /[^:]\/\/+/.test(url.replace(/^https?:\/\//i, ''))) {
         return 'A URL do WPPConnect contém barras duplicadas. Verifique o endereço.';
       }
+    } else if (provider === 'quepasa') {
+      if (!url) return 'Informe a URL base do servidor QuePasa.';
+      if (!key) return 'Informe o Token / Master Key do QuePasa.';
+      if (!/^https?:\/\//i.test(url)) return 'A URL do QuePasa deve começar com http:// ou https://';
+      if (/\/\/+$/.test(url) || /[^:]\/\/+/.test(url.replace(/^https?:\/\//i, ''))) {
+        return 'A URL do QuePasa contém barras duplicadas. Verifique o endereço.';
+      }
     } else {
       if (!url || !key) return 'Preencha a URL e a API Key';
     }
@@ -222,20 +229,23 @@ export default function Settings() {
 
   const friendlyTestError = (provider: ProviderKey, raw: string): string => {
     const msg = (raw || '').toLowerCase();
-    if (provider !== 'wppconnect') return raw || 'Não foi possível conectar';
+    if (provider !== 'wppconnect' && provider !== 'quepasa') return raw || 'Não foi possível conectar';
+    const label = provider === 'wppconnect' ? 'WPPConnect Server' : 'servidor QuePasa';
     if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('econnrefused') || msg.includes('timeout')) {
-      return 'Não foi possível alcançar o WPPConnect Server. Verifique se a URL está correta e o servidor está online.';
+      return `Não foi possível alcançar o ${label}. Verifique se a URL está correta e o servidor está online.`;
     }
     if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid token') || msg.includes('forbidden') || msg.includes('403')) {
-      return 'Secret Key inválida. Verifique a chave configurada no servidor WPPConnect.';
+      return provider === 'wppconnect'
+        ? 'Secret Key inválida. Verifique a chave configurada no servidor WPPConnect.'
+        : 'Token / Master Key inválido. Verifique a chave configurada no servidor QuePasa.';
     }
     if (msg.includes('404') || msg.includes('not found')) {
-      return 'Endpoint não encontrado. Confirme se a URL aponta para um WPPConnect Server compatível.';
+      return `Endpoint não encontrado. Confirme se a URL aponta para um ${label} compatível.`;
     }
     if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
-      return 'O WPPConnect Server retornou um erro. Tente novamente em instantes.';
+      return `O ${label} retornou um erro. Tente novamente em instantes.`;
     }
-    return raw || 'Não foi possível conectar ao WPPConnect Server';
+    return raw || `Não foi possível conectar ao ${label}`;
   };
 
   const testConnection = async (provider: ProviderKey) => {
