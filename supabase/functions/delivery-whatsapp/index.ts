@@ -688,7 +688,7 @@ serve(async (req) => {
 
       const { data: instance } = await supabase
         .from('instances')
-        .select('name, company_id, evolution_instance_id')
+        .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id')
         .eq('id', resolvedInstanceId)
         .single();
 
@@ -696,31 +696,12 @@ serve(async (req) => {
         return jsonResponse({ error: 'Instance not found' }, 404);
       }
 
-      const { data: evoConfig } = await supabase
-        .from('evolution_api_config')
-        .select('base_url, api_key, is_active')
-        .eq('company_id', instance.company_id)
-        .single();
-
-      if (!evoConfig?.is_active) {
-        return jsonResponse({ error: 'Evolution API not configured' }, 400);
-      }
-
-      const evoBaseUrl = evoConfig.base_url.replace(/\/+$/, '');
-      const evoInstanceName = instance.evolution_instance_id || instance.name;
       const normalizedPhone = normalizePhone(phone);
+      const text = testMessage || '✅ Teste de integração WhatsApp - Delivery';
 
       try {
-        const res = await fetch(`${evoBaseUrl}/message/sendText/${evoInstanceName}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': evoConfig.api_key },
-          body: JSON.stringify({
-            number: normalizedPhone,
-            text: testMessage || '✅ Teste de integração WhatsApp - Delivery',
-          }),
-        });
-        const data = await res.json().catch(() => ({ status: res.status }));
-        return jsonResponse({ success: res.ok, response: data });
+        const sent = await sendViaProvider(supabase, instance as any, normalizedPhone, text);
+        return jsonResponse({ success: sent.ok, provider: sent.provider, response: sent.response });
       } catch (err: any) {
         return jsonResponse({ success: false, error: err.message }, 500);
       }
