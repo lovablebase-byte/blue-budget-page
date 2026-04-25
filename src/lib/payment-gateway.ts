@@ -1,13 +1,20 @@
-// Helper para descobrir qual gateway de pagamento usar (Amplo Pay ou Mercado Pago).
-// Regra: usa o gateway com is_active=true. Se mais de um estiver ativo, prioriza Mercado Pago.
+// Helper para descobrir qual gateway de pagamento usar (Amplo Pay, Mercado Pago ou InfinitePay).
+// Regra: usa o gateway com is_active=true. Prioridade quando múltiplos ativos:
+// InfinitePay > Mercado Pago > Amplo Pay.
 import { supabase } from '@/integrations/supabase/client';
 
-export type PaymentGatewayName = 'amplopay' | 'mercadopago';
+export type PaymentGatewayName = 'amplopay' | 'mercadopago' | 'infinitepay';
 
 export interface ActiveGateway {
   provider: PaymentGatewayName;
-  proxyAction: string; // ex: 'mercadopago-proxy' | 'amplopay-proxy'
+  proxyAction: string; // ex: 'mercadopago-proxy' | 'amplopay-proxy' | 'infinitepay-proxy'
 }
+
+const PROXY_BY_PROVIDER: Record<PaymentGatewayName, string> = {
+  amplopay: 'amplopay-proxy',
+  mercadopago: 'mercadopago-proxy',
+  infinitepay: 'infinitepay-proxy',
+};
 
 export async function getActivePaymentGateway(): Promise<ActiveGateway | null> {
   const { data } = await supabase
@@ -18,13 +25,15 @@ export async function getActivePaymentGateway(): Promise<ActiveGateway | null> {
   if (!data || data.length === 0) return null;
 
   const providers = data.map((g) => g.provider as PaymentGatewayName);
-  // Prioriza Mercado Pago se ambos ativos
-  const chosen: PaymentGatewayName = providers.includes('mercadopago')
-    ? 'mercadopago'
-    : (providers[0] as PaymentGatewayName);
+  // Prioridade: InfinitePay > Mercado Pago > Amplo Pay
+  const chosen: PaymentGatewayName = providers.includes('infinitepay')
+    ? 'infinitepay'
+    : providers.includes('mercadopago')
+      ? 'mercadopago'
+      : (providers[0] as PaymentGatewayName);
 
   return {
     provider: chosen,
-    proxyAction: chosen === 'mercadopago' ? 'mercadopago-proxy' : 'amplopay-proxy',
+    proxyAction: PROXY_BY_PROVIDER[chosen],
   };
 }
