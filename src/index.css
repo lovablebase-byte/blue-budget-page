@@ -14,17 +14,17 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 14%;
 
-    /* Verde global único do sistema: #24FF91 */
-    --theme-green: 150 100% 57%;
+    /* Verde oficial do sistema: #00E676 */
+    --theme-green: 142 100% 45%;
     --theme-green-foreground: 220 20% 14%;
-    --theme-green-soft: 150 100% 57%;
+    --theme-green-soft: 142 100% 45%;
     --theme-green-soft-foreground: 220 20% 14%;
-    --theme-green-border: 150 100% 57%;
-    --theme-green-ring: 150 100% 57%;
-    --theme-green-glow: 150 100% 57%;
-    --theme-green-hover: 150 100% 52%;
-    --theme-green-active: 150 100% 47%;
-    --theme-green-muted: 150 100% 57%;
+    --theme-green-border: 142 100% 45%;
+    --theme-green-ring: 142 100% 45%;
+    --theme-green-glow: 142 100% 45%;
+    --theme-green-hover: 142 100% 50%;
+    --theme-green-active: 142 100% 40%;
+    --theme-green-muted: 142 100% 45%;
 
     --primary: var(--theme-green);
     --primary-foreground: var(--theme-green-foreground);
@@ -89,17 +89,17 @@
     --popover: 210 63% 6%;
     --popover-foreground: 210 40% 98%;
 
-    /* Verde global único do sistema: #24FF91 */
-    --theme-green: 150 100% 57%;
+    /* Verde oficial do sistema: #00E676 */
+    --theme-green: 142 100% 45%;
     --theme-green-foreground: 220 69% 3%;
-    --theme-green-soft: 150 100% 57%;
+    --theme-green-soft: 142 100% 45%;
     --theme-green-soft-foreground: 220 69% 3%;
-    --theme-green-border: 150 100% 57%;
-    --theme-green-ring: 150 100% 57%;
-    --theme-green-glow: 150 100% 57%;
-    --theme-green-hover: 150 100% 62%;
-    --theme-green-active: 150 100% 50%;
-    --theme-green-muted: 150 100% 57%;
+    --theme-green-border: 142 100% 45%;
+    --theme-green-ring: 142 100% 45%;
+    --theme-green-glow: 142 100% 45%;
+    --theme-green-hover: 142 100% 50%;
+    --theme-green-active: 142 100% 40%;
+    --theme-green-muted: 142 100% 45%;
 
     --primary: var(--theme-green);
     --primary-foreground: var(--theme-green-foreground);
