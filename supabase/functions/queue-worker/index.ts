@@ -27,6 +27,135 @@ function getInstanceVariation(instanceIndex: number): { pauseMin: number; pauseM
   return { pauseMin: baseMin, pauseMax: Math.min(baseMax, 35) };
 }
 
+async function resolveProviderConfig(
+  supabase: any,
+  companyId: string,
+  provider: string,
+): Promise<{ baseUrl: string; apiKey: string } | null> {
+  const { data: cfg } = await supabase
+    .from('whatsapp_api_configs')
+    .select('base_url, api_key, is_active')
+    .eq('company_id', companyId)
+    .eq('provider', provider)
+    .maybeSingle();
+  if (cfg?.is_active && cfg.base_url) {
+    return { baseUrl: cfg.base_url.replace(/\/+$/, ''), apiKey: cfg.api_key || '' };
+  }
+  if (provider === 'evolution') {
+    const { data: legacy } = await supabase
+      .from('evolution_api_config')
+      .select('base_url, api_key, is_active')
+      .eq('company_id', companyId)
+      .maybeSingle();
+    if (legacy?.is_active && legacy.base_url) {
+      return { baseUrl: legacy.base_url.replace(/\/+$/, ''), apiKey: legacy.api_key || '' };
+    }
+  }
+  return null;
+}
+
+async function wppGenerateTokenLocal(baseUrl: string, secretKey: string, session: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${baseUrl}/api/${encodeURIComponent(session)}/${encodeURIComponent(secretKey)}/generate-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await r.json().catch(() => ({}));
+    return data?.token || data?.full || null;
+  } catch {
+    return null;
+  }
+}
+
+async function sendViaProvider(
+  supabase: any,
+  instance: { id: string; name: string; company_id: string; provider: string; provider_instance_id: string | null; evolution_instance_id: string | null },
+  phone: string,
+  text: string,
+  opts?: { typingMs?: number },
+): Promise<{ ok: boolean; status: number; response: any; provider: string }> {
+  const provider = instance.provider || 'evolution';
+  const cfg = await resolveProviderConfig(supabase, instance.company_id, provider);
+  if (!cfg) return { ok: false, status: 400, response: { error: `Provider '${provider}' não configurado` }, provider };
+  const { baseUrl, apiKey } = cfg;
+  const phoneDigits = phone.replace(/\D/g, '');
+  try {
+    if (provider === 'evolution') {
+      const evoName = instance.evolution_instance_id || instance.name;
+      // Best-effort presence (typing) for Evolution only
+      if (opts?.typingMs) {
+        try {
+          await fetch(`${baseUrl}/chat/updatePresence/${evoName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: apiKey },
+            body: JSON.stringify({ number: phoneDigits, presence: 'composing', delay: Math.round(opts.typingMs) }),
+          });
+        } catch (_) { /* best-effort */ }
+      }
+      const res = await fetch(`${baseUrl}/message/sendText/${evoName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: apiKey },
+        body: JSON.stringify({ number: phoneDigits, text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'evolution_go') {
+      const instanceToken = instance.provider_instance_id || '';
+      if (!instanceToken) return { ok: false, status: 400, response: { error: 'Token Evolution Go ausente' }, provider };
+      const res = await fetch(`${baseUrl}/send/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: instanceToken },
+        body: JSON.stringify({ number: phoneDigits, text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'wuzapi') {
+      const userToken = instance.provider_instance_id || '';
+      if (!userToken) return { ok: false, status: 400, response: { error: 'Token Wuzapi ausente' }, provider };
+      const res = await fetch(`${baseUrl}/chat/send/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Token: userToken },
+        body: JSON.stringify({ Phone: phoneDigits, Body: text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'wppconnect') {
+      const session = instance.name;
+      const sessionToken = await wppGenerateTokenLocal(baseUrl, apiKey, session);
+      if (!sessionToken) return { ok: false, status: 401, response: { error: 'WPPConnect: token de sessão indisponível' }, provider };
+      const res = await fetch(`${baseUrl}/api/${encodeURIComponent(session)}/send-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ phone: phoneDigits, isGroup: false, isNewsletter: false, isLid: false, message: text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    if (provider === 'quepasa') {
+      const sessionToken = instance.provider_instance_id || apiKey;
+      const res = await fetch(`${baseUrl}/send`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-QUEPASA-TOKEN': sessionToken,
+          'X-QUEPASA-CHATID': phoneDigits.includes('@') ? phoneDigits : `${phoneDigits}@s.whatsapp.net`,
+          'X-QUEPASA-TRACKID': instance.name,
+        },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return { ok: res.ok, status: res.status, response: data, provider };
+    }
+    return { ok: false, status: 400, response: { error: `Provider desconhecido: ${provider}` }, provider };
+  } catch (err: any) {
+    return { ok: false, status: 500, response: { error: err.message }, provider };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
