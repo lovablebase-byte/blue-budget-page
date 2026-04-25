@@ -588,7 +588,7 @@ serve(async (req) => {
 
     const { data: instance, error: instErr } = await supabase
       .from("instances")
-      .select("id, name, company_id, evolution_instance_id, status, access_token")
+      .select("id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token")
       .eq("id", uuid)
       .single();
 
@@ -602,29 +602,13 @@ serve(async (req) => {
       return jsonResponse({ error: "Invalid access_token", request_id: requestId }, 401);
     }
 
-    console.log(`[api-send-text] Instance validated: id=${instance.id}, name=${instance.name}, company=${instance.company_id}`);
-
-    // ============================================================
-    // Get Evolution API config
-    // ============================================================
-    const { data: evoConfig } = await supabase
-      .from("evolution_api_config")
-      .select("base_url, api_key, is_active")
-      .eq("company_id", instance.company_id)
-      .single();
-
-    if (!evoConfig?.is_active || !evoConfig.base_url || !evoConfig.api_key) {
-      return jsonResponse({ error: "Evolution API not configured or inactive", request_id: requestId }, 400);
-    }
+    console.log(`[api-send-text] Instance validated: id=${instance.id}, name=${instance.name}, provider=${instance.provider}, company=${instance.company_id}`);
 
     // ============================================================
     // Auto-detect action
     // ============================================================
     const action = detectAction(body);
     console.log(`[api-send-text] Detected action: ${action}`);
-
-    const evoBaseUrl = evoConfig.base_url.replace(/\/+$/, "");
-    const evoInstanceName = instance.evolution_instance_id || instance.name;
 
     // ============================================================
     // ACTION: simple send text (direct message)
@@ -670,46 +654,39 @@ serve(async (req) => {
 
       const normalizedPhone = normalizePhone(String(phone));
       const normalizedText = sanitizeMessage(text);
-      const sendUrl = `${evoBaseUrl}/message/sendText/${evoInstanceName}`;
       const sendPayload = { number: normalizedPhone, text: normalizedText };
 
-      console.log(`[api-send-text] Sending direct text to ${normalizedPhone}`);
-      console.log(`[api-send-text] Evolution endpoint: ${sendUrl}`);
-      console.log(`[api-send-text] Evolution payload: ${JSON.stringify(sendPayload)}`);
+      console.log(`[api-send-text] Sending direct text via ${instance.provider} to ${normalizedPhone}`);
 
       try {
-        const res = await fetch(sendUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: evoConfig.api_key },
-          body: JSON.stringify(sendPayload),
-        });
-        const data = await res.json().catch(() => ({ status: res.status }));
-
-        console.log(`[api-send-text] Evolution response status=${res.status} body=${JSON.stringify(data)}`);
+        const sent = await sendViaProvider(supabase, instance as any, normalizedPhone, normalizedText);
+        console.log(`[api-send-text] ${sent.provider} response status=${sent.status}`);
 
         await supabase.from("delivery_send_logs").insert({
           company_id: instance.company_id,
           event_key: normalizeText(body.event || action || "send_text") || "send_text",
           phone: normalizedPhone,
           message: normalizedText,
-          status: res.ok ? "sent" : "failed",
-          error: res.ok ? null : `HTTP ${res.status}`,
+          status: sent.ok ? "sent" : "failed",
+          error: sent.ok ? null : `HTTP ${sent.status}`,
           api_response: {
             request_id: requestId,
             parser_used: parserUsed,
             raw_body: truncate(rawBody),
             parsed_body: body,
-            evo_response: data,
-            endpoint: sendUrl,
+            provider: sent.provider,
+            provider_response: sent.response,
+            endpoint: sent.endpoint,
             payload_sent: sendPayload,
             elapsed_ms: Date.now() - startTime,
           },
         });
 
         return jsonResponse({
-          success: res.ok,
-          status: res.ok ? "sent" : "failed",
-          response: data,
+          success: sent.ok,
+          status: sent.ok ? "sent" : "failed",
+          response: sent.response,
+          provider: sent.provider,
           instance: instance.name,
           request_id: requestId,
           elapsed_ms: Date.now() - startTime,
