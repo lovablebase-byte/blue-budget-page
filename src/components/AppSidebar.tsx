@@ -82,6 +82,7 @@ export function AppSidebar() {
     const locked = isFeatureLocked(item.module);
     const active = isActive(item.path);
     const Icon = item.icon!;
+    const iconColor = iconColorMap[item.path] ?? '#94A3B8';
 
     if (locked) {
       return (
@@ -109,7 +110,14 @@ export function AppSidebar() {
             className="rounded-xl border border-transparent bg-transparent text-muted-foreground dark:text-white/85 hover:border-white/10 hover:bg-white/[0.05] hover:text-foreground dark:hover:text-white transition-all duration-200"
             activeClassName="border-[rgba(0,230,118,0.45)] bg-[rgba(0,230,118,0.12)] text-foreground dark:text-white font-semibold shadow-[0_0_0_1px_rgba(0,230,118,0.25),0_0_22px_-8px_rgba(0,230,118,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]"
           >
-            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.8)]' : 'text-muted-foreground dark:text-white/80'}`} />
+            <Icon
+              className="h-4 w-4 transition-all"
+              style={
+                active
+                  ? { color: '#00E676', filter: 'drop-shadow(0 0 8px rgba(0,230,118,0.8))' }
+                  : { color: iconColor, filter: `drop-shadow(0 0 6px ${iconColor}55)` }
+              }
+            />
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         </SidebarMenuButton>
