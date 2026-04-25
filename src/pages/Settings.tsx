@@ -38,6 +38,7 @@ export default function Settings() {
   const [evo, setEvo] = useState<ProviderState>(defaultProviderState());
   const [wuz, setWuz] = useState<ProviderState>(defaultProviderState());
   const [ego, setEgo] = useState<ProviderState>(defaultProviderState());
+  const [wpp, setWpp] = useState<ProviderState>(defaultProviderState());
 
   const { data: companyData } = useQuery({
     queryKey: ['company-settings', company?.id],
@@ -92,6 +93,7 @@ export default function Settings() {
     const evoConfig = waConfigs?.find((c: any) => c.provider === 'evolution');
     const wuzConfig = waConfigs?.find((c: any) => c.provider === 'wuzapi');
     const egoConfig = waConfigs?.find((c: any) => c.provider === 'evolution_go');
+    const wppConfig = waConfigs?.find((c: any) => c.provider === 'wppconnect');
     if (evoConfig) {
       setEvo(prev => ({ ...prev, baseUrl: evoConfig.base_url, apiKey: evoConfig.api_key || '', isActive: evoConfig.is_active, isDefault: evoConfig.is_default }));
     } else if (legacyEvoConfig) {
@@ -102,6 +104,9 @@ export default function Settings() {
     }
     if (egoConfig) {
       setEgo(prev => ({ ...prev, baseUrl: egoConfig.base_url, apiKey: egoConfig.api_key || '', isActive: egoConfig.is_active, isDefault: egoConfig.is_default }));
+    }
+    if (wppConfig) {
+      setWpp(prev => ({ ...prev, baseUrl: wppConfig.base_url, apiKey: wppConfig.api_key || '', isActive: wppConfig.is_active, isDefault: wppConfig.is_default }));
     }
   }, [waConfigs, legacyEvoConfig]);
 
@@ -118,16 +123,20 @@ export default function Settings() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go';
+  type ProviderKey = 'evolution' | 'wuzapi' | 'evolution_go' | 'wppconnect';
 
   const providerStateMap: Record<ProviderKey, [ProviderState, React.Dispatch<React.SetStateAction<ProviderState>>]> = {
     evolution: [evo, setEvo],
     wuzapi: [wuz, setWuz],
     evolution_go: [ego, setEgo],
+    wppconnect: [wpp, setWpp],
   };
 
   const providerLabel = (p: ProviderKey) =>
-    p === 'evolution' ? 'Evolution API' : p === 'wuzapi' ? 'Wuzapi' : 'Evolution Go';
+    p === 'evolution' ? 'Evolution API'
+    : p === 'wuzapi' ? 'Wuzapi'
+    : p === 'evolution_go' ? 'Evolution Go'
+    : 'WPPConnect';
 
   const saveProvider = async (provider: ProviderKey, state: ProviderState) => {
     if (!company?.id) throw new Error('Conta não identificada');
@@ -229,8 +238,12 @@ export default function Settings() {
     const placeholder =
       provider === 'evolution' ? 'https://sua-evolution-api.com'
       : provider === 'wuzapi' ? 'https://sua-wuzapi.com:8080'
-      : 'https://sua-evolution-go.com:8080';
-    const apiKeyLabel = provider === 'wuzapi' ? 'Admin Token' : 'API Key (GLOBAL_API_KEY)';
+      : provider === 'evolution_go' ? 'https://sua-evolution-go.com:8080'
+      : 'https://sua-wppconnect.com';
+    const apiKeyLabel =
+      provider === 'wuzapi' ? 'Admin Token'
+      : provider === 'wppconnect' ? 'Secret Key'
+      : 'API Key (GLOBAL_API_KEY)';
 
     return (
       <Card key={provider} className={`border-border/40 bg-card/80 ${!allowed ? 'opacity-60' : ''}`}>
@@ -386,6 +399,7 @@ export default function Settings() {
         {renderProviderCard('evolution', 'Evolution API', 'Integração com a Evolution API v1 para gerenciamento de WhatsApp')}
         {renderProviderCard('evolution_go', 'Evolution Go (v2)', 'Versão em Go da Evolution API — alta performance, autenticação via GLOBAL_API_KEY')}
         {renderProviderCard('wuzapi', 'Wuzapi', 'Integração com Wuzapi (whatsmeow) para gerenciamento de WhatsApp')}
+        {renderProviderCard('wppconnect', 'WPPConnect', 'WPPConnect Server — API REST para gerenciamento de sessões WhatsApp via WhatsApp Web')}
 
         <Card className="border-border/40 bg-card/80">
           <CardHeader>

@@ -19,12 +19,14 @@ export const providerLabels: Record<string, string> = {
   evolution: 'Evolution API',
   wuzapi: 'WuzAPI',
   evolution_go: 'Evolution Go',
+  wppconnect: 'WPPConnect',
 };
 
 export const providerColors: Record<string, string> = {
   evolution: 'border-pink-500/40 text-pink-500 bg-pink-500/10',
   wuzapi: 'border-sky-500/40 text-sky-500 bg-sky-500/10',
   evolution_go: 'border-success/40 text-success bg-success/10',
+  wppconnect: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10',
 };
 
 export const TIMEZONES = [
@@ -35,7 +37,8 @@ export const TIMEZONES = [
 
 /**
  * Returns the correct webhook events array for a given provider.
- * Evolution uses dot-notation events, Wuzapi uses simple names.
+ * Evolution uses dot-notation events, Wuzapi uses simple names,
+ * WPPConnect emits its own event vocabulary normalized in webhook-receiver.
  */
 export function getProviderEvents(provider: string): string[] {
   if (provider === 'wuzapi') {
@@ -44,6 +47,10 @@ export function getProviderEvents(provider: string): string[] {
   if (provider === 'evolution_go') {
     // Evolution Go (v2) uses UPPERCASE event names per the official docs
     return ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED', 'MESSAGES_UPDATE', 'PRESENCE_UPDATE'];
+  }
+  if (provider === 'wppconnect') {
+    // WPPConnect emits events like onmessage, status-find, qrcode; normalization is server-side
+    return ['onmessage', 'onstatuschange', 'qrcode', 'onack'];
   }
   return ['messages.upsert', 'send.message', 'connection.update', 'qrcode.updated', 'messages.update'];
 }
