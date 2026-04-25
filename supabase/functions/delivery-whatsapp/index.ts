@@ -459,32 +459,12 @@ serve(async (req) => {
 
       const { data: instance, error: instErr } = await supabase
         .from('instances')
-        .select('id, name, company_id, evolution_instance_id, status')
+        .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id, status')
         .eq('id', resolvedInstanceId)
         .single();
 
       if (instErr || !instance) {
         return jsonResponse({ error: 'Instance not found', instance_id: resolvedInstanceId }, 404);
-      }
-
-      const { data: evoConfig } = await supabase
-        .from('evolution_api_config')
-        .select('base_url, api_key, is_active')
-        .eq('company_id', instance.company_id)
-        .single();
-
-      if (!evoConfig?.is_active || !evoConfig.base_url || !evoConfig.api_key) {
-        await supabase.from('delivery_send_logs').insert({
-          company_id: instance.company_id,
-          order_code: orderCode,
-          event_key: `status_${statusKey}`,
-          phone: customerPhone,
-          message: null,
-          status: 'failed',
-          error: 'Evolution API not configured or inactive',
-          api_response: { received_payload: body },
-        });
-        return jsonResponse({ error: 'Evolution API not configured or inactive' }, 400);
       }
 
       const normalizedPhone = normalizePhone(customerPhone);
