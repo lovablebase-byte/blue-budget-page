@@ -175,9 +175,18 @@ export default function Settings() {
 
   const handleSaveProvider = async (provider: ProviderKey) => {
     const [state, setState] = providerStateMap[provider];
+    if (provider === 'wppconnect') {
+      const validationError = validateProviderInputs(provider, state);
+      if (validationError) { toast.error(validationError); return; }
+    }
+    const normalizedUrl = normalizeBaseUrl(state.baseUrl);
+    if (normalizedUrl !== state.baseUrl) {
+      setState(prev => ({ ...prev, baseUrl: normalizedUrl }));
+    }
+    const stateToUse = { ...state, baseUrl: normalizedUrl };
     setState(prev => ({ ...prev, saving: true }));
     try {
-      await saveProvider(provider, state);
+      await saveProvider(provider, stateToUse);
       toast.success(`Integração ${providerLabel(provider)} salva`);
     } catch (e: any) {
       toast.error(e.message);
