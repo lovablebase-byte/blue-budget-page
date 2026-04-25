@@ -102,6 +102,105 @@ function normalizeWuzapiEvent(body: any): {
   };
 }
 
+// ---------- WPPConnect event normalization ----------
+// Reference: https://wppconnect.io/docs/
+// WPPConnect emits events such as: onmessage, onack, onstatuschange,
+// status-find, qrcode, incomingcall, etc. The exact key may be `event`,
+// `type`, or inferred from the payload shape.
+function normalizeWppConnectEvent(body: any): {
+  eventType: string;
+  direction: string;
+  remoteJid: string | null;
+  messageId: string | null;
+  connectionState: string | null;
+  qrCode: string | null;
+} {
+  const rawEvent = String(body?.event || body?.type || "").toLowerCase();
+  const data = body?.data || body?.response || body;
+
+  // Map WPPConnect events to internal vocabulary
+  const eventMap: Record<string, string> = {
+    onmessage: "message.received",
+    "message-received": "message.received",
+    "incoming-call": "call.received",
+    onack: "delivery.status",
+    ack: "delivery.status",
+    onstatuschange: "connection.update",
+    "status-find": "connection.update",
+    qrcode: "qr.updated",
+    "qrcode-updated": "qr.updated",
+    onstatefind: "connection.update",
+    onpresencechanged: "presence.update",
+  };
+
+  // Detect message events when event key is missing but body looks like a message
+  let detected = rawEvent;
+  if (!detected && (data?.body || data?.content || data?.message) && (data?.from || data?.chatId || data?.to)) {
+    detected = "onmessage";
+  }
+  if (!detected && (data?.qrcode || data?.qr || body?.qrcode)) {
+    detected = "qrcode";
+  }
+
+  const eventType = eventMap[detected] || detected || "unknown";
+
+  // WPPConnect status-find/onstatuschange status values:
+  // CONNECTED, isLogged, qrReadSuccess, qrReadFail, autocloseCalled,
+  // desconnectedMobile, deleteToken, chatsAvailable, deviceNotConnected,
+  // serverWssNotConnected, noOpenBrowser, browserClose
+  let connectionState: string | null = null;
+  if (eventType === "connection.update") {
+    const statusVal = String(
+      data?.status || data?.state || body?.status || body?.statusFind || ""
+    ).toLowerCase();
+    if (
+      statusVal.includes("connected") ||
+      statusVal.includes("islogged") ||
+      statusVal.includes("inchat") ||
+      statusVal.includes("chatsavailable") ||
+      statusVal === "open"
+    ) {
+      connectionState = "open";
+    } else if (
+      statusVal.includes("disconnected") ||
+      statusVal.includes("notlogged") ||
+      statusVal.includes("desconnected") ||
+      statusVal.includes("browserclose") ||
+      statusVal.includes("autoclose") ||
+      statusVal.includes("deletetoken") ||
+      statusVal === "close"
+    ) {
+      connectionState = "close";
+    } else if (
+      statusVal.includes("qr") ||
+      statusVal.includes("notconnected") ||
+      statusVal.includes("opening") ||
+      statusVal === "connecting"
+    ) {
+      connectionState = "connecting";
+    }
+  }
+
+  // Direction: WPPConnect's onmessage uses fromMe boolean
+  let direction = "inbound";
+  if (data?.fromMe === true || data?.from?.fromMe === true) direction = "outbound";
+
+  const qrCode =
+    eventType === "qr.updated"
+      ? (data?.qrcode || data?.qr || data?.base64Qrimg || body?.qrcode || null)
+      : null;
+
+  return {
+    eventType,
+    direction,
+    remoteJid:
+      data?.from || data?.chatId || data?.to || data?.chat?.id || null,
+    messageId: data?.id || data?.messageId || null,
+    connectionState,
+    qrCode,
+  };
+}
+
 // ---------- Main handler ----------
 
 serve(async (req) => {
@@ -198,6 +297,8 @@ serve(async (req) => {
     let normalized;
     if (provider === "wuzapi") {
       normalized = normalizeWuzapiEvent(body);
+    } else if (provider === "wppconnect") {
+      normalized = normalizeWppConnectEvent(body);
     } else {
       // evolution + evolution_go share normalization (v2 events are uppercased upstream)
       normalized = normalizeEvolutionEvent(body);
