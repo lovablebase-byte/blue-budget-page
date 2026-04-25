@@ -1,6 +1,6 @@
 // Common types for all WhatsApp providers
 
-export type ProviderName = 'evolution' | 'wuzapi' | 'evolution_go' | 'wppconnect';
+export type ProviderName = 'evolution' | 'wuzapi' | 'evolution_go' | 'wppconnect' | 'quepasa';
 
 export interface ProviderConfig {
   baseUrl: string;
