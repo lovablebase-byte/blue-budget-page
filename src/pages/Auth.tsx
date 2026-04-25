@@ -65,27 +65,108 @@ export default function Auth() {
   };
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center px-4 py-10 relative overflow-hidden"
-      style={{
-        background:
-          'radial-gradient(1200px 600px at 50% -10%, hsl(142 100% 45% / 0.10), transparent 60%), radial-gradient(900px 500px at 90% 110%, hsl(195 100% 50% / 0.08), transparent 60%), linear-gradient(180deg, hsl(var(--background)) 0%, hsl(222 47% 4%) 100%)',
-      }}
-    >
-      {/* Ambient glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[640px] h-[640px] bg-[hsl(142_100%_45%/0.10)] rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[420px] h-[420px] bg-[hsl(195_100%_50%/0.08)] rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/3 left-10 w-72 h-72 bg-[hsl(265_85%_60%/0.06)] rounded-full blur-[100px] pointer-events-none" />
-
-      {/* Subtle grid overlay */}
+    <div className="auth-bg flex min-h-screen items-center justify-center px-4 py-10 relative overflow-hidden">
+      {/* Animated organic blobs */}
       <div
-        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        className="auth-blob"
         style={{
-          backgroundImage:
-            'linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
+          top: '-8%',
+          left: '-6%',
+          width: '520px',
+          height: '520px',
+          background:
+            'radial-gradient(circle, hsl(142 100% 45% / 0.32) 0%, hsl(142 100% 45% / 0.10) 50%, transparent 75%)',
+          animation: 'auth-blob-float-1 22s ease-in-out infinite',
         }}
       />
+      <div
+        className="auth-blob"
+        style={{
+          bottom: '-10%',
+          right: '-8%',
+          width: '600px',
+          height: '600px',
+          background:
+            'radial-gradient(circle, hsl(165 90% 40% / 0.25) 0%, hsl(195 100% 45% / 0.10) 50%, transparent 75%)',
+          animation: 'auth-blob-float-2 28s ease-in-out infinite',
+        }}
+      />
+      <div
+        className="auth-blob"
+        style={{
+          top: '40%',
+          right: '15%',
+          width: '380px',
+          height: '380px',
+          background:
+            'radial-gradient(circle, hsl(195 100% 50% / 0.18) 0%, hsl(220 80% 40% / 0.08) 50%, transparent 75%)',
+          animation: 'auth-blob-float-3 25s ease-in-out infinite',
+        }}
+      />
+      <div
+        className="auth-blob hidden md:block"
+        style={{
+          top: '20%',
+          left: '35%',
+          width: '300px',
+          height: '300px',
+          background:
+            'radial-gradient(circle, hsl(155 80% 45% / 0.14) 0%, transparent 70%)',
+          animation: 'auth-blob-float-1 32s ease-in-out infinite reverse',
+        }}
+      />
+
+      {/* Soft abstract waves */}
+      <svg
+        className="auth-wave hidden md:block"
+        viewBox="0 0 1440 800"
+        preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="authWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="hsl(142 100% 50%)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="hsl(195 100% 55%)" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M0,520 C320,420 520,640 760,520 C1000,400 1200,580 1440,460 L1440,800 L0,800 Z"
+          fill="url(#authWaveGrad)"
+          opacity="0.35"
+        />
+        <path
+          d="M0,620 C280,560 540,720 820,600 C1080,490 1280,640 1440,580"
+          fill="none"
+          stroke="hsl(142 100% 55% / 0.18)"
+          strokeWidth="1"
+        />
+      </svg>
+
+      {/* Breathing halo behind card */}
+      <div className="auth-halo" />
+
+      {/* Floating particles */}
+      {[
+        { left: '8%', delay: '0s', dur: '18s', size: 2 },
+        { left: '22%', delay: '4s', dur: '22s', size: 3 },
+        { left: '38%', delay: '9s', dur: '20s', size: 2 },
+        { left: '55%', delay: '2s', dur: '24s', size: 3 },
+        { left: '68%', delay: '11s', dur: '19s', size: 2 },
+        { left: '82%', delay: '6s', dur: '23s', size: 3 },
+        { left: '92%', delay: '14s', dur: '21s', size: 2 },
+      ].map((p, i) => (
+        <span
+          key={i}
+          className="auth-particle hidden sm:block"
+          style={{
+            left: p.left,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            animation: `auth-particle-drift ${p.dur} linear infinite`,
+            animationDelay: p.delay,
+          }}
+        />
+      ))}
 
       <div
         className="relative w-full max-w-md rounded-2xl p-[1px] overflow-hidden"

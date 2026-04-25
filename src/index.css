@@ -379,3 +379,97 @@
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+/* ===== Auth page animated background ===== */
+@keyframes auth-blob-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -30px) scale(1.08); }
+  66% { transform: translate(-30px, 40px) scale(0.95); }
+}
+@keyframes auth-blob-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-50px, -40px) scale(1.1); }
+}
+@keyframes auth-blob-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 50px) scale(0.9); }
+}
+@keyframes auth-glow-breathe {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.85; transform: translate(-50%, -50%) scale(1.12); }
+}
+@keyframes auth-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes auth-wave-drift {
+  0% { transform: translateX(-5%) translateY(0); }
+  100% { transform: translateX(5%) translateY(-2%); }
+}
+@keyframes auth-particle-drift {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.7; }
+  90% { opacity: 0.7; }
+  100% { transform: translateY(-120vh) translateX(20px); opacity: 0; }
+}
+
+.auth-bg {
+  background:
+    radial-gradient(1200px 700px at 20% 10%, hsl(195 80% 18% / 0.45), transparent 60%),
+    radial-gradient(1000px 600px at 85% 90%, hsl(160 70% 14% / 0.4), transparent 60%),
+    linear-gradient(135deg, hsl(222 50% 5%) 0%, hsl(220 55% 7%) 40%, hsl(215 60% 4%) 100%);
+  background-size: 200% 200%;
+  animation: auth-gradient-shift 30s ease-in-out infinite;
+}
+
+.auth-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.auth-wave {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  will-change: transform;
+  animation: auth-wave-drift 22s ease-in-out infinite alternate;
+}
+
+.auth-halo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 720px;
+  height: 720px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(142 100% 45% / 0.18) 0%, hsl(142 100% 45% / 0.08) 40%, transparent 70%);
+  filter: blur(60px);
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: auth-glow-breathe 8s ease-in-out infinite;
+}
+
+.auth-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: hsl(142 100% 60%);
+  box-shadow: 0 0 8px hsl(142 100% 50% / 0.8);
+  bottom: -10px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-bg,
+  .auth-blob,
+  .auth-wave,
+  .auth-halo,
+  .auth-particle { animation: none !important; }
+}
