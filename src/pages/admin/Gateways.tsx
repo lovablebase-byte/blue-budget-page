@@ -10,9 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MercadoPagoCard from './MercadoPagoCard';
 import {
   Plug, Save, TestTube, Loader2, CheckCircle2, XCircle, Clock, Eye, EyeOff, Copy,
-  AlertTriangle, RefreshCw, Shield, Activity,
+  AlertTriangle, RefreshCw, Shield, Activity, Wallet,
 } from 'lucide-react';
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
