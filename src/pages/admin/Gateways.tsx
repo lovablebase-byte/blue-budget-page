@@ -476,6 +476,12 @@ export default function AdminGateways() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="mercadopago" className="space-y-6">
+          <MercadoPagoCard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
