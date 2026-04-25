@@ -225,6 +225,9 @@ export default function AdminGateways() {
           <TabsTrigger value="mercadopago" className="gap-2">
             <Wallet className="h-4 w-4" /> Mercado Pago
           </TabsTrigger>
+          <TabsTrigger value="infinitepay" className="gap-2">
+            <QrCode className="h-4 w-4" /> InfinitePay
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="amplopay" className="space-y-6">
