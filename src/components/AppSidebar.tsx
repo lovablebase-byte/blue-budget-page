@@ -87,10 +87,10 @@ export function AppSidebar() {
           <NavLink
             to={item.path}
             end
-            className="rounded-xl border border-transparent bg-white/[0.03] text-muted-foreground dark:text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[hsl(var(--glow)/0.22)] hover:bg-white/[0.07] hover:text-foreground dark:hover:text-white hover:shadow-[0_0_0_1px_hsl(var(--glow)/0.14),0_0_20px_-10px_hsl(var(--glow)/0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-200"
-            activeClassName="border-[hsl(var(--glow)/0.3)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--glow)/0.1))] text-foreground dark:text-white font-semibold shadow-[0_0_0_1px_hsl(var(--glow)/0.18),0_0_26px_-10px_hsl(var(--glow)/0.5),inset_0_1px_0_rgba(255,255,255,0.12)]"
+            className="rounded-xl border border-transparent bg-transparent text-muted-foreground dark:text-white/85 hover:border-white/10 hover:bg-white/[0.05] hover:text-foreground dark:hover:text-white transition-all duration-200"
+            activeClassName="border-[rgba(0,230,118,0.45)] bg-[rgba(0,230,118,0.12)] text-foreground dark:text-white font-semibold shadow-[0_0_0_1px_rgba(0,230,118,0.25),0_0_22px_-8px_rgba(0,230,118,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]"
           >
-            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[hsl(var(--glow))] drop-shadow-[0_0_8px_hsl(var(--glow)/0.7)]' : 'text-muted-foreground dark:text-white/80'}`} />
+            <Icon className={`h-4 w-4 transition-all ${active ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.8)]' : 'text-muted-foreground dark:text-white/80'}`} />
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         </SidebarMenuButton>
