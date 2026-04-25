@@ -10,6 +10,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   evolution_go: 'Evolution Go',
   wuzapi: 'WuzAPI',
   wppconnect: 'WPPConnect',
+  quepasa: 'QuePasa',
 };
 
 export async function fetchCompanyActiveProviders(companyId: string): Promise<ActiveProvider[]> {

@@ -57,7 +57,7 @@ export function useAllowedProviders() {
     queryKey: ['allowed-providers', company?.id],
     queryFn: () => {
       // Admin vê todos os providers conhecidos sem restrição de plano
-      if (isAdmin) return ['evolution', 'wuzapi', 'evolution_go', 'wppconnect'];
+      if (isAdmin) return ['evolution', 'wuzapi', 'evolution_go', 'wppconnect', 'quepasa'];
       return getAllowedProviders(company!.id);
     },
     enabled: !!company?.id,
