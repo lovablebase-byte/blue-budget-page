@@ -271,22 +271,34 @@ export default function Instances() {
       let evolutionInstanceId: string | null = null;
       let providerActive = false;
 
-      const { data: dbRecord, error: insertErr } = await supabase.from('instances').insert({
-        company_id: company.id,
-        name: instanceName,
-        provider: newProvider,
-        provider_instance_id: null,
-        evolution_instance_id: null,
-        webhook_url: '',
-        webhook_secret: webhookSecret,
-        tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
-        timezone: newTimezone,
-        reconnect_policy: newReconnect,
-        status: 'offline',
-      }).select().single();
-      if (insertErr) throw insertErr;
+      // Use SECURITY DEFINER RPC: validates plan/permission/limit/provider on the backend.
+      // Bypasses direct INSERT RLS issues and ensures status starts as 'offline'.
+      const { data: rpcResult, error: insertErr } = await supabase.rpc('create_instance_safe', {
+        _name: instanceName,
+        _provider: newProvider,
+        _tags: newTags ? newTags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        _timezone: newTimezone,
+        _reconnect_policy: newReconnect,
+        _webhook_secret: webhookSecret,
+      });
+      if (insertErr) {
+        // Map common backend errors to friendlier Portuguese messages
+        const raw = String(insertErr.message || '');
+        const friendly =
+          raw.includes('not_authenticated') ? 'Sessão expirada. Faça login novamente.' :
+          raw.includes('no_company_for_user') ? 'Usuário sem empresa associada.' :
+          raw.includes('permission_denied') ? 'Você não tem permissão para criar instâncias.' :
+          raw.includes('no_active_plan') ? 'Sem plano ativo para criar instâncias.' :
+          raw.includes('instances_module_disabled') ? 'Módulo de instâncias não está habilitado no seu plano.' :
+          raw.includes('instance_limit_reached') ? 'Limite de instâncias do plano atingido.' :
+          raw.includes('provider_not_allowed_for_plan') ? 'Este provider não está liberado para o seu plano.' :
+          raw.includes('provider_not_configured') ? 'O provider selecionado não está configurado/ativo.' :
+          raw;
+        throw new Error(friendly);
+      }
+      if (!rpcResult) throw new Error('Falha ao criar instância (sem retorno).');
 
-      const instanceRecord = dbRecord as Instance;
+      const instanceRecord = rpcResult as unknown as Instance;
       const webhookUrl = getWebhookEndpoint(instanceRecord.id, webhookSecret, newProvider);
 
       try {

@@ -1953,6 +1953,17 @@ export type Database = {
         Args: { _subscription_id: string }
         Returns: Json
       }
+      create_instance_safe: {
+        Args: {
+          _name: string
+          _provider: string
+          _reconnect_policy?: string
+          _tags?: string[]
+          _timezone?: string
+          _webhook_secret?: string
+        }
+        Returns: Json
+      }
       get_effective_limit: {
         Args: { _company_id: string; _limit_key: string }
         Returns: number
