@@ -329,17 +329,20 @@ export default function Instances() {
         providerActive = true;
         notify.instanceCreated(instanceName);
       } catch (err: any) {
+        // Best-effort cleanup; ignore RLS errors here
         await supabase.from('instances').delete().eq('id', instanceRecord.id);
         throw err;
       }
 
-      const { data, error } = await supabase.from('instances').update({
-        provider_instance_id: providerInstanceId,
-        evolution_instance_id: evolutionInstanceId,
-        webhook_url: webhookUrl,
-        status: providerActive ? 'pairing' : 'offline',
-      }).eq('id', instanceRecord.id).select().single();
+      const { data: updated, error } = await supabase.rpc('update_instance_provider_safe', {
+        _instance_id: instanceRecord.id,
+        _provider_instance_id: providerInstanceId,
+        _evolution_instance_id: evolutionInstanceId,
+        _webhook_url: webhookUrl,
+        _status: providerActive ? 'pairing' : 'offline',
+      });
       if (error) throw error;
+      const data = updated as unknown as Instance;
 
       setShowCreate(false);
       resetForm();
