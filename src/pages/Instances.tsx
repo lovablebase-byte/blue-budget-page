@@ -166,44 +166,7 @@ export default function Instances() {
   }, [activeProviders]);
 
   const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
-    if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
-      return instance;
-    }
-
-    const providerName = getProviderInstanceName(instance);
-    if (!providerName || (providerName === instance.name && !instance.evolution_instance_id && !instance.provider_instance_id)) {
-      return instance;
-    }
-    try {
-      const res = await callProviderProxy('status', instance.provider, providerName);
-      const state = res?.instance?.state || '';
-      const rawPhone = res?.instance?.phoneNumber;
-      const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
-      let newStatus = instance.status;
-      if (state === 'open' || state === 'connected') newStatus = 'online';
-      else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
-      else if (state === 'connecting') newStatus = 'connecting';
-      else if (state === 'not_found') {
-        if (instance.status !== 'error') {
-          await supabase.from('instances').update({ status: 'error' }).eq('id', instance.id);
-        }
-        return { ...instance, status: 'error' };
-      }
-      const phoneChanged = cleanPhone && cleanPhone !== (instance.phone_number || '').replace(/\D/g, '');
-      if (newStatus !== instance.status || phoneChanged) {
-        const updateData: Record<string, any> = {};
-        if (newStatus !== instance.status) updateData.status = newStatus;
-        if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
-        if (phoneChanged) updateData.phone_number = cleanPhone;
-        if (Object.keys(updateData).length > 0) {
-          await supabase.from('instances').update(updateData).eq('id', instance.id);
-        }
-        return { ...instance, status: newStatus, phone_number: phoneChanged ? cleanPhone : instance.phone_number };
-      }
-      return instance;
-    } catch {
-      return instance;
-    }
+    return syncSingleInstanceStatus(instance, activeProvidersRef.current);
   };
 
   const fetchInstances = async () => {
@@ -220,9 +183,12 @@ export default function Instances() {
     setInstances(dbInstances);
     setLoading(false);
 
-    const synced = await Promise.all(dbInstances.map(syncInstanceStatus));
+    const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
     const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
-    if (changed) setInstances(synced);
+    if (changed) {
+      setInstances(synced);
+      invalidateDashboards();
+    }
   };
 
   useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
