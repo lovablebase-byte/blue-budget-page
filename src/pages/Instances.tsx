@@ -172,6 +172,14 @@ export default function Instances() {
     return syncSingleInstanceStatus(instance, activeProvidersRef.current);
   };
 
+  const markInstanceOffline = async (instanceId: string) => {
+    await supabase.from('instances').update({ status: 'offline' }).eq('id', instanceId);
+    setInstances((current) => current.map((item) => (
+      item.id === instanceId ? { ...item, status: 'offline' } : item
+    )));
+    invalidateDashboards();
+  };
+
   const fetchInstances = async () => {
     if (!company) return;
     if (fetchInFlightRef.current) return;
@@ -237,7 +245,7 @@ export default function Instances() {
           if (cleanPhone) updateData.phone_number = cleanPhone;
           await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
         } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(String(state).toLowerCase())) {
-          await supabase.from('instances').update({ status: 'offline' }).eq('id', instanceToWatch.id);
+          await markInstanceOffline(instanceToWatch.id);
           setQrError('Instância desconectada no provider. Gere um novo QR Code para parear.');
         }
       } catch {
@@ -479,7 +487,12 @@ export default function Instances() {
         });
 
         const rawQr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
-        if (rawQr) {
+        const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
+        const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
+        if (remoteOffline) {
+          await markInstanceOffline(instance.id);
+          toast.info('Provider reportou desconectado.');
+        } else if (rawQr) {
           const qr = normalizeQrBase64(rawQr);
           await supabase.from('instances').update({ status: 'pairing' }).eq('id', instance.id);
           setSelectedInstance(instance);
