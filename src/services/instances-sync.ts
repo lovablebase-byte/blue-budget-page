@@ -173,13 +173,25 @@ export async function syncSingleInstanceStatus<T extends SyncableInstance>(
   }
 }
 
-/** Sincroniza um lote de instâncias em paralelo, retornando a lista atualizada. */
+/**
+ * Sincroniza um lote de instâncias de forma sequencial com pequeno jitter,
+ * para evitar cold-start em cascata no Edge Runtime (causa principal de 503
+ * "SUPABASE_EDGE_RUNTIME_ERROR" quando várias instâncias são consultadas
+ * em paralelo a cada poll).
+ */
 export async function syncCompanyInstancesStatus<T extends SyncableInstance>(
   instances: T[],
   activeProviders: ActiveProvider[],
 ): Promise<T[]> {
   if (!instances.length) return instances;
-  return Promise.all(instances.map((inst) => syncSingleInstanceStatus(inst, activeProviders)));
+  const results: T[] = [];
+  for (const inst of instances) {
+    const synced = await syncSingleInstanceStatus(inst, activeProviders);
+    results.push(synced);
+    // Small jitter between calls so the edge runtime can reuse the warm worker.
+    await new Promise((r) => setTimeout(r, 250 + Math.floor(Math.random() * 200)));
+  }
+  return results;
 }
 
 /**
