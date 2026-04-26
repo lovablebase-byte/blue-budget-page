@@ -516,7 +516,12 @@ async function handleEvolutionGo(
       const qrR = await evoFetch(baseUrl, instanceToken, "GET", "/instance/qr");
       const qrCode = qrR.ok ? qrR.data?.data?.Qrcode || qrR.data?.qrcode || null : null;
       const pairingCode = qrR.ok ? qrR.data?.data?.Code || qrR.data?.pairingCode || null : null;
-      const connectState = mapEvolutionGoStatus(r.data?.data || r.data?.instance || r.data);
+      const connectRaw = r.data?.data || r.data?.instance || r.data;
+      const connectState = mapEvolutionGoStatus({
+        ...connectRaw,
+        status: remote?.status ?? connectRaw?.status,
+        state: remote?.state ?? connectRaw?.state,
+      });
       const responseState = connectState === "close" ? "close" : qrCode ? "connecting" : connectState;
 
       return {
