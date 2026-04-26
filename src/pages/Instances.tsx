@@ -1,8 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
+import {
+  syncSingleInstanceStatus,
+  syncCompanyInstancesStatus,
+  isOnlineStatus,
+  isConnectingStatus,
+  isDisconnectedStatus,
+} from '@/services/instances-sync';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { GuardedButton } from '@/components/PlanEnforcementGuard';
 import { PlanStatusBanner } from '@/components/PlanStatusBanner';
