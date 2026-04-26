@@ -97,6 +97,7 @@ export default function Instances() {
   const instanceFeature = useFeatureEnabled('instances_enabled');
   const instanceLimit = useResourceLimit('max_instances', 'instances');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -105,6 +106,12 @@ export default function Instances() {
   const [showDelete, setShowDelete] = useState(false);
   const [showPostCreate, setShowPostCreate] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
+
+  const invalidateDashboards = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-dashboard-recent-instances'] });
+    queryClient.invalidateQueries({ queryKey: ['company-dashboard'] });
+  };
   const [createdInstance, setCreatedInstance] = useState<Instance | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
