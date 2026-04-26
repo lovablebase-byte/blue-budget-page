@@ -23,6 +23,10 @@ function getRetryDelay(attempt: number) {
   return baseDelay + Math.floor(Math.random() * 400);
 }
 
+function isStatusRead(action: string) {
+  return action === 'status' || action === 'fetchInstances';
+}
+
 /**
  * Shared helper to call whatsapp-provider-proxy Edge Function.
  * Includes concurrency limiting and automatic retry on transient Edge Runtime cold-start failures.
@@ -73,6 +77,21 @@ export async function callProviderProxy(
       if (isTransient && attempt < maxAttempts) {
         await new Promise((r) => setTimeout(r, getRetryDelay(attempt)));
         continue;
+      }
+
+      if (isTransient && isStatusRead(action)) {
+        console.warn('[provider-proxy] transient status check skipped', {
+          action,
+          provider,
+          instanceName,
+          status,
+          message,
+        });
+        return {
+          instance: { state: 'unknown', instanceName },
+          transient: true,
+          error: null,
+        };
       }
 
       throw lastError;
