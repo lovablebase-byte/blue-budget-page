@@ -49,6 +49,15 @@ function controlledProviderFailure(provider: string, action: string, instanceNam
   };
 }
 
+function safeProviderPath(provider: string, path: string) {
+  if (provider === "wppconnect") {
+    return path
+      .replace(/^\/api\/[^/]+\/show-all-sessions$/, "/api/[secret]/show-all-sessions")
+      .replace(/^\/api\/[^/]+\/[^/]+\/generate-token$/, "/api/[session]/[secret]/generate-token");
+  }
+  return path;
+}
+
 // ---------- Provider HTTP helpers ----------
 
 async function evoFetch(
@@ -273,7 +282,7 @@ async function wuzFetchAdmin(
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = res.data;
-  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -293,7 +302,7 @@ async function wuzFetchSession(
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = res.data;
-  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
 
