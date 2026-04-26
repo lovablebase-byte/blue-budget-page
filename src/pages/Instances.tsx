@@ -611,7 +611,12 @@ export default function Instances() {
       });
 
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
-      if (qr) {
+      const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
+      const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
+      if (remoteOffline) {
+        await markInstanceOffline(instance.id);
+        setQrError('Instância desconectada no provider. Clique em "Atualizar QR" para gerar novo pareamento.');
+      } else if (qr) {
         setQrCodeBase64(normalizeQrBase64(qr));
       } else if (data?.connected === true) {
         setConnectionSuccess(true);
