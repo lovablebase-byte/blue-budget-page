@@ -7,6 +7,48 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const PROVIDER_TIMEOUT_MS = 9000;
+
+async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs = PROVIDER_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const startedAt = Date.now();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
+    return { ok: res.ok, status: res.status, data, durationMs: Date.now() - startedAt };
+  } catch (error: any) {
+    const timedOut = error?.name === "AbortError";
+    return {
+      ok: false,
+      status: timedOut ? 504 : 503,
+      data: { error: timedOut ? "provider_timeout" : "provider_unavailable" },
+      durationMs: Date.now() - startedAt,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function controlledProviderFailure(provider: string, action: string, instanceName: string | undefined, status = 503, error = "Provider temporariamente indisponível") {
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      success: false,
+      provider,
+      action,
+      status: "offline",
+      state: "provider_unavailable",
+      connected: false,
+      error,
+      instance: { state: "unknown", instanceName, connected: false },
+      details: { status },
+    },
+  };
+}
+
 // ---------- Provider HTTP helpers ----------
 
 async function evoFetch(
@@ -17,15 +59,12 @@ async function evoFetch(
   body?: Record<string, any>
 ) {
   const url = `${baseUrl}${path}`;
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: { "Content-Type": "application/json", apikey: apiKey },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res
-    .json()
-    .catch(async () => ({ raw: await res.text().catch(() => "") }));
-  return { ok: res.ok, status: res.status, data };
+  return { ok: res.ok, status: res.status, data: res.data };
 }
 
 function responseLooksLikeHtml(data: any) {
