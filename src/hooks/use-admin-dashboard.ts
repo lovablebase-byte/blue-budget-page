@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { countEndUsers } from '@/services/admin-users';
+import { fetchCompanyActiveProviders } from '@/lib/whatsapp-provider-config';
+import { reconcileActiveInstances, isOnlineStatus, isConnectingStatus, isDisconnectedStatus } from '@/services/instances-sync';
 
 export interface AdminStats {
   companies: number;
@@ -56,6 +58,17 @@ export function useAdminDashboard() {
   const stats = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: async (): Promise<AdminStats> => {
+      // Reconcilia status remoto antes de contar (best-effort, não quebra se falhar)
+      try {
+        const { data: companyRow } = await supabase.from('companies').select('id').limit(1).single();
+        if (companyRow?.id) {
+          const providers = await fetchCompanyActiveProviders(companyRow.id);
+          await reconcileActiveInstances(providers);
+        }
+      } catch {
+        /* reconciliação é best-effort */
+      }
+
       const [
         endUsersResult,
         instancesRes,
@@ -86,9 +99,9 @@ export function useAdminDashboard() {
       const statusCounts = { online: 0, offline: 0, connecting: 0 };
       const providerMap: Record<string, number> = {};
       instances.forEach((inst: any) => {
-        if (inst.status === 'online' || inst.status === 'connected') statusCounts.online++;
-        else if (inst.status === 'connecting') statusCounts.connecting++;
-        else statusCounts.offline++;
+        if (isOnlineStatus(inst.status)) statusCounts.online++;
+        else if (isConnectingStatus(inst.status)) statusCounts.connecting++;
+        else if (isDisconnectedStatus(inst.status)) statusCounts.offline++;
         providerMap[inst.provider] = (providerMap[inst.provider] || 0) + 1;
       });
 
@@ -238,8 +251,8 @@ export function useCompanyDashboard(companyId: string | undefined) {
 
       return {
         instances: instances.length,
-        instancesOnline: instances.filter((i: any) => i.status === 'online' || i.status === 'connected').length,
-        instancesOffline: instances.filter((i: any) => i.status !== 'online' && i.status !== 'connected' && i.status !== 'connecting').length,
+        instancesOnline: instances.filter((i: any) => isOnlineStatus(i.status)).length,
+        instancesOffline: instances.filter((i: any) => isDisconnectedStatus(i.status)).length,
         plan,
         subscription: subRes.data,
         openInvoices: (invoicesRes.data || []).length,
