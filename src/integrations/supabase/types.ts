@@ -1994,6 +1994,17 @@ export type Database = {
         }
         Returns: string
       }
+      update_instance_provider_safe: {
+        Args: {
+          _evolution_instance_id?: string
+          _instance_id: string
+          _phone_number?: string
+          _provider_instance_id?: string
+          _status?: string
+          _webhook_url?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "user"
