@@ -168,41 +168,32 @@ async function resolveEvolutionGoRemote(
 function mapEvolutionGoStatus(remote: any) {
   if (!remote) return "close";
 
-  // 1) Estado remoto explícito tem prioridade absoluta
-  const rawState = String(
-    remote?.status ?? remote?.state ?? remote?.connectionStatus ?? remote?.connection ?? "",
-  )
-    .toLowerCase()
-    .trim();
+  // 1) Estados remotos explícitos têm prioridade absoluta.
+  // Nunca inferir conexão por jid/owner/telefone: Evolution Go pode expor proprietário mesmo em `close`.
+  const rawStates = [
+    remote?.status,
+    remote?.state,
+    remote?.connectionStatus,
+    remote?.connection,
+    remote?.instance?.status,
+    remote?.instance?.state,
+    remote?.data?.status,
+    remote?.data?.state,
+  ]
+    .filter((value) => value !== undefined && value !== null && String(value).trim() !== "")
+    .map((value) => String(value).toLowerCase().trim().replace(/[\s-]+/g, "_"));
 
-  if (
-    rawState === "close" ||
-    rawState === "closed" ||
-    rawState === "disconnected" ||
-    rawState === "logout" ||
-    rawState === "logged_out" ||
-    rawState === "not_logged" ||
-    rawState === "device_not_connected"
-  ) {
+  const hasState = (...states: string[]) => rawStates.some((state) => states.includes(state));
+
+  if (hasState("close", "closed", "disconnected", "disconnect", "logout", "logged_out", "not_logged", "notlogged", "device_not_connected")) {
     return "close";
   }
 
-  if (
-    rawState === "open" ||
-    rawState === "connected" ||
-    rawState === "ready" ||
-    rawState === "online"
-  ) {
+  if (hasState("open", "connected", "ready", "online")) {
     return "open";
   }
 
-  if (
-    rawState === "qrcode" ||
-    rawState === "qr" ||
-    rawState === "pairing" ||
-    rawState === "connecting" ||
-    rawState === "scan"
-  ) {
+  if (hasState("qrcode", "qr", "pairing", "connecting", "opening", "scan")) {
     return "connecting";
   }
 
@@ -525,16 +516,22 @@ async function handleEvolutionGo(
       const qrR = await evoFetch(baseUrl, instanceToken, "GET", "/instance/qr");
       const qrCode = qrR.ok ? qrR.data?.data?.Qrcode || qrR.data?.qrcode || null : null;
       const pairingCode = qrR.ok ? qrR.data?.data?.Code || qrR.data?.pairingCode || null : null;
-      const connectState = mapEvolutionGoStatus(r.data?.data || r.data?.instance || r.data);
+      const connectRaw = r.data?.data || r.data?.instance || r.data;
+      const connectState = mapEvolutionGoStatus({
+        ...connectRaw,
+        status: remote?.status ?? connectRaw?.status,
+        state: remote?.state ?? connectRaw?.state,
+      });
+      const responseState = connectState === "close" ? "close" : qrCode ? "connecting" : connectState;
 
       return {
         ok: true,
         status: 200,
         body: {
-          qrCode,
-          pairingCode,
-          connected: connectState === "open",
-          state: qrCode ? "connecting" : connectState,
+          qrCode: responseState === "connecting" ? qrCode : null,
+          pairingCode: responseState === "connecting" ? pairingCode : null,
+          connected: responseState === "open",
+          state: responseState,
           raw: { connect: r.data, qr: qrR.ok ? qrR.data : null },
         },
       };
@@ -560,7 +557,7 @@ async function handleEvolutionGo(
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
 
       const raw = r.data?.data || r.data?.instance || r.data;
-      const state = mapEvolutionGoStatus(raw);
+      const state = mapEvolutionGoStatus({ ...raw, remoteStatus: remote?.status, status: remote?.status ?? raw?.status, state: remote?.state ?? raw?.state });
       return {
         ok: true, status: 200,
         body: {
