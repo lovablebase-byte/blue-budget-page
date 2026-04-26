@@ -517,7 +517,15 @@ async function handleEvolutionGo(
       const state = mapEvolutionGoStatus(raw);
       return {
         ok: true, status: 200,
-        body: { instance: { state, instanceName, phoneNumber: raw?.jid || raw?.phoneNumber || null }, raw: r.data },
+        body: {
+          instance: {
+            state,
+            instanceName,
+            connected: state === "open",
+            phoneNumber: state === "open" ? (raw?.jid || raw?.phoneNumber || null) : null,
+          },
+          raw: r.data,
+        },
       };
     }
     case "delete": {
