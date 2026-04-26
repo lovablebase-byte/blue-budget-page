@@ -1,8 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
+import {
+  syncSingleInstanceStatus,
+  syncCompanyInstancesStatus,
+  isOnlineStatus,
+  isConnectingStatus,
+  isDisconnectedStatus,
+} from '@/services/instances-sync';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { GuardedButton } from '@/components/PlanEnforcementGuard';
 import { PlanStatusBanner } from '@/components/PlanStatusBanner';
@@ -89,6 +97,7 @@ export default function Instances() {
   const instanceFeature = useFeatureEnabled('instances_enabled');
   const instanceLimit = useResourceLimit('max_instances', 'instances');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -97,6 +106,12 @@ export default function Instances() {
   const [showDelete, setShowDelete] = useState(false);
   const [showPostCreate, setShowPostCreate] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
+
+  const invalidateDashboards = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-dashboard-recent-instances'] });
+    queryClient.invalidateQueries({ queryKey: ['company-dashboard'] });
+  };
   const [createdInstance, setCreatedInstance] = useState<Instance | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -151,44 +166,7 @@ export default function Instances() {
   }, [activeProviders]);
 
   const syncInstanceStatus = async (instance: Instance): Promise<Instance> => {
-    if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
-      return instance;
-    }
-
-    const providerName = getProviderInstanceName(instance);
-    if (!providerName || (providerName === instance.name && !instance.evolution_instance_id && !instance.provider_instance_id)) {
-      return instance;
-    }
-    try {
-      const res = await callProviderProxy('status', instance.provider, providerName);
-      const state = res?.instance?.state || '';
-      const rawPhone = res?.instance?.phoneNumber;
-      const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
-      let newStatus = instance.status;
-      if (state === 'open' || state === 'connected') newStatus = 'online';
-      else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
-      else if (state === 'connecting') newStatus = 'connecting';
-      else if (state === 'not_found') {
-        if (instance.status !== 'error') {
-          await supabase.from('instances').update({ status: 'error' }).eq('id', instance.id);
-        }
-        return { ...instance, status: 'error' };
-      }
-      const phoneChanged = cleanPhone && cleanPhone !== (instance.phone_number || '').replace(/\D/g, '');
-      if (newStatus !== instance.status || phoneChanged) {
-        const updateData: Record<string, any> = {};
-        if (newStatus !== instance.status) updateData.status = newStatus;
-        if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
-        if (phoneChanged) updateData.phone_number = cleanPhone;
-        if (Object.keys(updateData).length > 0) {
-          await supabase.from('instances').update(updateData).eq('id', instance.id);
-        }
-        return { ...instance, status: newStatus, phone_number: phoneChanged ? cleanPhone : instance.phone_number };
-      }
-      return instance;
-    } catch {
-      return instance;
-    }
+    return syncSingleInstanceStatus(instance, activeProvidersRef.current);
   };
 
   const fetchInstances = async () => {
@@ -205,9 +183,12 @@ export default function Instances() {
     setInstances(dbInstances);
     setLoading(false);
 
-    const synced = await Promise.all(dbInstances.map(syncInstanceStatus));
+    const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
     const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
-    if (changed) setInstances(synced);
+    if (changed) {
+      setInstances(synced);
+      invalidateDashboards();
+    }
   };
 
   useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
@@ -374,14 +355,20 @@ export default function Instances() {
       const instance = freshInstance as Instance;
       const providerName = getProviderInstanceName(instance);
 
+      let remoteAlreadyMissing = false;
+      let providerFailedSoftly = false;
       if (providerName && hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
         try {
           await callProviderProxy('delete', instance.provider, providerName);
         } catch (err: any) {
-          const isNotFound = err?.message && /404|not\s*found/i.test(err.message);
-          if (!isNotFound) {
-            toast.error(`Falha ao excluir no provider: ${err.message}`);
-            return;
+          const msg = String(err?.message || '').toLowerCase();
+          const isNotFound = /404|not\s*found|deleted_already|does not exist|sess(ã|a)o inexistente|instance not found/i.test(msg);
+          if (isNotFound) {
+            remoteAlreadyMissing = true;
+          } else {
+            // Provider fora do ar / erro não-crítico: removemos localmente e logamos.
+            providerFailedSoftly = true;
+            console.warn('[handleDelete] provider falhou, removendo localmente:', err?.message);
           }
         }
       }
@@ -390,8 +377,13 @@ export default function Instances() {
       if (localErr) throw localErr;
 
       try {
+        const auditAction = remoteAlreadyMissing
+          ? 'instance_delete_remote_missing'
+          : providerFailedSoftly
+          ? 'instance_delete_provider_failed_local_removed'
+          : 'instance_deleted_local';
         await supabase.rpc('log_audit', {
-          _action: 'instance_delete_sync',
+          _action: auditAction,
           _entity_type: 'instance',
           _entity_id: instance.id,
           _payload: { provider: instance.provider, name: instance.name, deleted_at: new Date().toISOString() },
@@ -402,6 +394,7 @@ export default function Instances() {
       setShowDelete(false);
       setSelectedInstance(null);
       fetchInstances();
+      invalidateDashboards();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
