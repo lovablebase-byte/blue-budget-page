@@ -355,14 +355,20 @@ export default function Instances() {
       const instance = freshInstance as Instance;
       const providerName = getProviderInstanceName(instance);
 
+      let remoteAlreadyMissing = false;
+      let providerFailedSoftly = false;
       if (providerName && hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
         try {
           await callProviderProxy('delete', instance.provider, providerName);
         } catch (err: any) {
-          const isNotFound = err?.message && /404|not\s*found/i.test(err.message);
-          if (!isNotFound) {
-            toast.error(`Falha ao excluir no provider: ${err.message}`);
-            return;
+          const msg = String(err?.message || '').toLowerCase();
+          const isNotFound = /404|not\s*found|deleted_already|does not exist|sess(ã|a)o inexistente|instance not found/i.test(msg);
+          if (isNotFound) {
+            remoteAlreadyMissing = true;
+          } else {
+            // Provider fora do ar / erro não-crítico: removemos localmente e logamos.
+            providerFailedSoftly = true;
+            console.warn('[handleDelete] provider falhou, removendo localmente:', err?.message);
           }
         }
       }
@@ -371,8 +377,13 @@ export default function Instances() {
       if (localErr) throw localErr;
 
       try {
+        const auditAction = remoteAlreadyMissing
+          ? 'instance_delete_remote_missing'
+          : providerFailedSoftly
+          ? 'instance_delete_provider_failed_local_removed'
+          : 'instance_deleted_local';
         await supabase.rpc('log_audit', {
-          _action: 'instance_delete_sync',
+          _action: auditAction,
           _entity_type: 'instance',
           _entity_id: instance.id,
           _payload: { provider: instance.provider, name: instance.name, deleted_at: new Date().toISOString() },
@@ -383,6 +394,7 @@ export default function Instances() {
       setShowDelete(false);
       setSelectedInstance(null);
       fetchInstances();
+      invalidateDashboards();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
