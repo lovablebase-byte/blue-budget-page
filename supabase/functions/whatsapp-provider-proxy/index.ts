@@ -267,14 +267,12 @@ async function wuzFetchAdmin(
 ) {
   const url = `${baseUrl}${path}`;
   console.log(`[wuzapi] ${method} ${path} (admin)`);
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: { "Content-Type": "application/json", Authorization: adminToken },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res
-    .json()
-    .catch(async () => ({ raw: await res.text().catch(() => "") }));
+  const data = res.data;
   console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
   return { ok: res.ok, status: res.status, data };
 }
@@ -289,14 +287,12 @@ async function wuzFetchSession(
 ) {
   const url = `${baseUrl}${path}`;
   console.log(`[wuzapi] ${method} ${path} (session)`);
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: { "Content-Type": "application/json", Token: userToken },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res
-    .json()
-    .catch(async () => ({ raw: await res.text().catch(() => "") }));
+  const data = res.data;
   console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
   return { ok: res.ok, status: res.status, data };
 }
