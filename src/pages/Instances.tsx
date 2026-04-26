@@ -575,15 +575,19 @@ export default function Instances() {
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
       if (qr) {
         setQrCodeBase64(normalizeQrBase64(qr));
-      } else if (data?.connected || data?.jid) {
+      } else if (data?.connected === true) {
         setConnectionSuccess(true);
       } else {
-        // Instead of generic message, check actual status from provider
+        // Sem QR e sem confirmação: ler status real do provider
         try {
           const statusData = await callProviderProxy('status', instance.provider, providerName);
-          const state = statusData?.instance?.state || '';
+          const state = String(statusData?.instance?.state || '').toLowerCase();
           if (state === 'open' || state === 'connected') {
             setConnectionSuccess(true);
+          } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(state)) {
+            setQrError('Instância desconectada no provider. Clique em "Atualizar QR" para gerar novo pareamento.');
+          } else if (state === 'not_found') {
+            setQrError('Instância não encontrada no provider. Recrie ou aguarde a sincronização.');
           } else {
             setQrError(`Nenhum QR retornado. Status atual: ${state || 'desconhecido'}. Tente novamente.`);
           }
