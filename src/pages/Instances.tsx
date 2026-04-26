@@ -298,7 +298,7 @@ export default function Instances() {
       }
       if (!rpcResult) throw new Error('Falha ao criar instância (sem retorno).');
 
-      const instanceRecord = rpcResult as Instance;
+      const instanceRecord = rpcResult as unknown as Instance;
       const webhookUrl = getWebhookEndpoint(instanceRecord.id, webhookSecret, newProvider);
 
       try {
