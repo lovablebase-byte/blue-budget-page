@@ -698,7 +698,7 @@ export default function Instances() {
           <p className="text-sm text-muted-foreground">Gerencie suas conexões em um único painel</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchInstances}>
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
           {canCreate && !isReadOnly && !isSuspended && (
