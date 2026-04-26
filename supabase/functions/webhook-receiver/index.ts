@@ -153,31 +153,41 @@ function normalizeWppConnectEvent(body: any): {
     const statusVal = String(
       data?.status || data?.state || body?.status || body?.statusFind || ""
     ).toLowerCase();
+
+    // CRÍTICO: termos NEGATIVOS primeiro — `disconnected`/`notconnected`
+    // contêm a substring `connected` e seriam capturados pelo branch positivo.
     if (
-      statusVal.includes("connected") ||
-      statusVal.includes("islogged") ||
-      statusVal.includes("inchat") ||
-      statusVal.includes("chatsavailable") ||
-      statusVal === "open"
-    ) {
-      connectionState = "open";
-    } else if (
-      statusVal.includes("disconnected") ||
+      statusVal.includes("disconnect") ||
+      statusVal.includes("desconnect") ||
       statusVal.includes("notlogged") ||
-      statusVal.includes("desconnected") ||
+      statusVal.includes("notconnected") ||
+      statusVal.includes("not_connected") ||
+      statusVal.includes("devicenotconnected") ||
       statusVal.includes("browserclose") ||
       statusVal.includes("autoclose") ||
       statusVal.includes("deletetoken") ||
-      statusVal === "close"
+      statusVal.includes("logout") ||
+      statusVal === "close" ||
+      statusVal === "closed"
     ) {
       connectionState = "close";
     } else if (
       statusVal.includes("qr") ||
-      statusVal.includes("notconnected") ||
+      statusVal.includes("scan") ||
       statusVal.includes("opening") ||
+      statusVal.includes("pairing") ||
       statusVal === "connecting"
     ) {
       connectionState = "connecting";
+    } else if (
+      statusVal.includes("connected") ||
+      statusVal.includes("islogged") ||
+      statusVal.includes("inchat") ||
+      statusVal.includes("chatsavailable") ||
+      statusVal === "open" ||
+      statusVal === "ready"
+    ) {
+      connectionState = "open";
     }
   }
 
