@@ -862,12 +862,12 @@ async function wppFetch(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (bearer) headers.Authorization = `Bearer ${bearer}`;
   console.log(`[wppconnect] ${method} ${path}`);
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
+  const data = res.data;
   console.log(`[wppconnect] ${method} ${path} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
@@ -1030,12 +1030,12 @@ async function qpFetch(
   const finalHeaders: Record<string, string> = { Accept: "application/json", ...headers };
   if (body) finalHeaders["Content-Type"] = "application/json";
   console.log(`[quepasa] ${method} ${path}`);
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: finalHeaders,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
+  const data = res.data;
   console.log(`[quepasa] ${method} ${path} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
