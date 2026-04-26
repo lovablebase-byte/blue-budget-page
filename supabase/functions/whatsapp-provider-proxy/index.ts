@@ -872,14 +872,14 @@ async function wppFetch(
   const url = `${baseUrl}${path}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (bearer) headers.Authorization = `Bearer ${bearer}`;
-  console.log(`[wppconnect] ${method} ${path}`);
+  console.log(`[wppconnect] ${method} ${safeProviderPath("wppconnect", path)}`);
   const res = await fetchJsonWithTimeout(url, {
     method,
     headers,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = res.data;
-  console.log(`[wppconnect] ${method} ${path} => ${res.status}`);
+  console.log(`[wppconnect] ${method} ${safeProviderPath("wppconnect", path)} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
 
