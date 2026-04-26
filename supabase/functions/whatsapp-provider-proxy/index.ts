@@ -118,8 +118,61 @@ async function resolveEvolutionGoRemote(
 }
 
 function mapEvolutionGoStatus(remote: any) {
-  if (remote?.connected === true || remote?.jid) return "open";
-  if (remote?.qrcode || remote?.qrCode) return "connecting";
+  if (!remote) return "close";
+
+  // 1) Estado remoto explícito tem prioridade absoluta
+  const rawState = String(
+    remote?.status ?? remote?.state ?? remote?.connectionStatus ?? remote?.connection ?? "",
+  )
+    .toLowerCase()
+    .trim();
+
+  if (
+    rawState === "close" ||
+    rawState === "closed" ||
+    rawState === "disconnected" ||
+    rawState === "logout" ||
+    rawState === "logged_out" ||
+    rawState === "not_logged" ||
+    rawState === "device_not_connected"
+  ) {
+    return "close";
+  }
+
+  if (
+    rawState === "open" ||
+    rawState === "connected" ||
+    rawState === "ready" ||
+    rawState === "online"
+  ) {
+    return "open";
+  }
+
+  if (
+    rawState === "qrcode" ||
+    rawState === "qr" ||
+    rawState === "pairing" ||
+    rawState === "connecting" ||
+    rawState === "scan"
+  ) {
+    return "connecting";
+  }
+
+  // 2) Sem estado textual: usar flags booleanas explícitas
+  if (remote?.connected === true || remote?.isLogged === true || remote?.loggedIn === true) {
+    return "open";
+  }
+
+  if (remote?.connected === false || remote?.isLogged === false || remote?.loggedIn === false) {
+    // Existe QR ativo? então está pareando, senão desconectado
+    if (remote?.qrcode || remote?.qrCode || remote?.qr) return "connecting";
+    return "close";
+  }
+
+  // 3) QR Code ativo sem flag explícita = pareando
+  if (remote?.qrcode || remote?.qrCode || remote?.qr) return "connecting";
+
+  // 4) Default seguro: NUNCA assumir online a partir de jid/owner
   return "close";
 }
 
@@ -464,7 +517,15 @@ async function handleEvolutionGo(
       const state = mapEvolutionGoStatus(raw);
       return {
         ok: true, status: 200,
-        body: { instance: { state, instanceName, phoneNumber: raw?.jid || raw?.phoneNumber || null }, raw: r.data },
+        body: {
+          instance: {
+            state,
+            instanceName,
+            connected: state === "open",
+            phoneNumber: state === "open" ? (raw?.jid || raw?.phoneNumber || null) : null,
+          },
+          raw: r.data,
+        },
       };
     }
     case "delete": {

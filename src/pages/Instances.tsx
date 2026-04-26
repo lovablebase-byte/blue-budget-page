@@ -462,14 +462,23 @@ export default function Instances() {
           setQrError(null);
           setConnectionSuccess(false);
           setShowQR(true);
-        } else if (data?.connected || data?.jid) {
+        } else if (data?.connected === true) {
           await supabase.from('instances').update({ status: 'online', last_connected_at: new Date().toISOString() }).eq('id', instance.id);
           notify.instanceConnected(instance.name);
         } else {
-          await supabase.from('instances').update({ status: 'connecting' }).eq('id', instance.id);
+          // Sem QR e sem confirmação de conexão: confiar no status remoto
+          let nextStatus: 'connecting' | 'offline' = 'connecting';
+          try {
+            const statusRes = await callProviderProxy('status', instance.provider, providerName);
+            const state = String(statusRes?.instance?.state || '').toLowerCase();
+            if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(state)) {
+              nextStatus = 'offline';
+            }
+          } catch {}
+          await supabase.from('instances').update({ status: nextStatus }).eq('id', instance.id);
           setSelectedInstance(instance);
           setQrCodeBase64(null);
-          setQrError(null);
+          setQrError(nextStatus === 'offline' ? 'Provider reportou desconectado. Tente novamente.' : null);
           setConnectionSuccess(false);
           setShowQR(true);
         }
@@ -566,15 +575,19 @@ export default function Instances() {
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
       if (qr) {
         setQrCodeBase64(normalizeQrBase64(qr));
-      } else if (data?.connected || data?.jid) {
+      } else if (data?.connected === true) {
         setConnectionSuccess(true);
       } else {
-        // Instead of generic message, check actual status from provider
+        // Sem QR e sem confirmação: ler status real do provider
         try {
           const statusData = await callProviderProxy('status', instance.provider, providerName);
-          const state = statusData?.instance?.state || '';
+          const state = String(statusData?.instance?.state || '').toLowerCase();
           if (state === 'open' || state === 'connected') {
             setConnectionSuccess(true);
+          } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(state)) {
+            setQrError('Instância desconectada no provider. Clique em "Atualizar QR" para gerar novo pareamento.');
+          } else if (state === 'not_found') {
+            setQrError('Instância não encontrada no provider. Recrie ou aguarde a sincronização.');
           } else {
             setQrError(`Nenhum QR retornado. Status atual: ${state || 'desconhecido'}. Tente novamente.`);
           }
