@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-const MAX_CONCURRENT_PROXY_CALLS = 2;
+const MAX_CONCURRENT_PROXY_CALLS = 1;
 let activeProxyCalls = 0;
 const proxyQueue: Array<() => void> = [];
 
