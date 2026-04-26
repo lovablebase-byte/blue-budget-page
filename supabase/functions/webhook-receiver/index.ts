@@ -268,16 +268,15 @@ function normalizeQuePasaEvent(body: any): {
     const statusVal = String(
       data?.status || data?.state || body?.status || body?.state || rawEvent || ""
     ).toLowerCase();
+
+    // CRÍTICO: termos NEGATIVOS primeiro (disconnected contém "connected").
     if (
-      statusVal.includes("ready") ||
-      statusVal.includes("connected") ||
-      statusVal.includes("logged") ||
-      statusVal === "open"
-    ) {
-      connectionState = "open";
-    } else if (
       statusVal.includes("disconnect") ||
       statusVal.includes("logout") ||
+      statusVal.includes("logged_out") ||
+      statusVal.includes("loggedout") ||
+      statusVal.includes("notconnected") ||
+      statusVal.includes("not_connected") ||
       statusVal.includes("closed") ||
       statusVal === "close"
     ) {
@@ -286,9 +285,17 @@ function normalizeQuePasaEvent(body: any): {
       statusVal.includes("qr") ||
       statusVal.includes("scan") ||
       statusVal.includes("starting") ||
+      statusVal.includes("pairing") ||
       statusVal.includes("connecting")
     ) {
       connectionState = "connecting";
+    } else if (
+      statusVal.includes("ready") ||
+      statusVal.includes("connected") ||
+      statusVal.includes("logged") ||
+      statusVal === "open"
+    ) {
+      connectionState = "open";
     }
   }
 
