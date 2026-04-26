@@ -7,6 +7,57 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const PROVIDER_TIMEOUT_MS = 9000;
+
+async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs = PROVIDER_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const startedAt = Date.now();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
+    return { ok: res.ok, status: res.status, data, durationMs: Date.now() - startedAt };
+  } catch (error: any) {
+    const timedOut = error?.name === "AbortError";
+    return {
+      ok: false,
+      status: timedOut ? 504 : 503,
+      data: { error: timedOut ? "provider_timeout" : "provider_unavailable" },
+      durationMs: Date.now() - startedAt,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function controlledProviderFailure(provider: string, action: string, instanceName: string | undefined, status = 503, error = "Provider temporariamente indisponível") {
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      success: false,
+      provider,
+      action,
+      status: "offline",
+      state: "provider_unavailable",
+      connected: false,
+      error,
+      instance: { state: "unknown", instanceName, connected: false },
+      details: { status },
+    },
+  };
+}
+
+function safeProviderPath(provider: string, path: string) {
+  if (provider === "wppconnect") {
+    return path
+      .replace(/^\/api\/[^/]+\/show-all-sessions$/, "/api/[secret]/show-all-sessions")
+      .replace(/^\/api\/[^/]+\/[^/]+\/generate-token$/, "/api/[session]/[secret]/generate-token");
+  }
+  return path;
+}
+
 // ---------- Provider HTTP helpers ----------
 
 async function evoFetch(
@@ -17,15 +68,12 @@ async function evoFetch(
   body?: Record<string, any>
 ) {
   const url = `${baseUrl}${path}`;
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: { "Content-Type": "application/json", apikey: apiKey },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res
-    .json()
-    .catch(async () => ({ raw: await res.text().catch(() => "") }));
-  return { ok: res.ok, status: res.status, data };
+  return { ok: res.ok, status: res.status, data: res.data };
 }
 
 function responseLooksLikeHtml(data: any) {
@@ -228,15 +276,13 @@ async function wuzFetchAdmin(
 ) {
   const url = `${baseUrl}${path}`;
   console.log(`[wuzapi] ${method} ${path} (admin)`);
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: { "Content-Type": "application/json", Authorization: adminToken },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res
-    .json()
-    .catch(async () => ({ raw: await res.text().catch(() => "") }));
-  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
+  const data = res.data;
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -250,15 +296,13 @@ async function wuzFetchSession(
 ) {
   const url = `${baseUrl}${path}`;
   console.log(`[wuzapi] ${method} ${path} (session)`);
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: { "Content-Type": "application/json", Token: userToken },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res
-    .json()
-    .catch(async () => ({ raw: await res.text().catch(() => "") }));
-  console.log(`[wuzapi] ${method} ${path} => ${res.status}`, JSON.stringify(data).slice(0, 500));
+  const data = res.data;
+  console.log(`[wuzapi] ${method} ${path} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -481,6 +525,7 @@ async function handleEvolutionGo(
       const qrR = await evoFetch(baseUrl, instanceToken, "GET", "/instance/qr");
       const qrCode = qrR.ok ? qrR.data?.data?.Qrcode || qrR.data?.qrcode || null : null;
       const pairingCode = qrR.ok ? qrR.data?.data?.Code || qrR.data?.pairingCode || null : null;
+      const connectState = mapEvolutionGoStatus(r.data?.data || r.data?.instance || r.data);
 
       return {
         ok: true,
@@ -488,7 +533,8 @@ async function handleEvolutionGo(
         body: {
           qrCode,
           pairingCode,
-          connected: Boolean(r.data?.data?.jid || remote?.jid),
+          connected: connectState === "open",
+          state: qrCode ? "connecting" : connectState,
           raw: { connect: r.data, qr: qrR.ok ? qrR.data : null },
         },
       };
@@ -826,14 +872,14 @@ async function wppFetch(
   const url = `${baseUrl}${path}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (bearer) headers.Authorization = `Bearer ${bearer}`;
-  console.log(`[wppconnect] ${method} ${path}`);
-  const res = await fetch(url, {
+  console.log(`[wppconnect] ${method} ${safeProviderPath("wppconnect", path)}`);
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
-  console.log(`[wppconnect] ${method} ${path} => ${res.status}`);
+  const data = res.data;
+  console.log(`[wppconnect] ${method} ${safeProviderPath("wppconnect", path)} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -995,12 +1041,12 @@ async function qpFetch(
   const finalHeaders: Record<string, string> = { Accept: "application/json", ...headers };
   if (body) finalHeaders["Content-Type"] = "application/json";
   console.log(`[quepasa] ${method} ${path}`);
-  const res = await fetch(url, {
+  const res = await fetchJsonWithTimeout(url, {
     method,
     headers: finalHeaders,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }));
+  const data = res.data;
   console.log(`[quepasa] ${method} ${path} => ${res.status}`);
   return { ok: res.ok, status: res.status, data };
 }
@@ -1238,16 +1284,28 @@ serve(async (req) => {
 
     let result: { ok: boolean; status: number; body: any };
 
-    if (resolvedProvider === "evolution") {
-      result = await handleEvolution(baseUrl, apiKey, action, instanceName, payload);
-    } else if (resolvedProvider === "evolution_go") {
-      result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload, supabase, companyId);
-    } else if (resolvedProvider === "wppconnect") {
-      result = await handleWppConnect(baseUrl, apiKey, action, instanceName, payload);
-    } else if (resolvedProvider === "quepasa") {
-      result = await handleQuePasa(baseUrl, apiKey, action, instanceName, payload);
-    } else {
-      result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
+    const startedAt = Date.now();
+    try {
+      if (resolvedProvider === "evolution") {
+        result = await handleEvolution(baseUrl, apiKey, action, instanceName, payload);
+      } else if (resolvedProvider === "evolution_go") {
+        result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload, supabase, companyId);
+      } else if (resolvedProvider === "wppconnect") {
+        result = await handleWppConnect(baseUrl, apiKey, action, instanceName, payload);
+      } else if (resolvedProvider === "quepasa") {
+        result = await handleQuePasa(baseUrl, apiKey, action, instanceName, payload);
+      } else {
+        result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
+      }
+    } catch (handlerError: any) {
+      console.error(`[whatsapp-provider-proxy] PROVIDER_EXCEPTION`, {
+        provider: resolvedProvider,
+        action,
+        instanceName,
+        message: handlerError?.message,
+        durationMs: Date.now() - startedAt,
+      });
+      result = controlledProviderFailure(resolvedProvider, action, instanceName, 503);
     }
 
     // Add metadata
@@ -1259,10 +1317,24 @@ serve(async (req) => {
     };
 
     if (!result.ok) {
-      console.error(`[whatsapp-provider-proxy] FAILED`, { ...meta, status: result.status, body: result.body });
+      const providerError = result.body?.error || result.body?.message || `${resolvedProvider}: HTTP ${result.status}`;
+      console.error(`[whatsapp-provider-proxy] FAILED`, {
+        ...meta,
+        status: result.status,
+        error: providerError,
+      });
+
+      if (result.status >= 500 || result.status === 0) {
+        const controlled = controlledProviderFailure(resolvedProvider, action, instanceName, result.status, providerError);
+        return new Response(JSON.stringify({ ...controlled.body, _meta: meta }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(
         JSON.stringify({
-          error: result.body?.error || result.body?.message || `${resolvedProvider}: HTTP ${result.status}`,
+          error: providerError,
           details: result.body,
           _meta: meta,
         }),

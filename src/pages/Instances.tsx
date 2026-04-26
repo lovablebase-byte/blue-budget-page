@@ -125,6 +125,9 @@ export default function Instances() {
   // Active providers
   const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
   const activeProvidersRef = useRef<ActiveProvider[]>([]);
+  const fetchInFlightRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
+  const statusPollInFlightRef = useRef(false);
 
   // QR Code states
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
@@ -171,24 +174,37 @@ export default function Instances() {
 
   const fetchInstances = async () => {
     if (!company) return;
+    if (fetchInFlightRef.current) return;
+    fetchInFlightRef.current = true;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('instances')
-      .select('*')
-      .eq('company_id', company.id)
-      .order('created_at', { ascending: false });
-    if (error) { toast.error(error.message); setLoading(false); return; }
+    try {
+      const { data, error } = await supabase
+        .from('instances')
+        .select('*')
+        .eq('company_id', company.id)
+        .order('created_at', { ascending: false });
+      if (error) { toast.error(error.message); return; }
 
-    const dbInstances = (data as Instance[]) || [];
-    setInstances(dbInstances);
-    setLoading(false);
+      const dbInstances = (data as Instance[]) || [];
+      setInstances(dbInstances);
 
-    const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
-    const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
-    if (changed) {
-      setInstances(synced);
-      invalidateDashboards();
+      const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
+      const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
+      if (changed) {
+        setInstances(synced);
+        invalidateDashboards();
+      }
+    } finally {
+      setLoading(false);
+      fetchInFlightRef.current = false;
     }
+  };
+
+  const handleRefresh = () => {
+    const now = Date.now();
+    if (now - lastRefreshAtRef.current < 2500) return;
+    lastRefreshAtRef.current = now;
+    fetchInstances();
   };
 
   useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
@@ -205,6 +221,8 @@ export default function Instances() {
     if (!providerName || !hasActiveProviderConfig(activeProviders, instanceToWatch.provider)) return;
 
     const pollInterval = setInterval(async () => {
+      if (statusPollInFlightRef.current) return;
+      statusPollInFlightRef.current = true;
       try {
         const res = await callProviderProxy('status', instanceToWatch.provider, providerName);
         const state = res?.instance?.state || '';
@@ -218,8 +236,15 @@ export default function Instances() {
           };
           if (cleanPhone) updateData.phone_number = cleanPhone;
           await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
+        } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(String(state).toLowerCase())) {
+          await supabase.from('instances').update({ status: 'offline' }).eq('id', instanceToWatch.id);
+          setQrError('Instância desconectada no provider. Gere um novo QR Code para parear.');
         }
-      } catch {}
+      } catch {
+        setQrError('Provider temporariamente indisponível. Tente novamente em alguns segundos.');
+      } finally {
+        statusPollInFlightRef.current = false;
+      }
     }, 5000);
 
     return () => clearInterval(pollInterval);
@@ -673,7 +698,7 @@ export default function Instances() {
           <p className="text-sm text-muted-foreground">Gerencie suas conexões em um único painel</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchInstances}>
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
           {canCreate && !isReadOnly && !isSuspended && (

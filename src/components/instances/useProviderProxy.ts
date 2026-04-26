@@ -47,6 +47,9 @@ export async function callProviderProxy(
       });
 
       if (!res.error) {
+        if (res.data?.success === false && isStatusRead(action)) {
+          return res.data;
+        }
         if (res.data?.error) {
           throw new Error(res.data.error);
         }
