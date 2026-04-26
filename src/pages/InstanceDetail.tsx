@@ -117,28 +117,10 @@ export default function InstanceDetailPage() {
   }, [id]);
 
   const syncInstanceStatus = useCallback(async (inst: InstanceDetail) => {
-    if (!hasActiveProviderConfig(activeProviders, inst.provider)) return;
-
-    const providerName = getProviderInstanceName(inst);
-    if (!providerName) return;
-
-    try {
-      const res = await callProviderProxy('status', inst.provider, providerName);
-      const state = res?.instance?.state || '';
-      let newStatus = inst.status;
-      if (state === 'open' || state === 'connected') newStatus = 'online';
-      else if (state === 'close' || state === 'disconnected') newStatus = 'offline';
-      else if (state === 'connecting') newStatus = 'connecting';
-
-      if (newStatus !== inst.status) {
-        const updateData: Record<string, any> = { status: newStatus };
-        if (newStatus === 'online') updateData.last_connected_at = new Date().toISOString();
-        await supabase.from('instances').update(updateData).eq('id', inst.id);
-        setInstance((prev) => prev
-          ? { ...prev, status: newStatus, ...(newStatus === 'online' ? { last_connected_at: new Date().toISOString() } : {}) }
-          : prev);
-      }
-    } catch {}
+    const updated = await syncSingleInstanceStatus(inst as any, activeProviders);
+    if (updated && (updated.status !== inst.status || updated.phone_number !== inst.phone_number)) {
+      setInstance((prev) => (prev ? { ...prev, ...updated } as InstanceDetail : prev));
+    }
   }, [activeProviders]);
 
   useEffect(() => {

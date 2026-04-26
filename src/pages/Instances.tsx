@@ -609,9 +609,9 @@ export default function Instances() {
   const canCreate = hasPermission('instances', 'create');
   const canDelete = hasPermission('instances', 'delete');
 
-  const onlineCount = instances.filter(i => i.status === 'online' || i.status === 'connected').length;
-  const offlineCount = instances.filter(i => i.status === 'offline').length;
-  const connectingCount = instances.filter(i => i.status === 'connecting' || i.status === 'pairing').length;
+  const onlineCount = instances.filter(i => isOnlineStatus(i.status)).length;
+  const connectingCount = instances.filter(i => isConnectingStatus(i.status)).length;
+  const offlineCount = instances.filter(i => isDisconnectedStatus(i.status)).length;
 
   const providerBreakdown: Record<string, number> = {};
   instances.forEach(i => {
