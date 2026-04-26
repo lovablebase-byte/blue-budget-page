@@ -1275,16 +1275,28 @@ serve(async (req) => {
 
     let result: { ok: boolean; status: number; body: any };
 
-    if (resolvedProvider === "evolution") {
-      result = await handleEvolution(baseUrl, apiKey, action, instanceName, payload);
-    } else if (resolvedProvider === "evolution_go") {
-      result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload, supabase, companyId);
-    } else if (resolvedProvider === "wppconnect") {
-      result = await handleWppConnect(baseUrl, apiKey, action, instanceName, payload);
-    } else if (resolvedProvider === "quepasa") {
-      result = await handleQuePasa(baseUrl, apiKey, action, instanceName, payload);
-    } else {
-      result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
+    const startedAt = Date.now();
+    try {
+      if (resolvedProvider === "evolution") {
+        result = await handleEvolution(baseUrl, apiKey, action, instanceName, payload);
+      } else if (resolvedProvider === "evolution_go") {
+        result = await handleEvolutionGo(baseUrl, apiKey, action, instanceName, payload, supabase, companyId);
+      } else if (resolvedProvider === "wppconnect") {
+        result = await handleWppConnect(baseUrl, apiKey, action, instanceName, payload);
+      } else if (resolvedProvider === "quepasa") {
+        result = await handleQuePasa(baseUrl, apiKey, action, instanceName, payload);
+      } else {
+        result = await handleWuzapi(baseUrl, apiKey, action, instanceName, payload);
+      }
+    } catch (handlerError: any) {
+      console.error(`[whatsapp-provider-proxy] PROVIDER_EXCEPTION`, {
+        provider: resolvedProvider,
+        action,
+        instanceName,
+        message: handlerError?.message,
+        durationMs: Date.now() - startedAt,
+      });
+      result = controlledProviderFailure(resolvedProvider, action, instanceName, 503);
     }
 
     // Add metadata
@@ -1296,10 +1308,24 @@ serve(async (req) => {
     };
 
     if (!result.ok) {
-      console.error(`[whatsapp-provider-proxy] FAILED`, { ...meta, status: result.status, body: result.body });
+      const providerError = result.body?.error || result.body?.message || `${resolvedProvider}: HTTP ${result.status}`;
+      console.error(`[whatsapp-provider-proxy] FAILED`, {
+        ...meta,
+        status: result.status,
+        error: providerError,
+      });
+
+      if (result.status >= 500 || result.status === 0) {
+        const controlled = controlledProviderFailure(resolvedProvider, action, instanceName, result.status, providerError);
+        return new Response(JSON.stringify({ ...controlled.body, _meta: meta }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(
         JSON.stringify({
-          error: result.body?.error || result.body?.message || `${resolvedProvider}: HTTP ${result.status}`,
+          error: providerError,
           details: result.body,
           _meta: meta,
         }),
