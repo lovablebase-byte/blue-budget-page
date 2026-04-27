@@ -106,6 +106,8 @@ export default function Instances() {
   const [showDelete, setShowDelete] = useState(false);
   const [showPostCreate, setShowPostCreate] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
+  const [instanceToDelete, setInstanceToDelete] = useState<Instance | null>(null);
+  const [autoStartQrInstanceId, setAutoStartQrInstanceId] = useState<string | null>(null);
 
   const invalidateDashboards = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
@@ -115,6 +117,7 @@ export default function Instances() {
   const [createdInstance, setCreatedInstance] = useState<Instance | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Filters
   const [filterProvider, setFilterProvider] = useState('all');
@@ -132,6 +135,7 @@ export default function Instances() {
   // QR Code states
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [autoQrRunning, setAutoQrRunning] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState(false);
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
@@ -222,6 +226,13 @@ export default function Instances() {
     const interval = setInterval(fetchInstances, 30000);
     return () => clearInterval(interval);
   }, [company]);
+
+  useEffect(() => {
+    if (!showPostCreate || !createdInstance || autoStartQrInstanceId !== createdInstance.id) return;
+    console.info('auto_qr_start', { instanceId: createdInstance.id, provider: createdInstance.provider });
+    setAutoStartQrInstanceId(null);
+    startQrAutoRetry(createdInstance);
+  }, [showPostCreate, createdInstance, autoStartQrInstanceId]);
 
   // Poll connection status when QR modal is open
   useEffect(() => {
@@ -388,12 +399,8 @@ export default function Instances() {
       resetForm();
       setCreatedInstance(data as Instance);
       setShowPostCreate(true);
+      setAutoStartQrInstanceId((data as Instance).id);
       fetchInstances();
-
-      if (providerActive) {
-        // Inicia tentativas automáticas de geração do QR Code
-        setTimeout(() => startQrAutoRetry(data as Instance), 400);
-      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -402,20 +409,26 @@ export default function Instances() {
   };
 
   const handleDelete = async () => {
-    if (!selectedInstance) return;
+    const pending = instanceToDelete || selectedInstance;
+    if (!pending) return;
+    console.info('delete_confirm', { instanceId: pending.id, provider: pending.provider });
+    cancelQrAutoRetry();
     setDeleting(true);
+    setDeletingId(pending.id);
+    toast.info('Excluindo instância...');
     try {
       const { data: freshInstance, error: freshError } = await supabase
-        .from('instances').select('*').eq('id', selectedInstance.id).single();
+        .from('instances').select('*').eq('id', pending.id).maybeSingle();
       if (freshError) throw freshError;
-      const instance = freshInstance as Instance;
+      const instance = (freshInstance as Instance | null) || pending;
       const providerName = getProviderInstanceName(instance);
 
       let remoteAlreadyMissing = false;
       let providerFailedSoftly = false;
       if (providerName && hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
         try {
-          await callProviderProxy('delete', instance.provider, providerName);
+          const providerResult = await callProviderProxy('delete', instance.provider, providerName);
+          console.info('delete_provider_result', { instanceId: instance.id, provider: instance.provider, status: providerResult?.status || 'ok' });
         } catch (err: any) {
           const msg = String(err?.message || '').toLowerCase();
           const isNotFound = /404|not\s*found|deleted_already|does not exist|sess(ã|a)o inexistente|instance not found/i.test(msg);
@@ -431,6 +444,8 @@ export default function Instances() {
 
       const { error: localErr } = await supabase.from('instances').delete().eq('id', instance.id);
       if (localErr) throw localErr;
+      setInstances((current) => current.filter((item) => item.id !== instance.id));
+      console.info('delete_local_success', { instanceId: instance.id, provider: instance.provider });
 
       try {
         const auditAction = remoteAlreadyMissing
@@ -449,12 +464,17 @@ export default function Instances() {
       notify.instanceDeleted(instance.name);
       setShowDelete(false);
       setSelectedInstance(null);
+      setInstanceToDelete(null);
       fetchInstances();
       invalidateDashboards();
+      queryClient.invalidateQueries({ queryKey: ['instances'] });
+      queryClient.invalidateQueries({ queryKey: ['instance-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-enforcement'] });
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setDeleting(false);
+      setDeletingId(null);
     }
   };
 
@@ -599,6 +619,7 @@ export default function Instances() {
       if (qrAutoRetryRef.current.timer) clearTimeout(qrAutoRetryRef.current.timer);
       qrAutoRetryRef.current = null;
     }
+    setAutoQrRunning(false);
   };
 
   const fetchQRCode = async (instanceOrName: Instance | string, opts?: { silent?: boolean }) => {
@@ -625,12 +646,19 @@ export default function Instances() {
         ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
         : instance.webhook_url;
 
-      const data = await callProviderProxy('connect', instance.provider, providerName, {
+      const data = await callProviderProxy(instance.provider === 'evolution_go' ? 'qrcode' : 'connect', instance.provider, providerName, {
         webhook: webhookUrl || undefined,
         events: getProviderEvents(instance.provider),
       });
 
-      const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+      console.debug('auto_qr_response', {
+        instanceId: instance.id,
+        provider: instance.provider,
+        hasQr: Boolean(data?.qrCode || data?.qrcode || data?.base64 || data?.qr?.data?.Qrcode || data?.qr?.data?.QRCode),
+        state: data?.state || data?.instance?.state || null,
+        connected: data?.connected === true,
+      });
+      const qr = data?.qrCode || data?.qrcode || data?.base64 || data?.qr?.data?.Qrcode || data?.qr?.data?.QRCode;
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
       if (qr) {
@@ -681,6 +709,11 @@ export default function Instances() {
   // Polling controlado para tentar gerar o QR Code automaticamente após criação
   const startQrAutoRetry = (instance: Instance) => {
     cancelQrAutoRetry();
+    console.info('auto_qr_start', { instanceId: instance.id, provider: instance.provider });
+    setQrCodeBase64(null);
+    setQrError(null);
+    setQrLoading(true);
+    setAutoQrRunning(true);
     const ctrl = { timer: null as any, attempts: 0, cancelled: false };
     qrAutoRetryRef.current = ctrl;
     const MAX_ATTEMPTS = 10; // ~25-30s total
@@ -688,14 +721,20 @@ export default function Instances() {
     const tick = async () => {
       if (ctrl.cancelled) return;
       ctrl.attempts += 1;
+      console.info('auto_qr_attempt', { instanceId: instance.id, provider: instance.provider, attempt: ctrl.attempts });
       const isFirst = ctrl.attempts === 1;
       const result = await fetchQRCode(instance, { silent: !isFirst });
       if (ctrl.cancelled) return;
+      if (result?.error) {
+        console.info('auto_qr_error', { instanceId: instance.id, provider: instance.provider, attempt: ctrl.attempts });
+      }
       if (result?.qr || result?.connected) {
+        console.info(result.qr ? 'auto_qr_success' : 'auto_qr_connected', { instanceId: instance.id, provider: instance.provider, attempt: ctrl.attempts });
         cancelQrAutoRetry();
         return;
       }
       if (ctrl.attempts >= MAX_ATTEMPTS) {
+        console.info('auto_qr_timeout', { instanceId: instance.id, provider: instance.provider, attempts: ctrl.attempts });
         setQrError('QR Code ainda não disponível. Clique em "Gerar QR Code" para tentar novamente.');
         cancelQrAutoRetry();
         return;
@@ -936,14 +975,15 @@ export default function Instances() {
                             <DropdownMenuItem
                               className="text-destructive"
                               onSelect={(e) => {
-                                e.preventDefault();
+                                console.info('delete_click_first', { instanceId: row.id, provider: row.provider });
+                                setInstanceToDelete(row);
                                 setSelectedInstance(row);
-                                // Defer to next tick so the dropdown finishes closing
-                                // before the AlertDialog opens (avoids focus/pointer-events race).
-                                setTimeout(() => setShowDelete(true), 50);
+                                setShowDelete(true);
+                                console.info('delete_dialog_open', { instanceId: row.id, provider: row.provider });
                               }}
+                              disabled={deletingId === row.id}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                              {deletingId === row.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Excluir
                             </DropdownMenuItem>
                           </>
                         )}
@@ -1080,6 +1120,11 @@ export default function Instances() {
                         <Loader2 className="h-10 w-10 animate-spin mx-auto mb-2" />
                         <p className="text-xs">Gerando QR Code, aguarde...</p>
                       </div>
+                    ) : autoQrRunning ? (
+                      <div className="text-center text-muted-foreground p-4">
+                        <Loader2 className="h-10 w-10 animate-spin mx-auto mb-2" />
+                        <p className="text-xs">Gerando QR Code, aguarde...</p>
+                      </div>
                     ) : (
                       <div className="text-center text-muted-foreground p-4">
                         <QrCode className="h-14 w-14 mx-auto mb-2" />
@@ -1088,13 +1133,13 @@ export default function Instances() {
                       </div>
                     )}
                   </div>
-                  {!qrLoading && !qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
+                  {!qrLoading && !autoQrRunning && !qrCodeBase64 && createdInstance && (
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading || autoQrRunning}>
                       <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
                     </Button>
                   )}
                   {qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading || autoQrRunning}>
                       <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
                     </Button>
                   )}
@@ -1165,7 +1210,7 @@ export default function Instances() {
           ) : (
             <div className="flex flex-col items-center gap-4 py-4">
               <div className="w-64 h-64 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
-                {qrLoading ? (
+                {qrLoading || autoQrRunning ? (
                   <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
                 ) : qrCodeBase64 ? (
                   <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
@@ -1177,8 +1222,8 @@ export default function Instances() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => selectedInstance && startQrAutoRetry(selectedInstance)} disabled={qrLoading}>
-                  {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                <Button onClick={() => selectedInstance && startQrAutoRetry(selectedInstance)} disabled={qrLoading || autoQrRunning}>
+                  {qrLoading || autoQrRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
                   {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
                 </Button>
               </div>

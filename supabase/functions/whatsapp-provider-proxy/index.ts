@@ -173,6 +173,7 @@ function mapEvolutionGoStatus(remote: any) {
   const rawStates = [
     remote?.status,
     remote?.state,
+    remote?.remoteStatus,
     remote?.connectionStatus,
     remote?.connection,
     remote?.instance?.status,
@@ -350,7 +351,8 @@ async function handleEvolution(
         },
       };
     }
-    case "connect": {
+    case "connect":
+    case "qrcode": {
       // If webhook payload is provided, update webhook config before connecting
       if (payload?.webhook) {
         await evoFetch(baseUrl, apiKey, "POST", `/webhook/set/${instanceName}`, {
@@ -514,7 +516,7 @@ async function handleEvolutionGo(
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
 
       const qrR = await evoFetch(baseUrl, instanceToken, "GET", "/instance/qr");
-      const qrCode = qrR.ok ? qrR.data?.data?.Qrcode || qrR.data?.qrcode || null : null;
+      const qrCode = qrR.ok ? qrR.data?.data?.Qrcode || qrR.data?.data?.QRCode || qrR.data?.qrCode || qrR.data?.qrcode || qrR.data?.base64 || null : null;
       const pairingCode = qrR.ok ? qrR.data?.data?.Code || qrR.data?.pairingCode || null : null;
       const connectRaw = r.data?.data || r.data?.instance || r.data;
       const connectState = mapEvolutionGoStatus({
@@ -522,15 +524,19 @@ async function handleEvolutionGo(
         status: remote?.status ?? connectRaw?.status,
         state: remote?.state ?? connectRaw?.state,
       });
-      const responseState = connectState === "close" ? "close" : qrCode ? "connecting" : connectState;
+      const responseState = qrCode ? "qrcode" : connectState;
 
       return {
         ok: true,
         status: 200,
         body: {
-          qrCode: responseState === "connecting" ? qrCode : null,
-          pairingCode: responseState === "connecting" ? pairingCode : null,
+          success: true,
+          qrCode: qrCode || null,
+          qrcode: qrCode || null,
+          base64: qrCode || null,
+          pairingCode: qrCode ? pairingCode : null,
           connected: responseState === "open",
+          status: responseState === "open" ? "online" : qrCode ? "pairing" : "offline",
           state: responseState,
           raw: { connect: r.data, qr: qrR.ok ? qrR.data : null },
         },
