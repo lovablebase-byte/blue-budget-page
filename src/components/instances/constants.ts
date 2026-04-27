@@ -44,7 +44,7 @@ export const TIMEZONES = [
  */
 export function getProviderEvents(provider: string): string[] {
   if (provider === 'wuzapi') {
-    return ['Message'];
+    return ['Message', 'Connected', 'Disconnected', 'LoggedOut', 'QRCode', 'ReadReceipt', 'ChatPresence'];
   }
   if (provider === 'evolution_go') {
     // Evolution Go (v2) uses UPPERCASE event names per the official docs

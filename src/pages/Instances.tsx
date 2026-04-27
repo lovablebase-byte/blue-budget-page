@@ -186,7 +186,7 @@ export default function Instances() {
     invalidateDashboards();
   };
 
-  const fetchInstances = async () => {
+  const fetchInstances = async (options?: { syncRemote?: boolean }) => {
     if (!company) return;
     if (fetchInFlightRef.current) return;
     fetchInFlightRef.current = true;
@@ -202,11 +202,15 @@ export default function Instances() {
       const dbInstances = (data as Instance[]) || [];
       setInstances(dbInstances);
 
-      const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
-      const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
-      if (changed) {
-        setInstances(synced);
-        invalidateDashboards();
+      // Sincronização remota só ocorre sob demanda (botão "Atualizar"
+      // ou após ações diretas que precisem reconciliar com o provider).
+      if (options?.syncRemote) {
+        const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
+        const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
+        if (changed) {
+          setInstances(synced);
+          invalidateDashboards();
+        }
       }
     } finally {
       setLoading(false);
@@ -218,12 +222,11 @@ export default function Instances() {
     const now = Date.now();
     if (now - lastRefreshAtRef.current < 2500) return;
     lastRefreshAtRef.current = now;
-    fetchInstances();
+    fetchInstances({ syncRemote: true });
   };
 
-  // Carrega ao montar e quando a empresa mudar.
-  // NÃO usar setInterval global: a tela só atualiza via botão "Atualizar",
-  // ao voltar para a tela ou após ações diretas (criar/excluir/parear/conectar).
+  // Carrega ao montar e quando a empresa mudar (apenas leitura do banco).
+  // Sincronização remota geral só acontece via botão "Atualizar".
   useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
 
   useEffect(() => {
@@ -240,23 +243,41 @@ export default function Instances() {
     const providerName = getProviderInstanceName(instanceToWatch);
     if (!providerName || !hasActiveProviderConfig(activeProviders, instanceToWatch.provider)) return;
 
+    // Normaliza retorno do proxy (cobre variações entre providers, especialmente WuzAPI).
+    const normalizeStatus = (res: any): { connected: boolean; offline: boolean; phone: string | null } => {
+      const topConnected = res?.connected === true || res?.status === 'online' || res?.state === 'open' || res?.state === 'connected';
+      const innerStateRaw = String(res?.instance?.state || '').toLowerCase();
+      const topStateRaw = String(res?.state || res?.status || '').toLowerCase();
+      const onlineWords = ['open', 'connected', 'online'];
+      const offlineWords = ['close', 'closed', 'disconnected', 'offline', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'];
+      const isConnected = topConnected || onlineWords.includes(innerStateRaw) || onlineWords.includes(topStateRaw);
+      const isOffline = !isConnected && (offlineWords.includes(innerStateRaw) || offlineWords.includes(topStateRaw));
+      const rawPhone = res?.instance?.phoneNumber || res?.phoneNumber || null;
+      const phone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : null;
+      return { connected: isConnected, offline: isOffline, phone };
+    };
+
     const pollInterval = setInterval(async () => {
       if (statusPollInFlightRef.current) return;
       statusPollInFlightRef.current = true;
       try {
         const res = await callProviderProxy('status', instanceToWatch.provider, providerName);
-        const state = res?.instance?.state || '';
-        const rawPhone = res?.instance?.phoneNumber;
-        const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
-        if (state === 'open' || state === 'connected') {
+        const norm = normalizeStatus(res);
+        if (norm.connected) {
           setConnectionSuccess(true);
           const updateData: Record<string, any> = {
             status: 'online',
             last_connected_at: new Date().toISOString(),
           };
-          if (cleanPhone) updateData.phone_number = cleanPhone;
+          if (norm.phone) updateData.phone_number = norm.phone;
           await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
-        } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(String(state).toLowerCase())) {
+          setInstances((current) => current.map((it) => (
+            it.id === instanceToWatch.id
+              ? { ...it, status: 'online', last_connected_at: updateData.last_connected_at, phone_number: norm.phone || it.phone_number }
+              : it
+          )));
+          invalidateDashboards();
+        } else if (norm.offline) {
           // Não declarar offline enquanto a tentativa automática de QR ainda está ativa
           // ou enquanto já temos um QR Code visível aguardando leitura.
           const autoRetryActive = qrAutoRetryRef.current && !qrAutoRetryRef.current.cancelled;
@@ -679,8 +700,10 @@ export default function Instances() {
       // Sem QR e sem confirmação: ler status real do provider
       try {
         const statusData = await callProviderProxy('status', instance.provider, providerName);
-        const state = String(statusData?.instance?.state || '').toLowerCase();
-        if (state === 'open' || state === 'connected') {
+        const innerState = String(statusData?.instance?.state || '').toLowerCase();
+        const topState = String(statusData?.state || statusData?.status || '').toLowerCase();
+        const isConn = statusData?.connected === true || ['open', 'connected', 'online'].includes(innerState) || ['open', 'connected', 'online'].includes(topState);
+        if (isConn) {
           setConnectionSuccess(true);
           return { qr: false, connected: true, offline: false };
         }
