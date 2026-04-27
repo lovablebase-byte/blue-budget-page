@@ -924,7 +924,7 @@ async function handleWuzapi(
         connectBody.Webhook = payload.webhook;
       }
       // Session endpoints use Token header
-      console.log(`[wuzapi:connect] Calling /session/connect for token=${instanceName?.slice(0,6)}...`);
+      console.log(`[wuzapi:connect] Calling /session/connect`);
       let cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
       // Fallback if Wuzapi rejects an event in Subscribe
       if (!cr.ok && isInvalidEventError(cr.data)) {
