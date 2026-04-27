@@ -205,12 +205,20 @@ export default function Instances() {
   const markInstanceAsConnectedLocally = (instanceId: string, phoneNumber?: string | null) => {
     connectedInstanceIdsRef.current.add(instanceId);
     const nowIso = new Date().toISOString();
-    applyInstanceStatusLocally(instanceId, {
-      status: 'online',
-      phone_number: phoneNumber || undefined,
-      last_connected_at: nowIso,
-      updated_at: nowIso,
-    });
+    setInstances((current) => current.map((instance) => (
+      instance.id === instanceId
+        ? {
+            ...instance,
+            status: 'online',
+            phone_number: phoneNumber || instance.phone_number,
+            last_connected_at: nowIso,
+            updated_at: nowIso,
+          }
+        : instance
+    )));
+    const patch = { status: 'online', phone_number: phoneNumber || null, last_connected_at: nowIso, updated_at: nowIso } as Partial<Instance>;
+    setSelectedInstance((current) => (current?.id === instanceId ? { ...current, ...patch, phone_number: phoneNumber || current.phone_number } : current));
+    setCreatedInstance((current) => (current?.id === instanceId ? { ...current, ...patch, phone_number: phoneNumber || current.phone_number } : current));
     invalidateDashboards();
   };
 
@@ -252,6 +260,7 @@ export default function Instances() {
     } catch {
       // Ignora erro de banco — UI local ainda deve refletir a conexão.
     }
+    await fetchInstances({ syncRemote: false });
     invalidateDashboards();
   };
 
