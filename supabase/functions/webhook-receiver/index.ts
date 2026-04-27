@@ -502,6 +502,21 @@ serve(async (req) => {
       console.log("[webhook-receiver] Skipping QR downgrade for online instance", instance.id);
     }
 
+    // WuzAPI specific: the "Connected" event fires when the websocket session
+    // opens — BEFORE actual WhatsApp pairing. Without a real JID/phone in the
+    // payload, this is NOT real online — treat as pairing.
+    if (
+      provider === "wuzapi" &&
+      newStatus === "online" &&
+      normalized.eventType === "connection.update"
+    ) {
+      const phoneCheck = extractPhoneFromPayload(body);
+      if (!phoneCheck) {
+        console.log("[webhook-receiver] WuzAPI Connected without JID — downgrading online -> pairing");
+        newStatus = instance.status === "online" ? null : "pairing";
+      }
+    }
+
     if (newStatus && newStatus !== instance.status) {
       const updateData: Record<string, any> = { status: newStatus, updated_at: new Date().toISOString() };
       if (newStatus === "online") {

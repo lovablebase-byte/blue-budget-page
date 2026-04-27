@@ -399,14 +399,18 @@ function normalizeWuzapiStatusResponse(raw: any): {
   const onlineWords = ["connected", "open", "online", "ready", "logged", "authenticated"];
   const pairingWords = ["qr", "qrcode", "scan", "pairing", "awaiting_qr"];
 
-  // PRIORITY 1: connected wins over QR. Any one of: connectedFlag, loggedFlag,
-  // online status string, or real JID => state "open".
+  // WuzAPI specific rule: `Connected: true` ALONE is NOT real WhatsApp pairing.
+  // It just means the wuzapi session/websocket is up. Real online requires
+  // strong auth signal (loggedFlag) OR an explicit "open"/"loggedin" status
+  // OR a real JID. Without those, treat as pairing/connecting.
+  const strongOnlineToken = rawStatus === "open" || rawStatus === "loggedin" || rawStatus === "logged_in" || rawStatus === "ready" || rawStatus === "authenticated";
   let state: "open" | "close" | "qrcode" | "connecting" = "close";
-  if (connectedFlag || loggedFlag || onlineWords.includes(rawStatus) || jid) {
+  if (loggedFlag || strongOnlineToken || jid) {
     state = "open";
   } else if (pairingWords.includes(rawStatus)) {
     state = "qrcode";
-  } else if (rawStatus === "connecting") {
+  } else if (connectedFlag || rawStatus === "connecting") {
+    // Connected websocket without login → still pairing/connecting, NEVER online
     state = "connecting";
   } else if (offlineWords.includes(rawStatus)) {
     state = "close";
@@ -883,7 +887,8 @@ async function handleWuzapi(
         Immediate: true,
       }).catch((e: any) => ({ ok: false, status: 0, data: { error: e.message } }));
 
-      // If already connected with JID, no QR needed
+      // If already connected with real JID (true WhatsApp pairing), no QR needed.
+      // Without JID, "connected" is just the wuzapi websocket — keep as pairing.
       if (cr.data?.data?.jid) {
         return {
           ok: true, status: 200,
@@ -905,7 +910,11 @@ async function handleWuzapi(
           instanceId: String(r.data?.data?.id || r.data?.id || ""),
           instanceName, instanceToken: userToken,
           qrCode: qrCode || null,
-          status: "created",
+          // QR present => pairing. NEVER online from a create/connect call without JID.
+          connected: false,
+          status: qrCode ? "pairing" : "created",
+          state: qrCode ? "qrcode" : "connecting",
+          instance: { state: qrCode ? "qrcode" : "connecting", instanceName },
           raw: { create: r.data, connect: cr.data },
         },
       };
@@ -966,10 +975,21 @@ async function handleWuzapi(
 
       if (qrCode) {
         console.log(`[wuzapi:connect] QR obtained successfully`);
-        return { ok: true, status: 200, body: { qrCode, raw: { connect: cr.data } } };
+        // QR present => pairing. NEVER online from connect action.
+        return {
+          ok: true, status: 200,
+          body: {
+            qrCode,
+            connected: false,
+            status: "pairing",
+            state: "qrcode",
+            instance: { state: "qrcode", instanceName },
+            raw: { connect: cr.data },
+          },
+        };
       }
 
-      // No QR returned - check status to see if already connected
+      // No QR returned - check status to see if already connected (real JID/login)
       console.log(`[wuzapi:connect] No QR, checking /session/status...`);
       const sr = await wuzFetchSession(baseUrl, instanceName, "GET", "/session/status");
       const norm = normalizeWuzapiStatusResponse(sr.data);

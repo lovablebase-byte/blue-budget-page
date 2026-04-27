@@ -216,10 +216,68 @@ function collectStatusTokens(obj: unknown): string[] {
  * Regra crítica: conectado SEMPRE vence QR Code. Se a Wuzapi devolver
  * `Connected: true` junto com `status: "qr"`, o resultado é ONLINE.
  */
-export function normalizeProviderStatus(payload: unknown): NormalizedProviderStatus {
+export function normalizeProviderStatus(
+  payload: unknown,
+  provider?: string,
+): NormalizedProviderStatus {
+  const isWuzapi = (provider || '').toLowerCase() === 'wuzapi';
+
+  // Strong-auth signals: only these (or a real JID) can mark WuzAPI as online.
+  const isStrongAuthFlag = (o: Record<string, any>) =>
+    isTrueFlag(o.LoggedIn) ||
+    isTrueFlag(o.loggedIn) ||
+    isTrueFlag(o.IsLogged) ||
+    isTrueFlag(o.isLogged) ||
+    isTrueFlag(o.logged) ||
+    isTrueFlag(o.authenticated) ||
+    isTrueFlag(o.ready) ||
+    isTrueFlag(o?.data?.LoggedIn) ||
+    isTrueFlag(o?.data?.loggedIn) ||
+    isTrueFlag(o?.data?.IsLogged) ||
+    isTrueFlag(o?.data?.authenticated) ||
+    isTrueFlag(o?.data?.ready);
+
+  const STRONG_ONLINE_TOKENS = new Set([
+    'open', 'loggedin', 'logged_in', 'ready', 'authenticated',
+  ]);
+
   // 1) Flags booleanas explícitas vencem qualquer string.
   if (payload && typeof payload === 'object') {
     const o = payload as Record<string, any>;
+
+    if (isWuzapi) {
+      // WuzAPI: Connected/connected ALONE is NOT real WhatsApp pairing.
+      // Require strong auth flag, strong-online status token, or a real JID/phone.
+      const tokens = collectStatusTokens(o);
+      const hasStrongToken = tokens.some((t) => STRONG_ONLINE_TOKENS.has(t));
+      const jidLike = extractWhatsappPhone(o);
+      if (isStrongAuthFlag(o) || hasStrongToken || jidLike) {
+        return { status: 'online', state: 'open', connected: true, raw: 'wuzapi:strong' };
+      }
+
+      const explicitDisconnect = tokens.some((t) => OFFLINE_TOKENS.has(t));
+      if (explicitDisconnect) {
+        return { status: 'offline', state: 'close', connected: false, raw: tokens.join('|') };
+      }
+
+      // Connected websocket without login OR explicit pairing token => pairing.
+      const connectedFlag =
+        isTrueFlag(o.connected) ||
+        isTrueFlag(o.isConnected) ||
+        isTrueFlag(o.Connected) ||
+        isTrueFlag(o?.instance?.connected) ||
+        isTrueFlag(o?.data?.connected) ||
+        isTrueFlag(o?.data?.Connected);
+      const hasPairingToken = tokens.some((t) => PAIRING_TOKENS.has(t));
+      const hasQr = !!(o.qrCode || o.qrcode || o.qr || o?.data?.QRCode || o?.data?.qrcode);
+      if (connectedFlag || hasPairingToken || hasQr) {
+        return { status: 'pairing', state: 'qrcode', connected: false, raw: 'wuzapi:pairing' };
+      }
+      return { status: 'offline', state: 'close', connected: false, raw: tokens.join('|') };
+    }
+
+    // Default (Evolution / Evolution Go / WPPConnect / QuePasa):
+    // booleanas explícitas vencem qualquer string.
     const connectedFlags = [
       o.connected,
       o.isConnected,
@@ -238,17 +296,6 @@ export function normalizeProviderStatus(payload: unknown): NormalizedProviderSta
     ];
     if (connectedFlags.some(isTrueFlag)) {
       return { status: 'online', state: 'open', connected: true, raw: 'flag:connected' };
-    }
-
-    // Presença de JID/owner real também é forte sinal de conectado.
-    const jidLike = extractWhatsappPhone(o);
-    const explicitDisconnect = collectStatusTokens(o).some((t) => OFFLINE_TOKENS.has(t));
-    if (jidLike && !explicitDisconnect) {
-      // Só promove a online quando NÃO houver token explícito de desconexão
-      // (evita marcar como online uma instância que tem owner registrado mas
-      // está com status "close").
-      // Mesmo assim, exigimos algum sinal positivo adicional ou ausência de
-      // sinal de pareamento — trata isso na coleta de tokens abaixo.
     }
   }
 

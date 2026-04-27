@@ -277,7 +277,7 @@ export default function Instances() {
 
     // Normalizador central: conectado SEMPRE vence QR Code.
     const evaluate = (res: any): { connected: boolean; offline: boolean; phone: string | null } => {
-      const norm = normalizeProviderStatus(res);
+      const norm = normalizeProviderStatus(res, instanceToWatch.provider);
       const phone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res) || null;
       return {
         connected: norm.connected,
@@ -723,7 +723,7 @@ export default function Instances() {
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
       // Regra crítica: conectado SEMPRE vence QR Code.
-      const norm = normalizeProviderStatus(data);
+      const norm = normalizeProviderStatus(data, instance.provider);
       if (norm.connected) {
         setConnectionSuccess(true);
         setQrError(null);
@@ -744,7 +744,7 @@ export default function Instances() {
       // Sem QR e sem confirmação: ler status real do provider
       try {
         const statusData = await callProviderProxy('status', instance.provider, providerName);
-        const statusNorm = normalizeProviderStatus(statusData);
+        const statusNorm = normalizeProviderStatus(statusData, instance.provider);
         if (statusNorm.connected) {
           setConnectionSuccess(true);
           return { qr: false, connected: true, offline: false };
