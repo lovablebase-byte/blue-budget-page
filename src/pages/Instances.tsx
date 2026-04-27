@@ -744,8 +744,10 @@ export default function Instances() {
       // Regra crítica: conectado SEMPRE vence QR Code.
       const norm = normalizeProviderStatus(data, instance.provider);
       if (norm.connected) {
+        cancelQrAutoRetry();
         setConnectionSuccess(true);
         setQrError(null);
+        await markInstanceConnected(instance, data);
         return { qr: false, connected: true, offline: false };
       }
       if (qr) {
