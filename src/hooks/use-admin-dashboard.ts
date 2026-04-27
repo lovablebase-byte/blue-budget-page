@@ -225,7 +225,9 @@ export function useAdminDashboard() {
 
       return result;
     },
-    refetchInterval: 60000,
+    refetchInterval: 120000,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   return { stats, recentCompanies, recentInstances, recentInvoices, alerts };
