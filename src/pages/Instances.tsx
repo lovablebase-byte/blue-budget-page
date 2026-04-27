@@ -336,27 +336,7 @@ export default function Instances() {
           cancelQrAutoRetry();
           setConnectionSuccess(true);
           setQrError(null);
-          const nowIso = new Date().toISOString();
-          const updateData: Record<string, any> = {
-            status: 'online',
-            last_connected_at: nowIso,
-          };
-          if (norm.phone) updateData.phone_number = norm.phone;
-          await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
-          // 2) Atualiza lista local pelo ID (não por posição) para refletir
-          // status, telefone e timestamps imediatamente.
-          setInstances((current) => current.map((it) => (
-            it.id === instanceToWatch.id
-              ? {
-                  ...it,
-                  status: 'online',
-                  last_connected_at: nowIso,
-                  phone_number: norm.phone || it.phone_number,
-                  updated_at: nowIso,
-                }
-              : it
-          )));
-          invalidateDashboards();
+          await markInstanceConnected(instanceToWatch, res);
         } else if (norm.offline) {
           // Não declarar offline enquanto a tentativa automática de QR ainda está ativa
           // ou enquanto já temos um QR Code visível aguardando leitura.
