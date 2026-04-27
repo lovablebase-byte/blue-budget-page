@@ -131,7 +131,9 @@ export function useAdminDashboard() {
         paidRevenueCents: paidRevenue,
       };
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const recentCompanies = useQuery({
