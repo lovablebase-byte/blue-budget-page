@@ -145,7 +145,7 @@ export async function syncSingleInstanceStatus<T extends SyncableInstance>(
     // Normalizador central: garante que conexão real (Connected/LoggedIn/jid)
     // vença qualquer sinal de QR/pareamento, e que o telefone seja extraído
     // corretamente independentemente do provider.
-    const norm = normalizeProviderStatus(res);
+    const norm = normalizeProviderStatus(res, instance.provider);
     const cleanPhone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res);
 
     // Sinal de "instância não existe mais no provider" continua sendo error.
