@@ -732,15 +732,30 @@ async function handleWuzapi(
     }
     case "create": {
       const userToken = payload?.token || crypto.randomUUID().replace(/-/g, "").slice(0, 20);
-      const eventList: string[] = Array.isArray(payload?.events) && payload.events.length
+      const requestedEvents: string[] = Array.isArray(payload?.events) && payload.events.length
         ? payload.events
-        : ["Message", "Connected", "Disconnected", "LoggedOut", "QRCode", "ReadReceipt", "ChatPresence"];
+        : ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"];
+      let eventList = sanitizeWuzapiEvents(requestedEvents);
       const b: any = { name: instanceName, token: userToken };
       if (payload?.webhook) {
         b.webhook = payload.webhook;
         b.events = eventList.join(",");
       }
-      const r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+      let r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+      // Fallback: if Wuzapi rejects an event, retry by removing the offending one, then minimal list
+      if (!r.ok && isInvalidEventError(r.data)) {
+        const bad = extractInvalidEvent(r.data);
+        eventList = bad ? eventList.filter((e) => e.toLowerCase() !== bad.toLowerCase()) : ["Message"];
+        if (b.events) b.events = eventList.join(",");
+        console.warn(`[wuzapi:create] invalid event '${bad}', retrying with`, eventList);
+        r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+        if (!r.ok && isInvalidEventError(r.data)) {
+          eventList = ["Message"];
+          if (b.events) b.events = "Message";
+          console.warn(`[wuzapi:create] retrying with minimal event list`);
+          r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+        }
+      }
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
 
       // Connect session to start QR generation (uses Token header)
