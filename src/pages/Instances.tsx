@@ -1128,12 +1128,12 @@ export default function Instances() {
                     )}
                   </div>
                   {!qrLoading && !autoQrRunning && !qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading || autoQrRunning}>
                       <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
                     </Button>
                   )}
                   {qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading || autoQrRunning}>
                       <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
                     </Button>
                   )}
@@ -1216,7 +1216,7 @@ export default function Instances() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => selectedInstance && startQrAutoRetry(selectedInstance)} disabled={qrLoading}>
+                <Button onClick={() => selectedInstance && startQrAutoRetry(selectedInstance)} disabled={qrLoading || autoQrRunning}>
                   {qrLoading || autoQrRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
                   {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
                 </Button>
