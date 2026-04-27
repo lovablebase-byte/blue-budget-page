@@ -700,8 +700,10 @@ export default function Instances() {
       // Sem QR e sem confirmação: ler status real do provider
       try {
         const statusData = await callProviderProxy('status', instance.provider, providerName);
-        const state = String(statusData?.instance?.state || '').toLowerCase();
-        if (state === 'open' || state === 'connected') {
+        const innerState = String(statusData?.instance?.state || '').toLowerCase();
+        const topState = String(statusData?.state || statusData?.status || '').toLowerCase();
+        const isConn = statusData?.connected === true || ['open', 'connected', 'online'].includes(innerState) || ['open', 'connected', 'online'].includes(topState);
+        if (isConn) {
           setConnectionSuccess(true);
           return { qr: false, connected: true, offline: false };
         }
