@@ -767,7 +767,9 @@ export default function Instances() {
         const statusData = await callProviderProxy('status', instance.provider, providerName);
         const statusNorm = normalizeProviderStatus(statusData, instance.provider);
         if (statusNorm.connected) {
+          cancelQrAutoRetry();
           setConnectionSuccess(true);
+          await markInstanceConnected(instance, statusData);
           return { qr: false, connected: true, offline: false };
         }
         if (!opts?.silent) {
