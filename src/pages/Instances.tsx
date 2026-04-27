@@ -1059,10 +1059,13 @@ export default function Instances() {
               <>
                 <div className="flex flex-col items-center gap-3 py-3">
                   <div className="w-52 h-52 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
-                    {qrLoading ? (
-                      <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-                    ) : qrCodeBase64 ? (
+                    {qrCodeBase64 ? (
                       <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+                    ) : qrLoading ? (
+                      <div className="text-center text-muted-foreground p-4">
+                        <Loader2 className="h-10 w-10 animate-spin mx-auto mb-2" />
+                        <p className="text-xs">Gerando QR Code, aguarde...</p>
+                      </div>
                     ) : (
                       <div className="text-center text-muted-foreground p-4">
                         <QrCode className="h-14 w-14 mx-auto mb-2" />
