@@ -778,8 +778,11 @@ async function handleWuzapi(
     }
     case "connect": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token da instância obrigatório" } };
+      const eventList: string[] = Array.isArray(payload?.events) && payload.events.length
+        ? payload.events
+        : ["Message", "Connected", "Disconnected", "LoggedOut", "QRCode", "ReadReceipt", "ChatPresence"];
       const connectBody: any = {
-        Subscribe: ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"],
+        Subscribe: eventList,
         Immediate: true,
       };
       if (payload?.webhook) {
@@ -821,9 +824,8 @@ async function handleWuzapi(
       // No QR returned - check status to see if already connected
       console.log(`[wuzapi:connect] No QR, checking /session/status...`);
       const sr = await wuzFetchSession(baseUrl, instanceName, "GET", "/session/status");
-      const connected = sr.data?.data?.Connected === true;
-      const loggedIn = sr.data?.data?.LoggedIn === true;
-      if (connected && loggedIn) {
+      const norm = normalizeWuzapiStatusResponse(sr.data);
+      if (norm.connected) {
         console.log(`[wuzapi:connect] Already connected & logged in`);
         return { ok: true, status: 200, body: { connected: true, raw: { connect: cr.data, status: sr.data } } };
       }
@@ -838,21 +840,29 @@ async function handleWuzapi(
         },
       };
     }
+    case "qrcode":
     case "status": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token obrigatório" } };
       const r = await wuzFetchSession(baseUrl, instanceName, "GET", "/session/status");
       if (!r.ok) {
         if (r.status === 404 || r.status === 401) {
-          return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName } } };
+          return { ok: true, status: 200, body: { instance: { state: "not_found", instanceName }, connected: false, status: "offline", state: "close" } };
         }
         return { ok: false, status: r.status, body: r.data };
       }
-      const connected = r.data?.data?.Connected === true;
-      const loggedIn = r.data?.data?.LoggedIn === true;
-      let state = "close";
-      if (connected && loggedIn) state = "open";
-      else if (connected) state = "connecting";
-      return { ok: true, status: 200, body: { instance: { state, instanceName }, raw: r.data } };
+      const norm = normalizeWuzapiStatusResponse(r.data);
+      const statusOut = norm.state === "open" ? "online" : norm.state === "qrcode" ? "pairing" : norm.state === "connecting" ? "connecting" : "offline";
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          connected: norm.connected,
+          status: statusOut,
+          state: norm.state,
+          instance: { state: norm.state, instanceName, phoneNumber: norm.phoneNumber },
+          raw: r.data,
+        },
+      };
     }
     case "delete": {
       const listR = await wuzFetchAdmin(baseUrl, apiKey, "GET", "/admin/users");
