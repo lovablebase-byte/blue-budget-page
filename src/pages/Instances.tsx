@@ -191,6 +191,45 @@ export default function Instances() {
     invalidateDashboards();
   };
 
+  // Aplica patch local em uma instância pelo id (sem tocar no banco).
+  const applyInstanceStatusLocally = (
+    instanceId: string,
+    patch: Partial<Instance>,
+  ) => {
+    setInstances((current) => current.map((item) => (
+      item.id === instanceId ? { ...item, ...patch } : item
+    )));
+  };
+
+  // Marca uma instância como conectada: atualiza banco + estado local
+  // imediatamente, sem depender de sync remoto nem de F5.
+  const markInstanceConnected = async (
+    instance: Instance,
+    payload?: any,
+  ) => {
+    const phone =
+      (payload && (extractWhatsappPhone(payload?.instance) || extractWhatsappPhone(payload))) ||
+      null;
+    const nowIso = new Date().toISOString();
+    const updateData: Record<string, any> = {
+      status: 'online',
+      last_connected_at: nowIso,
+    };
+    if (phone) updateData.phone_number = phone;
+    try {
+      await supabase.from('instances').update(updateData).eq('id', instance.id);
+    } catch {
+      // Ignora erro de banco — UI local ainda deve refletir a conexão.
+    }
+    applyInstanceStatusLocally(instance.id, {
+      status: 'online',
+      last_connected_at: nowIso,
+      phone_number: phone || instance.phone_number,
+      updated_at: nowIso,
+    } as Partial<Instance>);
+    invalidateDashboards();
+  };
+
   const fetchInstances = async (options?: { syncRemote?: boolean }) => {
     if (!company) return;
     if (fetchInFlightRef.current) return;
@@ -297,27 +336,7 @@ export default function Instances() {
           cancelQrAutoRetry();
           setConnectionSuccess(true);
           setQrError(null);
-          const nowIso = new Date().toISOString();
-          const updateData: Record<string, any> = {
-            status: 'online',
-            last_connected_at: nowIso,
-          };
-          if (norm.phone) updateData.phone_number = norm.phone;
-          await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
-          // 2) Atualiza lista local pelo ID (não por posição) para refletir
-          // status, telefone e timestamps imediatamente.
-          setInstances((current) => current.map((it) => (
-            it.id === instanceToWatch.id
-              ? {
-                  ...it,
-                  status: 'online',
-                  last_connected_at: nowIso,
-                  phone_number: norm.phone || it.phone_number,
-                  updated_at: nowIso,
-                }
-              : it
-          )));
-          invalidateDashboards();
+          await markInstanceConnected(instanceToWatch, res);
         } else if (norm.offline) {
           // Não declarar offline enquanto a tentativa automática de QR ainda está ativa
           // ou enquanto já temos um QR Code visível aguardando leitura.
@@ -725,8 +744,10 @@ export default function Instances() {
       // Regra crítica: conectado SEMPRE vence QR Code.
       const norm = normalizeProviderStatus(data, instance.provider);
       if (norm.connected) {
+        cancelQrAutoRetry();
         setConnectionSuccess(true);
         setQrError(null);
+        await markInstanceConnected(instance, data);
         return { qr: false, connected: true, offline: false };
       }
       if (qr) {
@@ -746,7 +767,9 @@ export default function Instances() {
         const statusData = await callProviderProxy('status', instance.provider, providerName);
         const statusNorm = normalizeProviderStatus(statusData, instance.provider);
         if (statusNorm.connected) {
+          cancelQrAutoRetry();
           setConnectionSuccess(true);
+          await markInstanceConnected(instance, statusData);
           return { qr: false, connected: true, offline: false };
         }
         if (!opts?.silent) {
