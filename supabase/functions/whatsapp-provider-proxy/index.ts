@@ -887,7 +887,8 @@ async function handleWuzapi(
         Immediate: true,
       }).catch((e: any) => ({ ok: false, status: 0, data: { error: e.message } }));
 
-      // If already connected with JID, no QR needed
+      // If already connected with real JID (true WhatsApp pairing), no QR needed.
+      // Without JID, "connected" is just the wuzapi websocket — keep as pairing.
       if (cr.data?.data?.jid) {
         return {
           ok: true, status: 200,
@@ -909,7 +910,11 @@ async function handleWuzapi(
           instanceId: String(r.data?.data?.id || r.data?.id || ""),
           instanceName, instanceToken: userToken,
           qrCode: qrCode || null,
-          status: "created",
+          // QR present => pairing. NEVER online from a create/connect call without JID.
+          connected: false,
+          status: qrCode ? "pairing" : "created",
+          state: qrCode ? "qrcode" : "connecting",
+          instance: { state: qrCode ? "qrcode" : "connecting", instanceName },
           raw: { create: r.data, connect: cr.data },
         },
       };
