@@ -9,6 +9,42 @@ const corsHeaders = {
 
 const PROVIDER_TIMEOUT_MS = 9000;
 
+// ---------- Phone normalizer (mirror of src/lib/whatsapp-normalizers.ts) ----------
+// Remove tudo após `:` ANTES de filtrar não numéricos para evitar concatenar
+// o device id (ex.: "558796810157:50@s.whatsapp.net" -> "558796810157").
+function normalizeWhatsappPhone(input: unknown): string {
+  if (input === null || input === undefined) return "";
+  let raw = String(input).trim();
+  if (!raw) return "";
+  const at = raw.indexOf("@");
+  if (at >= 0) raw = raw.slice(0, at);
+  const colon = raw.indexOf(":");
+  if (colon >= 0) raw = raw.slice(0, colon);
+  return raw.replace(/\D+/g, "");
+}
+
+function extractPhoneFromObject(obj: any): string {
+  if (!obj || typeof obj !== "object") return "";
+  const candidates: unknown[] = [
+    obj.phoneNumber, obj.phone_number, obj.phone, obj.Phone,
+    obj.number, obj.Number, obj.msisdn, obj.wid,
+    obj.jid, obj.JID, obj.Jid,
+    obj.ownerJid, obj.OwnerJid, obj.owner, obj.Owner,
+    obj.remoteJid,
+    obj.user, obj.User,
+    obj?.profile?.phoneNumber, obj?.profile?.phone, obj?.profile?.jid,
+    obj?.instance?.owner, obj?.instance?.ownerJid, obj?.instance?.phoneNumber,
+    obj?.instance?.user?.id,
+    obj?.me?.id, obj?.user?.id,
+  ];
+  for (const c of candidates) {
+    const n = normalizeWhatsappPhone(c);
+    if (n) return n;
+  }
+  return "";
+}
+
+
 async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs = PROVIDER_TIMEOUT_MS) {
   const controller = new AbortController();
   const startedAt = Date.now();
@@ -351,7 +387,12 @@ function normalizeWuzapiStatusResponse(raw: any): {
     truthy(data?.authenticated) || truthy(data?.ready);
 
   const jid = data?.Jid || data?.jid || data?.JID || data?.phone || data?.Phone || null;
-  const phoneNumber = jid ? String(jid).split("@")[0].replace(/\D/g, "") || null : null;
+  // Telefone normalizado por helper central (remove `:device` antes de filtrar não numéricos).
+  const phoneNumber =
+    normalizeWhatsappPhone(jid) ||
+    extractPhoneFromObject(data) ||
+    extractPhoneFromObject(root) ||
+    null;
 
   const rawStatus = String(data?.status || data?.state || root?.status || root?.state || "").toLowerCase();
   const offlineWords = ["close", "closed", "disconnected", "offline", "logout", "logged_out", "not_logged", "not_connected"];
@@ -467,10 +508,47 @@ async function handleEvolution(
       const s = (raw?.state || raw?.status || "").toLowerCase();
       if (s === "open" || s === "connected") state = "open";
       else if (s === "connecting") state = "connecting";
+
+      // Quando conectado, garantir telefone normalizado.
+      // O endpoint connectionState normalmente NÃO retorna phoneNumber/ownerJid;
+      // por isso, fallback para fetchInstances e localizar a instância pelo nome.
+      let phoneNumber = normalizeWhatsappPhone(raw?.phoneNumber);
+      if (state === "open" && !phoneNumber) {
+        try {
+          const list = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
+          const items: any[] = Array.isArray(list.data)
+            ? list.data
+            : Array.isArray(list.data?.data)
+              ? list.data.data
+              : Array.isArray(list.data?.instances)
+                ? list.data.instances
+                : [];
+          const found = items.find((it: any) => {
+            const n = it?.instance?.instanceName || it?.name || it?.instanceName;
+            return n && String(n) === String(instanceName);
+          });
+          if (found) {
+            phoneNumber =
+              extractPhoneFromObject(found?.instance) ||
+              extractPhoneFromObject(found) ||
+              "";
+          }
+        } catch (_) { /* fallback silencioso */ }
+      }
+
+      const connected = state === "open";
+      const statusOut = connected ? "online" : state === "connecting" ? "connecting" : "offline";
       return {
         ok: true,
         status: 200,
-        body: { instance: { state, instanceName, phoneNumber: raw?.phoneNumber }, raw: r.data },
+        body: {
+          success: true,
+          connected,
+          status: statusOut,
+          state,
+          instance: { state, instanceName, phoneNumber: phoneNumber || null },
+          raw: r.data,
+        },
       };
     }
     case "delete": {
@@ -643,14 +721,25 @@ async function handleEvolutionGo(
 
       const raw = r.data?.data || r.data?.instance || r.data;
       const state = mapEvolutionGoStatus({ ...raw, remoteStatus: remote?.status, status: remote?.status ?? raw?.status, state: remote?.state ?? raw?.state });
+      const connected = state === "open";
+      // Telefone normalizado (remove `:device` antes de filtrar não numéricos).
+      const phoneNumber = connected
+        ? (extractPhoneFromObject(raw) || extractPhoneFromObject(remote) || null)
+        : null;
+      const statusOut = connected ? "online" : state === "connecting" ? "connecting" : state === "qrcode" ? "pairing" : "offline";
+      const stateOut = connected ? "open" : state === "connecting" ? "connecting" : state === "qrcode" ? "qrcode" : "close";
       return {
         ok: true, status: 200,
         body: {
+          success: true,
+          connected,
+          status: statusOut,
+          state: stateOut,
           instance: {
-            state,
+            state: stateOut,
             instanceName,
-            connected: state === "open",
-            phoneNumber: state === "open" ? (raw?.jid || raw?.phoneNumber || null) : null,
+            connected,
+            phoneNumber,
           },
           raw: r.data,
         },
@@ -705,6 +794,7 @@ async function handleEvolutionGo(
         instanceId: item?.id || null,
         status: mapEvolutionGoStatus(item),
         token: item?.token || null,
+        phoneNumber: extractPhoneFromObject(item) || null,
         raw: item,
       }));
       return { ok: true, status: 200, body: { data: items } };
@@ -950,6 +1040,7 @@ async function handleWuzapi(
         instanceId: String(u.id || ""),
         status: u.connected ? "open" : "close",
         token: u.token,
+        phoneNumber: extractPhoneFromObject(u) || null,
         raw: u,
       }));
       return { ok: true, status: 200, body: { data: items } };
