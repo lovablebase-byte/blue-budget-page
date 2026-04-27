@@ -69,6 +69,7 @@ interface Instance {
   reconnect_policy: string;
   last_connected_at: string | null;
   created_at: string;
+  updated_at?: string;
   evolution_instance_id: string | null;
   access_token: string;
   provider: string;
@@ -146,6 +147,7 @@ export default function Instances() {
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
   const qrFetchInFlightRef = useRef(false);
   const qrAutoRetryRef = useRef<{ timer: any; attempts: number; cancelled: boolean } | null>(null);
+  const connectedInstanceIdsRef = useRef(new Set<string>());
 
   // Form states
   const [newName, setNewName] = useState('');
@@ -184,6 +186,7 @@ export default function Instances() {
   };
 
   const markInstanceOffline = async (instanceId: string) => {
+    connectedInstanceIdsRef.current.delete(instanceId);
     await supabase.from('instances').update({ status: 'offline' }).eq('id', instanceId);
     setInstances((current) => current.map((item) => (
       item.id === instanceId ? { ...item, status: 'offline' } : item
@@ -191,14 +194,45 @@ export default function Instances() {
     invalidateDashboards();
   };
 
-  // Aplica patch local em uma instância pelo id (sem tocar no banco).
-  const applyInstanceStatusLocally = (
-    instanceId: string,
-    patch: Partial<Instance>,
-  ) => {
-    setInstances((current) => current.map((item) => (
-      item.id === instanceId ? { ...item, ...patch } : item
+  const markInstanceAsConnectedLocally = (instanceId: string, phoneNumber?: string | null) => {
+    connectedInstanceIdsRef.current.add(instanceId);
+    const nowIso = new Date().toISOString();
+    setInstances((current) => current.map((instance) => (
+      instance.id === instanceId
+        ? {
+            ...instance,
+            status: 'online',
+            phone_number: phoneNumber || instance.phone_number,
+            last_connected_at: nowIso,
+            updated_at: nowIso,
+          }
+        : instance
     )));
+    const patch = { status: 'online', phone_number: phoneNumber || null, last_connected_at: nowIso, updated_at: nowIso } as Partial<Instance>;
+    setSelectedInstance((current) => (current?.id === instanceId ? { ...current, ...patch, phone_number: phoneNumber || current.phone_number } : current));
+    setCreatedInstance((current) => (current?.id === instanceId ? { ...current, ...patch, phone_number: phoneNumber || current.phone_number } : current));
+    invalidateDashboards();
+  };
+
+  const mergeFetchedInstances = (dbInstances: Instance[]) => {
+    setInstances((current) => {
+      const currentById = new Map(current.map((item) => [item.id, item]));
+      return dbInstances.map((row) => {
+        if (!connectedInstanceIdsRef.current.has(row.id)) return row;
+        if (!isConnectingStatus(row.status)) {
+          if (!isOnlineStatus(row.status)) connectedInstanceIdsRef.current.delete(row.id);
+          return row;
+        }
+        const currentRow = currentById.get(row.id);
+        return {
+          ...row,
+          status: 'online',
+          phone_number: currentRow?.phone_number || row.phone_number,
+          last_connected_at: currentRow?.last_connected_at || row.last_connected_at,
+          updated_at: currentRow?.updated_at || row.updated_at,
+        };
+      });
+    });
   };
 
   // Marca uma instância como conectada: atualiza banco + estado local
@@ -211,6 +245,7 @@ export default function Instances() {
       (payload && (extractWhatsappPhone(payload?.instance) || extractWhatsappPhone(payload))) ||
       null;
     const nowIso = new Date().toISOString();
+    markInstanceAsConnectedLocally(instance.id, phone || instance.phone_number);
     const updateData: Record<string, any> = {
       status: 'online',
       last_connected_at: nowIso,
@@ -221,12 +256,7 @@ export default function Instances() {
     } catch {
       // Ignora erro de banco — UI local ainda deve refletir a conexão.
     }
-    applyInstanceStatusLocally(instance.id, {
-      status: 'online',
-      last_connected_at: nowIso,
-      phone_number: phone || instance.phone_number,
-      updated_at: nowIso,
-    } as Partial<Instance>);
+    await fetchInstances({ syncRemote: false });
     invalidateDashboards();
   };
 
@@ -244,7 +274,7 @@ export default function Instances() {
       if (error) { toast.error(error.message); return; }
 
       const dbInstances = (data as Instance[]) || [];
-      setInstances(dbInstances);
+      mergeFetchedInstances(dbInstances);
 
       // Sincronização remota só ocorre sob demanda (botão "Atualizar"
       // ou após ações diretas que precisem reconciliar com o provider).
@@ -252,7 +282,7 @@ export default function Instances() {
         const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
         const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
         if (changed) {
-          setInstances(synced);
+          mergeFetchedInstances(synced);
           invalidateDashboards();
         }
       }
@@ -288,7 +318,13 @@ export default function Instances() {
             setInstances((curr) => (curr.some(i => i.id === row.id) ? curr : [row, ...curr]));
           } else if (payload.eventType === 'UPDATE') {
             const row = payload.new as Instance;
-            setInstances((curr) => curr.map(i => (i.id === row.id ? { ...i, ...row } : i)));
+            setInstances((curr) => curr.map(i => {
+              if (i.id !== row.id) return i;
+              if (connectedInstanceIdsRef.current.has(row.id) && isConnectingStatus(row.status)) {
+                return { ...i, ...row, status: 'online', phone_number: i.phone_number || row.phone_number, last_connected_at: i.last_connected_at || row.last_connected_at };
+              }
+              return { ...i, ...row };
+            }));
             invalidateDashboards();
           } else if (payload.eventType === 'DELETE') {
             const oldId = (payload.old as { id?: string })?.id;
@@ -334,9 +370,9 @@ export default function Instances() {
         if (norm.connected) {
           // 1) Para imediatamente o auto-retry de QR — conexão confirmada vence QR.
           cancelQrAutoRetry();
-          setConnectionSuccess(true);
           setQrError(null);
           await markInstanceConnected(instanceToWatch, res);
+          setConnectionSuccess(true);
         } else if (norm.offline) {
           // Não declarar offline enquanto a tentativa automática de QR ainda está ativa
           // ou enquanto já temos um QR Code visível aguardando leitura.
@@ -745,9 +781,12 @@ export default function Instances() {
       const norm = normalizeProviderStatus(data, instance.provider);
       if (norm.connected) {
         cancelQrAutoRetry();
-        setConnectionSuccess(true);
         setQrError(null);
         await markInstanceConnected(instance, data);
+        setConnectionSuccess(true);
+        return { qr: false, connected: true, offline: false };
+      }
+      if (connectedInstanceIdsRef.current.has(instance.id)) {
         return { qr: false, connected: true, offline: false };
       }
       if (qr) {
@@ -768,8 +807,11 @@ export default function Instances() {
         const statusNorm = normalizeProviderStatus(statusData, instance.provider);
         if (statusNorm.connected) {
           cancelQrAutoRetry();
-          setConnectionSuccess(true);
           await markInstanceConnected(instance, statusData);
+          setConnectionSuccess(true);
+          return { qr: false, connected: true, offline: false };
+        }
+        if (connectedInstanceIdsRef.current.has(instance.id)) {
           return { qr: false, connected: true, offline: false };
         }
         if (!opts?.silent) {
