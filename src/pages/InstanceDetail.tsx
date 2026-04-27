@@ -38,6 +38,10 @@ import { syncSingleInstanceStatus } from '@/services/instances-sync';
 import { getProviderEvents } from '@/components/instances/constants';
 import { InstanceActivityLog } from '@/components/instances/InstanceActivityLog';
 import { InstanceIntegrations } from '@/components/instances/InstanceIntegrations';
+import {
+  normalizeProviderStatus,
+  extractWhatsappPhone,
+} from '@/lib/whatsapp-normalizers';
 
 interface InstanceDetail {
   id: string;
