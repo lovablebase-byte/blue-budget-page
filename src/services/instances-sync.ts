@@ -17,6 +17,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import { callProviderProxy } from '@/components/instances/useProviderProxy';
 import { hasActiveProviderConfig, type ActiveProvider } from '@/lib/whatsapp-provider-config';
+import {
+  normalizeProviderStatus,
+  extractWhatsappPhone,
+} from '@/lib/whatsapp-normalizers';
 
 export type CanonicalInstanceStatus =
   | 'online'
@@ -55,38 +59,47 @@ const DISCONNECTED_STATUSES = new Set([
 const ONLINE_STATUSES = new Set(['online', 'connected', 'open']);
 const CONNECTING_STATUSES = new Set(['connecting', 'pairing', 'opening', 'qr', 'scan']);
 
+
 /**
  * Converte qualquer status remoto/legado para o vocabulário canônico do banco.
+ * Reutiliza `normalizeProviderStatus` para garantir prioridade conectado > QR.
  * Em fluxo de exclusão, o caller deve tratar `error` como sinal para remover.
  */
 export function normalizeRemoteState(remoteState: string | null | undefined): CanonicalInstanceStatus | null {
   if (!remoteState) return null;
   const s = String(remoteState).toLowerCase().trim();
-
-  if (ONLINE_STATUSES.has(s)) return 'online';
-  if (s === 'pairing') return 'pairing';
-  if (CONNECTING_STATUSES.has(s)) return 'connecting';
-  if (DISCONNECTED_STATUSES.has(s)) {
-    if (s === 'not_found' || s === 'deleted' || s === 'error' || s === 'failed') return 'error';
-    return 'offline';
-  }
+  if (s === 'not_found' || s === 'deleted' || s === 'error' || s === 'failed' || s === 'missing') return 'error';
+  const norm = normalizeProviderStatus(s);
+  if (norm.connected) return 'online';
+  if (norm.status === 'pairing') return 'pairing';
+  if (norm.status === 'offline') return 'offline';
   return null;
 }
 
 export function isOnlineStatus(status: string | null | undefined) {
-  return !!status && ONLINE_STATUSES.has(String(status).toLowerCase());
+  if (!status) return false;
+  const s = String(status).toLowerCase();
+  return s === 'online' || s === 'connected' || s === 'open';
 }
 
 export function isConnectingStatus(status: string | null | undefined) {
-  return !!status && (CONNECTING_STATUSES.has(String(status).toLowerCase()) || String(status).toLowerCase() === 'pairing');
+  if (!status) return false;
+  const s = String(status).toLowerCase();
+  return (
+    s === 'connecting' ||
+    s === 'pairing' ||
+    s === 'qrcode' ||
+    s === 'qr' ||
+    s === 'scan' ||
+    s === 'opening'
+  );
 }
 
 /** Conta como "desconectado" qualquer status que não seja online/conectando/pairing. */
 export function isDisconnectedStatus(status: string | null | undefined) {
   if (!status) return true;
-  const s = String(status).toLowerCase();
-  if (ONLINE_STATUSES.has(s)) return false;
-  if (CONNECTING_STATUSES.has(s) || s === 'pairing') return false;
+  if (isOnlineStatus(status)) return false;
+  if (isConnectingStatus(status)) return false;
   return true;
 }
 
@@ -128,11 +141,26 @@ export async function syncSingleInstanceStatus<T extends SyncableInstance>(
 
   try {
     const res = await callProviderProxy('status', instance.provider, providerName);
-    const remoteState = res?.instance?.state || '';
-    const rawPhone = res?.instance?.phoneNumber;
-    const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
 
-    const normalized = normalizeRemoteState(remoteState);
+    // Normalizador central: garante que conexão real (Connected/LoggedIn/jid)
+    // vença qualquer sinal de QR/pareamento, e que o telefone seja extraído
+    // corretamente independentemente do provider.
+    const norm = normalizeProviderStatus(res);
+    const cleanPhone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res);
+
+    // Sinal de "instância não existe mais no provider" continua sendo error.
+    const rawTokens = String(
+      res?.instance?.state ?? res?.state ?? res?.status ?? '',
+    ).toLowerCase();
+    const isMissing = ['not_found', 'deleted', 'missing'].includes(rawTokens);
+
+    let normalized: CanonicalInstanceStatus | null;
+    if (isMissing) normalized = 'error';
+    else if (norm.connected) normalized = 'online';
+    else if (norm.status === 'pairing') normalized = 'pairing';
+    else if (norm.status === 'offline') normalized = 'offline';
+    else normalized = null;
+
     if (!normalized) return instance;
 
     const phoneChanged = !!cleanPhone && cleanPhone !== (instance.phone_number || '').replace(/\D/g, '');
@@ -147,7 +175,6 @@ export async function syncSingleInstanceStatus<T extends SyncableInstance>(
 
     const { error } = await supabase.from('instances').update(updateData).eq('id', instance.id);
     if (error) {
-      // Se a constraint rejeitar, NÃO retorna o status novo no objeto local
       console.warn('[instances-sync] update failed', error.message);
       return instance;
     }

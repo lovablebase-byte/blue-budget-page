@@ -11,6 +11,11 @@ import {
   isConnectingStatus,
   isDisconnectedStatus,
 } from '@/services/instances-sync';
+import {
+  normalizeProviderStatus,
+  extractWhatsappPhone,
+  normalizeWhatsappPhone,
+} from '@/lib/whatsapp-normalizers';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { GuardedButton } from '@/components/PlanEnforcementGuard';
 import { PlanStatusBanner } from '@/components/PlanStatusBanner';
@@ -270,18 +275,15 @@ export default function Instances() {
     const providerName = getProviderInstanceName(instanceToWatch);
     if (!providerName || !hasActiveProviderConfig(activeProviders, instanceToWatch.provider)) return;
 
-    // Normaliza retorno do proxy (cobre variações entre providers, especialmente WuzAPI).
-    const normalizeStatus = (res: any): { connected: boolean; offline: boolean; phone: string | null } => {
-      const topConnected = res?.connected === true || res?.status === 'online' || res?.state === 'open' || res?.state === 'connected';
-      const innerStateRaw = String(res?.instance?.state || '').toLowerCase();
-      const topStateRaw = String(res?.state || res?.status || '').toLowerCase();
-      const onlineWords = ['open', 'connected', 'online'];
-      const offlineWords = ['close', 'closed', 'disconnected', 'offline', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'];
-      const isConnected = topConnected || onlineWords.includes(innerStateRaw) || onlineWords.includes(topStateRaw);
-      const isOffline = !isConnected && (offlineWords.includes(innerStateRaw) || offlineWords.includes(topStateRaw));
-      const rawPhone = res?.instance?.phoneNumber || res?.phoneNumber || null;
-      const phone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : null;
-      return { connected: isConnected, offline: isOffline, phone };
+    // Normalizador central: conectado SEMPRE vence QR Code.
+    const evaluate = (res: any): { connected: boolean; offline: boolean; phone: string | null } => {
+      const norm = normalizeProviderStatus(res);
+      const phone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res) || null;
+      return {
+        connected: norm.connected,
+        offline: !norm.connected && norm.status === 'offline',
+        phone: phone || null,
+      };
     };
 
     const pollInterval = setInterval(async () => {
@@ -289,18 +291,30 @@ export default function Instances() {
       statusPollInFlightRef.current = true;
       try {
         const res = await callProviderProxy('status', instanceToWatch.provider, providerName);
-        const norm = normalizeStatus(res);
+        const norm = evaluate(res);
         if (norm.connected) {
+          // 1) Para imediatamente o auto-retry de QR — conexão confirmada vence QR.
+          cancelQrAutoRetry();
           setConnectionSuccess(true);
+          setQrError(null);
+          const nowIso = new Date().toISOString();
           const updateData: Record<string, any> = {
             status: 'online',
-            last_connected_at: new Date().toISOString(),
+            last_connected_at: nowIso,
           };
           if (norm.phone) updateData.phone_number = norm.phone;
           await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
+          // 2) Atualiza lista local pelo ID (não por posição) para refletir
+          // status, telefone e timestamps imediatamente.
           setInstances((current) => current.map((it) => (
             it.id === instanceToWatch.id
-              ? { ...it, status: 'online', last_connected_at: updateData.last_connected_at, phone_number: norm.phone || it.phone_number }
+              ? {
+                  ...it,
+                  status: 'online',
+                  last_connected_at: nowIso,
+                  phone_number: norm.phone || it.phone_number,
+                  updated_at: nowIso,
+                }
               : it
           )));
           invalidateDashboards();
@@ -708,14 +722,17 @@ export default function Instances() {
       const qr = data?.qrCode || data?.qrcode || data?.base64 || data?.qr?.data?.Qrcode || data?.qr?.data?.QRCode;
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
+      // Regra crítica: conectado SEMPRE vence QR Code.
+      const norm = normalizeProviderStatus(data);
+      if (norm.connected) {
+        setConnectionSuccess(true);
+        setQrError(null);
+        return { qr: false, connected: true, offline: false };
+      }
       if (qr) {
         setQrCodeBase64(normalizeQrBase64(qr));
         setQrError(null);
         return { qr: true, connected: false, offline: false };
-      }
-      if (data?.connected === true || remoteState === 'open' || remoteState === 'connected') {
-        setConnectionSuccess(true);
-        return { qr: false, connected: true, offline: false };
       }
       if (remoteOffline) {
         // No QR yet and remote reports closed: keep silent during auto-retry
@@ -727,10 +744,8 @@ export default function Instances() {
       // Sem QR e sem confirmação: ler status real do provider
       try {
         const statusData = await callProviderProxy('status', instance.provider, providerName);
-        const innerState = String(statusData?.instance?.state || '').toLowerCase();
-        const topState = String(statusData?.state || statusData?.status || '').toLowerCase();
-        const isConn = statusData?.connected === true || ['open', 'connected', 'online'].includes(innerState) || ['open', 'connected', 'online'].includes(topState);
-        if (isConn) {
+        const statusNorm = normalizeProviderStatus(statusData);
+        if (statusNorm.connected) {
           setConnectionSuccess(true);
           return { qr: false, connected: true, offline: false };
         }
@@ -800,9 +815,9 @@ export default function Instances() {
     let result = instances.filter(inst => {
       if (filterProvider !== 'all' && inst.provider !== filterProvider) return false;
       if (filterStatus !== 'all') {
-        if (filterStatus === 'online' && inst.status !== 'online' && inst.status !== 'connected') return false;
-        if (filterStatus === 'offline' && inst.status !== 'offline') return false;
-        if (filterStatus === 'connecting' && inst.status !== 'connecting' && inst.status !== 'pairing') return false;
+        if (filterStatus === 'online' && !isOnlineStatus(inst.status)) return false;
+        if (filterStatus === 'offline' && !isDisconnectedStatus(inst.status)) return false;
+        if (filterStatus === 'connecting' && !isConnectingStatus(inst.status)) return false;
         if (filterStatus === 'error' && inst.status !== 'error') return false;
       }
       if (searchText) {

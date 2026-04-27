@@ -9,9 +9,20 @@ export interface StatusConfig {
 export const statusConfig: Record<string, StatusConfig> = {
   online: { label: 'Conectado', variant: 'success', icon: Wifi },
   connected: { label: 'Conectado', variant: 'success', icon: Wifi },
+  open: { label: 'Conectado', variant: 'success', icon: Wifi },
   offline: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
+  disconnected: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
+  close: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
+  closed: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
+  logout: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
+  logged_out: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
+  not_logged: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
+  not_found: { label: 'Desconectado', variant: 'destructive', icon: WifiOff },
   connecting: { label: 'Conectando', variant: 'warning', icon: RefreshCw },
   pairing: { label: 'Aguardando QR', variant: 'warning', icon: QrCode },
+  qrcode: { label: 'Aguardando QR', variant: 'warning', icon: QrCode },
+  qr: { label: 'Aguardando QR', variant: 'warning', icon: QrCode },
+  scan: { label: 'Aguardando QR', variant: 'warning', icon: QrCode },
   error: { label: 'Erro', variant: 'destructive', icon: AlertCircle },
 };
 
@@ -63,5 +74,7 @@ export function getProviderEvents(provider: string): string[] {
 }
 
 export function getStatusConfig(status: string): StatusConfig {
-  return statusConfig[status] || statusConfig.offline;
+  if (!status) return statusConfig.offline;
+  const key = String(status).toLowerCase().trim();
+  return statusConfig[key] || statusConfig.offline;
 }

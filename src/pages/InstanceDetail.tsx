@@ -38,6 +38,10 @@ import { syncSingleInstanceStatus } from '@/services/instances-sync';
 import { getProviderEvents } from '@/components/instances/constants';
 import { InstanceActivityLog } from '@/components/instances/InstanceActivityLog';
 import { InstanceIntegrations } from '@/components/instances/InstanceIntegrations';
+import {
+  normalizeProviderStatus,
+  extractWhatsappPhone,
+} from '@/lib/whatsapp-normalizers';
 
 interface InstanceDetail {
   id: string;
@@ -171,11 +175,23 @@ export default function InstanceDetailPage() {
     const poll = setInterval(async () => {
       try {
         const res = await callProviderProxy('status', instance.provider, providerName);
-        const state = res?.instance?.state || '';
-        if (state === 'open' || state === 'connected') {
+        const norm = normalizeProviderStatus(res);
+        if (norm.connected) {
           setConnectionSuccess(true);
-          await supabase.from('instances').update({ status: 'online', last_connected_at: new Date().toISOString() }).eq('id', instance.id);
-          setInstance(prev => prev ? { ...prev, status: 'online', last_connected_at: new Date().toISOString() } : prev);
+          const phone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res);
+          const nowIso = new Date().toISOString();
+          const updateData: Record<string, any> = {
+            status: 'online',
+            last_connected_at: nowIso,
+          };
+          if (phone) updateData.phone_number = phone;
+          await supabase.from('instances').update(updateData).eq('id', instance.id);
+          setInstance(prev => prev ? {
+            ...prev,
+            status: 'online',
+            last_connected_at: nowIso,
+            phone_number: phone || prev.phone_number,
+          } : prev);
         }
       } catch {}
     }, 5000);
@@ -393,8 +409,9 @@ export default function InstanceDetailPage() {
     );
   }
 
-  const isOnline = instance.status === 'online' || instance.status === 'connected';
-  const isOffline = instance.status === 'offline';
+  const statusKey = String(instance.status || '').toLowerCase();
+  const isOnline = statusKey === 'online' || statusKey === 'connected' || statusKey === 'open';
+  const isOffline = !isOnline && (statusKey === 'offline' || statusKey === 'close' || statusKey === 'closed' || statusKey === 'disconnected');
   const canEdit = hasPermission('instances', 'edit') && !isReadOnly;
 
   const eventColumns: Column<WebhookEvent>[] = [
