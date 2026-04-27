@@ -221,11 +221,10 @@ export default function Instances() {
     fetchInstances();
   };
 
+  // Carrega ao montar e quando a empresa mudar.
+  // NÃO usar setInterval global: a tela só atualiza via botão "Atualizar",
+  // ao voltar para a tela ou após ações diretas (criar/excluir/parear/conectar).
   useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
-  useEffect(() => {
-    const interval = setInterval(fetchInstances, 30000);
-    return () => clearInterval(interval);
-  }, [company]);
 
   useEffect(() => {
     if (!showPostCreate || !createdInstance || autoStartQrInstanceId !== createdInstance.id) return;
