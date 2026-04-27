@@ -66,22 +66,24 @@ function normalizeWuzapiEvent(body: any): {
   connectionState: string | null;
   qrCode: string | null;
 } {
-  // Wuzapi sends events with different structure
-  const eventType = body?.type || body?.event || body?.Event || "unknown";
+  // Wuzapi sends events with different structure / casing
+  const rawEventType = body?.type || body?.event || body?.Event || "unknown";
+  const eventType = String(rawEventType);
+  const lowered = eventType.toLowerCase();
 
-  // Map wuzapi event types
-  const eventMap: Record<string, string> = {
-    Message: "message.received",
-    ReadReceipt: "delivery.status",
-    HistorySync: "history.sync",
-    ChatPresence: "presence.update",
-    Connected: "connection.update",
-    Disconnected: "connection.update",
-    LoggedOut: "connection.update",
-    QRCode: "qr.updated",
-  };
-
-  const normalizedType = eventMap[eventType] || eventType;
+  // Map wuzapi event types (case-insensitive)
+  let normalizedType = "unknown";
+  if (lowered === "message") normalizedType = "message.received";
+  else if (lowered === "readreceipt" || lowered === "read_receipt") normalizedType = "delivery.status";
+  else if (lowered === "historysync" || lowered === "history_sync") normalizedType = "history.sync";
+  else if (lowered === "chatpresence" || lowered === "chat_presence") normalizedType = "presence.update";
+  else if (
+    lowered === "connected" || lowered === "disconnected" ||
+    lowered === "loggedout" || lowered === "logged_out" || lowered === "logout" ||
+    lowered === "connection.update" || lowered === "connection_update"
+  ) normalizedType = "connection.update";
+  else if (lowered === "qrcode" || lowered === "qr" || lowered === "qr.updated") normalizedType = "qr.updated";
+  else normalizedType = eventType;
 
   let direction = "inbound";
   if (body?.data?.Info?.IsFromMe || body?.Info?.IsFromMe) direction = "outbound";
@@ -89,8 +91,17 @@ function normalizeWuzapiEvent(body: any): {
   const data = body?.data || body;
 
   let connectionState: string | null = null;
-  if (eventType === "Connected") connectionState = "open";
-  else if (eventType === "Disconnected" || eventType === "LoggedOut") connectionState = "close";
+  if (lowered === "connected" || lowered === "connection.update" || lowered === "connection_update") {
+    // Some payloads may be a generic connection update with explicit state
+    const innerState = String(data?.state || data?.State || data?.status || "").toLowerCase();
+    if (innerState === "close" || innerState === "closed" || innerState === "disconnected" || innerState === "logout") {
+      connectionState = "close";
+    } else {
+      connectionState = "open";
+    }
+  } else if (lowered === "disconnected" || lowered === "loggedout" || lowered === "logged_out" || lowered === "logout") {
+    connectionState = "close";
+  }
 
   return {
     eventType: normalizedType,
@@ -98,7 +109,7 @@ function normalizeWuzapiEvent(body: any): {
     remoteJid: data?.Info?.RemoteJid || data?.RemoteJid || data?.Phone || null,
     messageId: data?.Info?.Id || data?.Id || null,
     connectionState,
-    qrCode: eventType === "QRCode" ? (data?.QRCode || data?.data?.QRCode || null) : null,
+    qrCode: (lowered === "qrcode" || lowered === "qr") ? (data?.QRCode || data?.qrcode || data?.qr || data?.data?.QRCode || null) : null,
   };
 }
 
