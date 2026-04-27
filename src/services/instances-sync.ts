@@ -59,23 +59,6 @@ const DISCONNECTED_STATUSES = new Set([
 const ONLINE_STATUSES = new Set(['online', 'connected', 'open']);
 const CONNECTING_STATUSES = new Set(['connecting', 'pairing', 'opening', 'qr', 'scan']);
 
-/**
- * Converte qualquer status remoto/legado para o vocabulário canônico do banco.
- * Em fluxo de exclusão, o caller deve tratar `error` como sinal para remover.
- */
-export function normalizeRemoteState(remoteState: string | null | undefined): CanonicalInstanceStatus | null {
-  if (!remoteState) return null;
-  const s = String(remoteState).toLowerCase().trim();
-
-  if (ONLINE_STATUSES.has(s)) return 'online';
-  if (s === 'pairing') return 'pairing';
-  if (CONNECTING_STATUSES.has(s)) return 'connecting';
-  if (DISCONNECTED_STATUSES.has(s)) {
-    if (s === 'not_found' || s === 'deleted' || s === 'error' || s === 'failed') return 'error';
-    return 'offline';
-  }
-  return null;
-}
 
 /**
  * Converte qualquer status remoto/legado para o vocabulário canônico do banco.
