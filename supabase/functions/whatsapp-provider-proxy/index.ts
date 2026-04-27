@@ -732,17 +732,20 @@ async function handleWuzapi(
     }
     case "create": {
       const userToken = payload?.token || crypto.randomUUID().replace(/-/g, "").slice(0, 20);
+      const eventList: string[] = Array.isArray(payload?.events) && payload.events.length
+        ? payload.events
+        : ["Message", "Connected", "Disconnected", "LoggedOut", "QRCode", "ReadReceipt", "ChatPresence"];
       const b: any = { name: instanceName, token: userToken };
       if (payload?.webhook) {
         b.webhook = payload.webhook;
-        b.events = payload.events?.join?.(",") || "Message";
+        b.events = eventList.join(",");
       }
       const r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
 
       // Connect session to start QR generation (uses Token header)
       const cr = await wuzFetchSession(baseUrl, userToken, "POST", "/session/connect", {
-        Subscribe: ["Message"],
+        Subscribe: eventList,
         Immediate: true,
       }).catch((e: any) => ({ ok: false, status: 0, data: { error: e.message } }));
 
