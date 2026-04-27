@@ -191,6 +191,45 @@ export default function Instances() {
     invalidateDashboards();
   };
 
+  // Aplica patch local em uma instância pelo id (sem tocar no banco).
+  const applyInstanceStatusLocally = (
+    instanceId: string,
+    patch: Partial<Instance>,
+  ) => {
+    setInstances((current) => current.map((item) => (
+      item.id === instanceId ? { ...item, ...patch } : item
+    )));
+  };
+
+  // Marca uma instância como conectada: atualiza banco + estado local
+  // imediatamente, sem depender de sync remoto nem de F5.
+  const markInstanceConnected = async (
+    instance: Instance,
+    payload?: any,
+  ) => {
+    const phone =
+      (payload && (extractWhatsappPhone(payload?.instance) || extractWhatsappPhone(payload))) ||
+      null;
+    const nowIso = new Date().toISOString();
+    const updateData: Record<string, any> = {
+      status: 'online',
+      last_connected_at: nowIso,
+    };
+    if (phone) updateData.phone_number = phone;
+    try {
+      await supabase.from('instances').update(updateData).eq('id', instance.id);
+    } catch {
+      // Ignora erro de banco — UI local ainda deve refletir a conexão.
+    }
+    applyInstanceStatusLocally(instance.id, {
+      status: 'online',
+      last_connected_at: nowIso,
+      phone_number: phone || instance.phone_number,
+      updated_at: nowIso,
+    } as Partial<Instance>);
+    invalidateDashboards();
+  };
+
   const fetchInstances = async (options?: { syncRemote?: boolean }) => {
     if (!company) return;
     if (fetchInFlightRef.current) return;
