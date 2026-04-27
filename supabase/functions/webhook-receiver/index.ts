@@ -41,9 +41,20 @@ function normalizeEvolutionEvent(body: any): {
   }
 
   let connectionState: string | null = null;
-  if (event === "connection.update") {
-    const state = (data?.state || "").toLowerCase();
+  if (event === "connection.update" || event === "status.instance") {
+    const state = String(data?.state || data?.status || "").toLowerCase();
     connectionState = state;
+  }
+  // Evolution / Evolution Go: alguns providers enviam o estado como evento
+  // de topo (ex: "disconnected", "logout", "close") sem wrapper de connection.update.
+  const DIRECT_DISCONNECT = new Set([
+    "disconnected", "close", "closed", "offline", "logout", "logged_out",
+    "loggedout", "not_logged", "not_connected",
+  ]);
+  const DIRECT_CONNECT = new Set(["connected", "open", "online", "ready", "authenticated"]);
+  if (!connectionState) {
+    if (DIRECT_DISCONNECT.has(event)) connectionState = "close";
+    else if (DIRECT_CONNECT.has(event)) connectionState = "open";
   }
 
   return {
