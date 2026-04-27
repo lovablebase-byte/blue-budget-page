@@ -247,8 +247,13 @@ export default function Instances() {
           if (cleanPhone) updateData.phone_number = cleanPhone;
           await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
         } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(String(state).toLowerCase())) {
-          await markInstanceOffline(instanceToWatch.id);
-          setQrError('Instância desconectada no provider. Gere um novo QR Code para parear.');
+          // Não declarar offline enquanto a tentativa automática de QR ainda está ativa
+          // ou enquanto já temos um QR Code visível aguardando leitura.
+          const autoRetryActive = qrAutoRetryRef.current && !qrAutoRetryRef.current.cancelled;
+          if (!autoRetryActive && !qrCodeBase64) {
+            await markInstanceOffline(instanceToWatch.id);
+            setQrError('Instância desconectada no provider. Gere um novo QR Code para parear.');
+          }
         }
       } catch {
         setQrError('Provider temporariamente indisponível. Tente novamente em alguns segundos.');
