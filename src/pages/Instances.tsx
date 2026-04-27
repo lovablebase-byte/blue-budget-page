@@ -706,6 +706,7 @@ export default function Instances() {
     setQrCodeBase64(null);
     setQrError(null);
     setQrLoading(true);
+    setAutoQrRunning(true);
     const ctrl = { timer: null as any, attempts: 0, cancelled: false };
     qrAutoRetryRef.current = ctrl;
     const MAX_ATTEMPTS = 10; // ~25-30s total
