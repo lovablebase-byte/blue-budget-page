@@ -69,6 +69,7 @@ interface Instance {
   reconnect_policy: string;
   last_connected_at: string | null;
   created_at: string;
+  updated_at?: string;
   evolution_instance_id: string | null;
   access_token: string;
   provider: string;
@@ -146,6 +147,7 @@ export default function Instances() {
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
   const qrFetchInFlightRef = useRef(false);
   const qrAutoRetryRef = useRef<{ timer: any; attempts: number; cancelled: boolean } | null>(null);
+  const connectedInstanceIdsRef = useRef(new Set<string>());
 
   // Form states
   const [newName, setNewName] = useState('');
@@ -192,13 +194,41 @@ export default function Instances() {
   };
 
   // Aplica patch local em uma instância pelo id (sem tocar no banco).
-  const applyInstanceStatusLocally = (
-    instanceId: string,
-    patch: Partial<Instance>,
-  ) => {
+  const applyInstanceStatusLocally = (instanceId: string, patch: Partial<Instance>) => {
     setInstances((current) => current.map((item) => (
       item.id === instanceId ? { ...item, ...patch } : item
     )));
+    setSelectedInstance((current) => (current?.id === instanceId ? { ...current, ...patch } : current));
+    setCreatedInstance((current) => (current?.id === instanceId ? { ...current, ...patch } : current));
+  };
+
+  const markInstanceAsConnectedLocally = (instanceId: string, phoneNumber?: string | null) => {
+    connectedInstanceIdsRef.current.add(instanceId);
+    const nowIso = new Date().toISOString();
+    applyInstanceStatusLocally(instanceId, {
+      status: 'online',
+      phone_number: phoneNumber || undefined,
+      last_connected_at: nowIso,
+      updated_at: nowIso,
+    });
+    invalidateDashboards();
+  };
+
+  const mergeFetchedInstances = (dbInstances: Instance[]) => {
+    setInstances((current) => {
+      const currentById = new Map(current.map((item) => [item.id, item]));
+      return dbInstances.map((row) => {
+        if (!connectedInstanceIdsRef.current.has(row.id)) return row;
+        const currentRow = currentById.get(row.id);
+        return {
+          ...row,
+          status: 'online',
+          phone_number: currentRow?.phone_number || row.phone_number,
+          last_connected_at: currentRow?.last_connected_at || row.last_connected_at,
+          updated_at: currentRow?.updated_at || row.updated_at,
+        };
+      });
+    });
   };
 
   // Marca uma instância como conectada: atualiza banco + estado local
@@ -211,6 +241,7 @@ export default function Instances() {
       (payload && (extractWhatsappPhone(payload?.instance) || extractWhatsappPhone(payload))) ||
       null;
     const nowIso = new Date().toISOString();
+    markInstanceAsConnectedLocally(instance.id, phone || instance.phone_number);
     const updateData: Record<string, any> = {
       status: 'online',
       last_connected_at: nowIso,
@@ -221,12 +252,6 @@ export default function Instances() {
     } catch {
       // Ignora erro de banco — UI local ainda deve refletir a conexão.
     }
-    applyInstanceStatusLocally(instance.id, {
-      status: 'online',
-      last_connected_at: nowIso,
-      phone_number: phone || instance.phone_number,
-      updated_at: nowIso,
-    } as Partial<Instance>);
     invalidateDashboards();
   };
 
