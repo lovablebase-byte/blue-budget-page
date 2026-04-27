@@ -175,11 +175,23 @@ export default function InstanceDetailPage() {
     const poll = setInterval(async () => {
       try {
         const res = await callProviderProxy('status', instance.provider, providerName);
-        const state = res?.instance?.state || '';
-        if (state === 'open' || state === 'connected') {
+        const norm = normalizeProviderStatus(res);
+        if (norm.connected) {
           setConnectionSuccess(true);
-          await supabase.from('instances').update({ status: 'online', last_connected_at: new Date().toISOString() }).eq('id', instance.id);
-          setInstance(prev => prev ? { ...prev, status: 'online', last_connected_at: new Date().toISOString() } : prev);
+          const phone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res);
+          const nowIso = new Date().toISOString();
+          const updateData: Record<string, any> = {
+            status: 'online',
+            last_connected_at: nowIso,
+          };
+          if (phone) updateData.phone_number = phone;
+          await supabase.from('instances').update(updateData).eq('id', instance.id);
+          setInstance(prev => prev ? {
+            ...prev,
+            status: 'online',
+            last_connected_at: nowIso,
+            phone_number: phone || prev.phone_number,
+          } : prev);
         }
       } catch {}
     }, 5000);
