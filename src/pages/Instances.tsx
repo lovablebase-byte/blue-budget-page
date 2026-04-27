@@ -969,13 +969,15 @@ export default function Instances() {
                               className="text-destructive"
                               onSelect={(e) => {
                                 e.preventDefault();
+                                console.info('delete_click_first', { instanceId: row.id, provider: row.provider });
+                                setInstanceToDelete(row);
                                 setSelectedInstance(row);
-                                // Defer to next tick so the dropdown finishes closing
-                                // before the AlertDialog opens (avoids focus/pointer-events race).
-                                setTimeout(() => setShowDelete(true), 50);
+                                setShowDelete(true);
+                                console.info('delete_dialog_open', { instanceId: row.id, provider: row.provider });
                               }}
+                              disabled={deletingId === row.id}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                              {deletingId === row.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} Excluir
                             </DropdownMenuItem>
                           </>
                         )}
