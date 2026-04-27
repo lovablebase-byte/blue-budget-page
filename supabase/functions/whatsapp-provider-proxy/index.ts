@@ -298,6 +298,33 @@ async function wuzFetchSession(
   return { ok: res.ok, status: res.status, data };
 }
 
+// Wuzapi only accepts a fixed set of Subscribe events. QR is fetched via /session/qr,
+// not via webhook events. Strip anything Wuzapi will reject.
+const WUZAPI_VALID_EVENTS = new Set([
+  "Message", "ReadReceipt", "ChatPresence", "HistorySync",
+  "Connected", "Disconnected", "LoggedOut", "PairSuccess", "PairError",
+  "QR", "All",
+]);
+function sanitizeWuzapiEvents(events: any): string[] {
+  const list = Array.isArray(events) ? events : [];
+  const cleaned = list
+    .map((e) => (typeof e === "string" ? e.trim() : ""))
+    .filter((e) => e.length > 0)
+    .filter((e) => !/^qr ?code$/i.test(e))
+    .filter((e) => WUZAPI_VALID_EVENTS.has(e) || WUZAPI_VALID_EVENTS.has(e.charAt(0).toUpperCase() + e.slice(1)));
+  const deduped = Array.from(new Set(cleaned));
+  return deduped.length ? deduped : ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"];
+}
+function isInvalidEventError(data: any): boolean {
+  const msg = String(data?.error || data?.message || data?.data?.Details || "").toLowerCase();
+  return msg.includes("invalid event");
+}
+function extractInvalidEvent(data: any): string | null {
+  const msg = String(data?.error || data?.message || data?.data?.Details || "");
+  const m = msg.match(/invalid event(?: type)?:?\s*([A-Za-z0-9_]+)/i);
+  return m?.[1] || null;
+}
+
 // Helper: normalize WuzAPI status payload — accepts many shapes/casings.
 // Returns canonical { connected, state } where state ∈ "open" | "close" | "qrcode" | "connecting".
 function normalizeWuzapiStatusResponse(raw: any): {
