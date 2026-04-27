@@ -503,10 +503,47 @@ async function handleEvolution(
       const s = (raw?.state || raw?.status || "").toLowerCase();
       if (s === "open" || s === "connected") state = "open";
       else if (s === "connecting") state = "connecting";
+
+      // Quando conectado, garantir telefone normalizado.
+      // O endpoint connectionState normalmente NÃO retorna phoneNumber/ownerJid;
+      // por isso, fallback para fetchInstances e localizar a instância pelo nome.
+      let phoneNumber = normalizeWhatsappPhone(raw?.phoneNumber);
+      if (state === "open" && !phoneNumber) {
+        try {
+          const list = await evoFetch(baseUrl, apiKey, "GET", "/instance/fetchInstances");
+          const items: any[] = Array.isArray(list.data)
+            ? list.data
+            : Array.isArray(list.data?.data)
+              ? list.data.data
+              : Array.isArray(list.data?.instances)
+                ? list.data.instances
+                : [];
+          const found = items.find((it: any) => {
+            const n = it?.instance?.instanceName || it?.name || it?.instanceName;
+            return n && String(n) === String(instanceName);
+          });
+          if (found) {
+            phoneNumber =
+              extractPhoneFromObject(found?.instance) ||
+              extractPhoneFromObject(found) ||
+              "";
+          }
+        } catch (_) { /* fallback silencioso */ }
+      }
+
+      const connected = state === "open";
+      const statusOut = connected ? "online" : state === "connecting" ? "connecting" : "offline";
       return {
         ok: true,
         status: 200,
-        body: { instance: { state, instanceName, phoneNumber: raw?.phoneNumber }, raw: r.data },
+        body: {
+          success: true,
+          connected,
+          status: statusOut,
+          state,
+          instance: { state, instanceName, phoneNumber: phoneNumber || null },
+          raw: r.data,
+        },
       };
     }
     case "delete": {
