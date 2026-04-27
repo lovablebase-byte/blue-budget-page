@@ -785,9 +785,12 @@ export default function Instances() {
       const norm = normalizeProviderStatus(data, instance.provider);
       if (norm.connected) {
         cancelQrAutoRetry();
-        setConnectionSuccess(true);
         setQrError(null);
         await markInstanceConnected(instance, data);
+        setConnectionSuccess(true);
+        return { qr: false, connected: true, offline: false };
+      }
+      if (connectedInstanceIdsRef.current.has(instance.id)) {
         return { qr: false, connected: true, offline: false };
       }
       if (qr) {
@@ -808,8 +811,11 @@ export default function Instances() {
         const statusNorm = normalizeProviderStatus(statusData, instance.provider);
         if (statusNorm.connected) {
           cancelQrAutoRetry();
-          setConnectionSuccess(true);
           await markInstanceConnected(instance, statusData);
+          setConnectionSuccess(true);
+          return { qr: false, connected: true, offline: false };
+        }
+        if (connectedInstanceIdsRef.current.has(instance.id)) {
           return { qr: false, connected: true, offline: false };
         }
         if (!opts?.silent) {
