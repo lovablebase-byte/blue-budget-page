@@ -106,6 +106,8 @@ export default function Instances() {
   const [showDelete, setShowDelete] = useState(false);
   const [showPostCreate, setShowPostCreate] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
+  const [instanceToDelete, setInstanceToDelete] = useState<Instance | null>(null);
+  const [autoStartQrInstanceId, setAutoStartQrInstanceId] = useState<string | null>(null);
 
   const invalidateDashboards = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
@@ -115,6 +117,7 @@ export default function Instances() {
   const [createdInstance, setCreatedInstance] = useState<Instance | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Filters
   const [filterProvider, setFilterProvider] = useState('all');
