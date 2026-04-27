@@ -220,9 +220,13 @@ export function normalizeProviderStatus(
   payload: unknown,
   provider?: string,
 ): NormalizedProviderStatus {
-  const isWuzapi = (provider || '').toLowerCase() === 'wuzapi';
+  const p = (provider || '').toLowerCase();
+  const isWuzapi = p === 'wuzapi';
+  // Evolution API + Evolution Go usam mesma regra (open/connected vence QR).
+  const isEvolution = p === 'evolution_api' || p === 'evolution' || p === 'evolution_go';
 
-  // Strong-auth signals: only these (or a real JID) can mark WuzAPI as online.
+  // Strong-auth signals para WuzAPI: SOMENTE estes (ou JID real explícito do payload)
+  // podem marcar WuzAPI como online. `Connected: true` sozinho NUNCA basta.
   const isStrongAuthFlag = (o: Record<string, any>) =>
     isTrueFlag(o.LoggedIn) ||
     isTrueFlag(o.loggedIn) ||
@@ -241,16 +245,32 @@ export function normalizeProviderStatus(
     'open', 'loggedin', 'logged_in', 'ready', 'authenticated',
   ]);
 
-  // 1) Flags booleanas explícitas vencem qualquer string.
+  // Para WuzAPI extrair JID apenas dos campos canônicos da própria sessão
+  // (NUNCA de Chat/Sender de eventos de mensagem, que poluem se o payload
+  // for de webhook). Aqui só aceitamos campos diretos da entidade session.
+  const extractWuzapiSessionJid = (o: Record<string, any>): string => {
+    const candidates: unknown[] = [
+      o.Jid, o.jid, o.JID,
+      o?.data?.Jid, o?.data?.jid, o?.data?.JID,
+      o.phoneNumber, o.phone_number, o.Phone, o.phone,
+      o?.data?.phone, o?.data?.Phone, o?.data?.phoneNumber,
+    ];
+    for (const c of candidates) {
+      const norm = normalizeWhatsappPhone(c);
+      if (norm) return norm;
+    }
+    return '';
+  };
+
+  // 1) Flags booleanas explícitas (e regra por provider).
   if (payload && typeof payload === 'object') {
     const o = payload as Record<string, any>;
 
     if (isWuzapi) {
-      // WuzAPI: Connected/connected ALONE is NOT real WhatsApp pairing.
-      // Require strong auth flag, strong-online status token, or a real JID/phone.
+      // WuzAPI: regra rígida — só online com login real.
       const tokens = collectStatusTokens(o);
       const hasStrongToken = tokens.some((t) => STRONG_ONLINE_TOKENS.has(t));
-      const jidLike = extractWhatsappPhone(o);
+      const jidLike = extractWuzapiSessionJid(o);
       if (isStrongAuthFlag(o) || hasStrongToken || jidLike) {
         return { status: 'online', state: 'open', connected: true, raw: 'wuzapi:strong' };
       }
@@ -260,7 +280,7 @@ export function normalizeProviderStatus(
         return { status: 'offline', state: 'close', connected: false, raw: tokens.join('|') };
       }
 
-      // Connected websocket without login OR explicit pairing token => pairing.
+      // `Connected: true` sozinho => pairing/connecting (NUNCA online).
       const connectedFlag =
         isTrueFlag(o.connected) ||
         isTrueFlag(o.isConnected) ||
@@ -276,8 +296,8 @@ export function normalizeProviderStatus(
       return { status: 'offline', state: 'close', connected: false, raw: tokens.join('|') };
     }
 
-    // Default (Evolution / Evolution Go / WPPConnect / QuePasa):
-    // booleanas explícitas vencem qualquer string.
+    // Evolution API / Evolution Go / WPPConnect / QuePasa:
+    // open/connected/online VENCEM QR Code SEMPRE.
     const connectedFlags = [
       o.connected,
       o.isConnected,
@@ -296,6 +316,21 @@ export function normalizeProviderStatus(
     ];
     if (connectedFlags.some(isTrueFlag)) {
       return { status: 'online', state: 'open', connected: true, raw: 'flag:connected' };
+    }
+
+    // Para Evolution: tokens online em QUALQUER campo vencem QR.
+    if (isEvolution) {
+      const tokens = collectStatusTokens(o);
+      if (tokens.some((t) => ONLINE_TOKENS.has(t))) {
+        return { status: 'online', state: 'open', connected: true, raw: `evolution:${tokens.join('|')}` };
+      }
+      if (tokens.some((t) => OFFLINE_TOKENS.has(t))) {
+        return { status: 'offline', state: 'close', connected: false, raw: tokens.join('|') };
+      }
+      if (tokens.some((t) => PAIRING_TOKENS.has(t))) {
+        return { status: 'pairing', state: 'qrcode', connected: false, raw: tokens.join('|') };
+      }
+      return { status: 'offline', state: 'close', connected: false, raw: tokens.join('|') };
     }
   }
 
