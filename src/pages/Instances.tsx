@@ -722,14 +722,17 @@ export default function Instances() {
       const qr = data?.qrCode || data?.qrcode || data?.base64 || data?.qr?.data?.Qrcode || data?.qr?.data?.QRCode;
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
+      // Regra crítica: conectado SEMPRE vence QR Code.
+      const norm = normalizeProviderStatus(data);
+      if (norm.connected) {
+        setConnectionSuccess(true);
+        setQrError(null);
+        return { qr: false, connected: true, offline: false };
+      }
       if (qr) {
         setQrCodeBase64(normalizeQrBase64(qr));
         setQrError(null);
         return { qr: true, connected: false, offline: false };
-      }
-      if (data?.connected === true || remoteState === 'open' || remoteState === 'connected') {
-        setConnectionSuccess(true);
-        return { qr: false, connected: true, offline: false };
       }
       if (remoteOffline) {
         // No QR yet and remote reports closed: keep silent during auto-retry
@@ -741,10 +744,8 @@ export default function Instances() {
       // Sem QR e sem confirmação: ler status real do provider
       try {
         const statusData = await callProviderProxy('status', instance.provider, providerName);
-        const innerState = String(statusData?.instance?.state || '').toLowerCase();
-        const topState = String(statusData?.state || statusData?.status || '').toLowerCase();
-        const isConn = statusData?.connected === true || ['open', 'connected', 'online'].includes(innerState) || ['open', 'connected', 'online'].includes(topState);
-        if (isConn) {
+        const statusNorm = normalizeProviderStatus(statusData);
+        if (statusNorm.connected) {
           setConnectionSuccess(true);
           return { qr: false, connected: true, offline: false };
         }
