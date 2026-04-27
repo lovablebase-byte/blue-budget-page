@@ -1163,7 +1163,7 @@ export default function Instances() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance)} disabled={qrLoading}>
+                <Button onClick={() => selectedInstance && startQrAutoRetry(selectedInstance)} disabled={qrLoading}>
                   {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
                   {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
                 </Button>
