@@ -644,12 +644,12 @@ export default function Instances() {
         ? getWebhookEndpoint(instance.id, instance.webhook_secret, instance.provider)
         : instance.webhook_url;
 
-      const data = await callProviderProxy('connect', instance.provider, providerName, {
+      const data = await callProviderProxy(instance.provider === 'evolution_go' ? 'qrcode' : 'connect', instance.provider, providerName, {
         webhook: webhookUrl || undefined,
         events: getProviderEvents(instance.provider),
       });
 
-      const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
+      const qr = data?.qrCode || data?.qrcode || data?.base64 || data?.qr?.data?.Qrcode || data?.qr?.data?.QRCode;
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
       if (qr) {
@@ -700,6 +700,10 @@ export default function Instances() {
   // Polling controlado para tentar gerar o QR Code automaticamente após criação
   const startQrAutoRetry = (instance: Instance) => {
     cancelQrAutoRetry();
+    console.info('auto_qr_start', { instanceId: instance.id, provider: instance.provider });
+    setQrCodeBase64(null);
+    setQrError(null);
+    setQrLoading(true);
     const ctrl = { timer: null as any, attempts: 0, cancelled: false };
     qrAutoRetryRef.current = ctrl;
     const MAX_ATTEMPTS = 10; // ~25-30s total
@@ -707,14 +711,17 @@ export default function Instances() {
     const tick = async () => {
       if (ctrl.cancelled) return;
       ctrl.attempts += 1;
+      console.info('auto_qr_attempt', { instanceId: instance.id, provider: instance.provider, attempt: ctrl.attempts });
       const isFirst = ctrl.attempts === 1;
       const result = await fetchQRCode(instance, { silent: !isFirst });
       if (ctrl.cancelled) return;
       if (result?.qr || result?.connected) {
+        console.info(result.qr ? 'auto_qr_success' : 'auto_qr_connected', { instanceId: instance.id, provider: instance.provider, attempt: ctrl.attempts });
         cancelQrAutoRetry();
         return;
       }
       if (ctrl.attempts >= MAX_ATTEMPTS) {
+        console.info('auto_qr_timeout', { instanceId: instance.id, provider: instance.provider, attempts: ctrl.attempts });
         setQrError('QR Code ainda não disponível. Clique em "Gerar QR Code" para tentar novamente.');
         cancelQrAutoRetry();
         return;
