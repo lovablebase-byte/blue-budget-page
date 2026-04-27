@@ -327,6 +327,41 @@ function normalizeQuePasaEvent(body: any): {
   };
 }
 
+// ---------- Phone normalization (mirror of src/lib/whatsapp-normalizers.ts) ----------
+
+function normalizeWhatsappPhone(input: unknown): string {
+  if (input === null || input === undefined) return "";
+  let raw = String(input).trim();
+  if (!raw) return "";
+  const at = raw.indexOf("@");
+  if (at >= 0) raw = raw.slice(0, at);
+  const colon = raw.indexOf(":");
+  if (colon >= 0) raw = raw.slice(0, colon);
+  return raw.replace(/\D+/g, "");
+}
+
+function extractPhoneFromPayload(body: any): string {
+  const data = body?.data || body;
+  const candidates = [
+    data?.phoneNumber, data?.phone_number, data?.Phone, data?.phone,
+    data?.number, data?.Number,
+    data?.ownerJid, data?.owner_jid, data?.OwnerJid,
+    data?.jid, data?.JID, data?.Jid,
+    data?.wid, data?.WID,
+    data?.remoteJid, data?.RemoteJid, data?.remote_jid,
+    data?.user, data?.User,
+    data?.profile?.wid, data?.profile?.phoneNumber, data?.profile?.number,
+    data?.instance?.phoneNumber, data?.instance?.user, data?.instance?.ownerJid,
+    data?.Info?.Sender, data?.Info?.RemoteJid,
+    body?.sender, body?.from,
+  ];
+  for (const c of candidates) {
+    const n = normalizeWhatsappPhone(c);
+    if (n && n.length >= 8) return n;
+  }
+  return "";
+}
+
 // ---------- Main handler ----------
 
 serve(async (req) => {
