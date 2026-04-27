@@ -320,6 +320,12 @@ export default function Instances() {
             const row = payload.new as Instance;
             setInstances((curr) => curr.map(i => {
               if (i.id !== row.id) return i;
+              // Se o realtime trouxer um status terminal (offline/error/online),
+              // limpa a proteção local — desconexão externa deve refletir no UI.
+              if (!isOnlineStatus(row.status) && !isConnectingStatus(row.status)) {
+                connectedInstanceIdsRef.current.delete(row.id);
+                return { ...i, ...row };
+              }
               if (connectedInstanceIdsRef.current.has(row.id) && isConnectingStatus(row.status)) {
                 return { ...i, ...row, status: 'online', phone_number: i.phone_number || row.phone_number, last_connected_at: i.last_connected_at || row.last_connected_at };
               }
