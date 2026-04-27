@@ -243,23 +243,41 @@ export default function Instances() {
     const providerName = getProviderInstanceName(instanceToWatch);
     if (!providerName || !hasActiveProviderConfig(activeProviders, instanceToWatch.provider)) return;
 
+    // Normaliza retorno do proxy (cobre variações entre providers, especialmente WuzAPI).
+    const normalizeStatus = (res: any): { connected: boolean; offline: boolean; phone: string | null } => {
+      const topConnected = res?.connected === true || res?.status === 'online' || res?.state === 'open' || res?.state === 'connected';
+      const innerStateRaw = String(res?.instance?.state || '').toLowerCase();
+      const topStateRaw = String(res?.state || res?.status || '').toLowerCase();
+      const onlineWords = ['open', 'connected', 'online'];
+      const offlineWords = ['close', 'closed', 'disconnected', 'offline', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'];
+      const isConnected = topConnected || onlineWords.includes(innerStateRaw) || onlineWords.includes(topStateRaw);
+      const isOffline = !isConnected && (offlineWords.includes(innerStateRaw) || offlineWords.includes(topStateRaw));
+      const rawPhone = res?.instance?.phoneNumber || res?.phoneNumber || null;
+      const phone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : null;
+      return { connected: isConnected, offline: isOffline, phone };
+    };
+
     const pollInterval = setInterval(async () => {
       if (statusPollInFlightRef.current) return;
       statusPollInFlightRef.current = true;
       try {
         const res = await callProviderProxy('status', instanceToWatch.provider, providerName);
-        const state = res?.instance?.state || '';
-        const rawPhone = res?.instance?.phoneNumber;
-        const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
-        if (state === 'open' || state === 'connected') {
+        const norm = normalizeStatus(res);
+        if (norm.connected) {
           setConnectionSuccess(true);
           const updateData: Record<string, any> = {
             status: 'online',
             last_connected_at: new Date().toISOString(),
           };
-          if (cleanPhone) updateData.phone_number = cleanPhone;
+          if (norm.phone) updateData.phone_number = norm.phone;
           await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
-        } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(String(state).toLowerCase())) {
+          setInstances((current) => current.map((it) => (
+            it.id === instanceToWatch.id
+              ? { ...it, status: 'online', last_connected_at: updateData.last_connected_at, phone_number: norm.phone || it.phone_number }
+              : it
+          )));
+          invalidateDashboards();
+        } else if (norm.offline) {
           // Não declarar offline enquanto a tentativa automática de QR ainda está ativa
           // ou enquanto já temos um QR Code visível aguardando leitura.
           const autoRetryActive = qrAutoRetryRef.current && !qrAutoRetryRef.current.cancelled;
