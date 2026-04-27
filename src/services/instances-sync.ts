@@ -17,6 +17,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import { callProviderProxy } from '@/components/instances/useProviderProxy';
 import { hasActiveProviderConfig, type ActiveProvider } from '@/lib/whatsapp-provider-config';
+import {
+  normalizeProviderStatus,
+  extractWhatsappPhone,
+} from '@/lib/whatsapp-normalizers';
 
 export type CanonicalInstanceStatus =
   | 'online'
