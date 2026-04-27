@@ -475,21 +475,52 @@ serve(async (req) => {
     });
 
     // --- Update instance status on connection events ---
-    if (normalized.connectionState) {
-      let newStatus: string | null = null;
-      if (normalized.connectionState === "open" || normalized.connectionState === "connected") {
-        newStatus = "online";
-      } else if (normalized.connectionState === "close" || normalized.connectionState === "disconnected") {
-        newStatus = "offline";
-      } else if (normalized.connectionState === "connecting") {
-        newStatus = "connecting";
-      }
+    // Canonical mapping with "Connected-Wins" rule:
+    //   open/connected/authenticated/ready/online -> online
+    //   close/closed/disconnected/logout/logged_out/offline -> offline
+    //   qr/qrcode/scan/pairing/connecting -> pairing (only if not already online)
+    const stateRaw = String(normalized.connectionState || "").toLowerCase();
+    const ONLINE_TOKENS = new Set([
+      "open", "connected", "authenticated", "ready", "online", "inchat", "islogged",
+    ]);
+    const OFFLINE_TOKENS = new Set([
+      "close", "closed", "disconnected", "logout", "logged_out", "loggedout", "offline",
+    ]);
+    const PAIRING_TOKENS = new Set([
+      "connecting", "qr", "qrcode", "scan", "pairing", "opening",
+    ]);
 
-      if (newStatus && newStatus !== instance.status) {
-        const updateData: Record<string, any> = { status: newStatus };
-        if (newStatus === "online") updateData.last_connected_at = new Date().toISOString();
-        await supabase.from("instances").update(updateData).eq("id", instance.id);
-        console.log("[webhook-receiver] Updated instance status", { id: instance.id, newStatus });
+    let newStatus: string | null = null;
+    if (ONLINE_TOKENS.has(stateRaw)) newStatus = "online";
+    else if (OFFLINE_TOKENS.has(stateRaw)) newStatus = "offline";
+    else if (PAIRING_TOKENS.has(stateRaw)) newStatus = "pairing";
+
+    // QR/pairing event MUST NOT downgrade an instance that is already online
+    const isQrEvent = normalized.eventType === "qr.updated" || stateRaw === "qr" || stateRaw === "qrcode" || stateRaw === "scan" || stateRaw === "pairing";
+    if (isQrEvent && instance.status === "online") {
+      newStatus = null;
+      console.log("[webhook-receiver] Skipping QR downgrade for online instance", instance.id);
+    }
+
+    if (newStatus && newStatus !== instance.status) {
+      const updateData: Record<string, any> = { status: newStatus, updated_at: new Date().toISOString() };
+      if (newStatus === "online") {
+        updateData.last_connected_at = new Date().toISOString();
+        const phone = extractPhoneFromPayload(body);
+        if (phone) updateData.phone_number = phone;
+      }
+      const { error: updErr } = await supabase.from("instances").update(updateData).eq("id", instance.id);
+      if (updErr) console.error("[webhook-receiver] Failed to update instance", updErr.message);
+      else console.log("[webhook-receiver] Updated instance status", { id: instance.id, newStatus, phone: updateData.phone_number || null });
+    } else if (newStatus === "online") {
+      // Already online — still try to fill phone_number if we don't have it yet
+      const phone = extractPhoneFromPayload(body);
+      if (phone) {
+        await supabase
+          .from("instances")
+          .update({ phone_number: phone, last_connected_at: new Date().toISOString() })
+          .eq("id", instance.id)
+          .is("phone_number", null);
       }
     }
 
