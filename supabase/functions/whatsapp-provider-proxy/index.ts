@@ -9,6 +9,42 @@ const corsHeaders = {
 
 const PROVIDER_TIMEOUT_MS = 9000;
 
+// ---------- Phone normalizer (mirror of src/lib/whatsapp-normalizers.ts) ----------
+// Remove tudo após `:` ANTES de filtrar não numéricos para evitar concatenar
+// o device id (ex.: "558796810157:50@s.whatsapp.net" -> "558796810157").
+function normalizeWhatsappPhone(input: unknown): string {
+  if (input === null || input === undefined) return "";
+  let raw = String(input).trim();
+  if (!raw) return "";
+  const at = raw.indexOf("@");
+  if (at >= 0) raw = raw.slice(0, at);
+  const colon = raw.indexOf(":");
+  if (colon >= 0) raw = raw.slice(0, colon);
+  return raw.replace(/\D+/g, "");
+}
+
+function extractPhoneFromObject(obj: any): string {
+  if (!obj || typeof obj !== "object") return "";
+  const candidates: unknown[] = [
+    obj.phoneNumber, obj.phone_number, obj.phone, obj.Phone,
+    obj.number, obj.Number, obj.msisdn, obj.wid,
+    obj.jid, obj.JID, obj.Jid,
+    obj.ownerJid, obj.OwnerJid, obj.owner, obj.Owner,
+    obj.remoteJid,
+    obj.user, obj.User,
+    obj?.profile?.phoneNumber, obj?.profile?.phone, obj?.profile?.jid,
+    obj?.instance?.owner, obj?.instance?.ownerJid, obj?.instance?.phoneNumber,
+    obj?.instance?.user?.id,
+    obj?.me?.id, obj?.user?.id,
+  ];
+  for (const c of candidates) {
+    const n = normalizeWhatsappPhone(c);
+    if (n) return n;
+  }
+  return "";
+}
+
+
 async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs = PROVIDER_TIMEOUT_MS) {
   const controller = new AbortController();
   const startedAt = Date.now();
