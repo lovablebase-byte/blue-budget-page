@@ -77,20 +77,46 @@ export function normalizeRemoteState(remoteState: string | null | undefined): Ca
   return null;
 }
 
+/**
+ * Converte qualquer status remoto/legado para o vocabulário canônico do banco.
+ * Reutiliza `normalizeProviderStatus` para garantir prioridade conectado > QR.
+ * Em fluxo de exclusão, o caller deve tratar `error` como sinal para remover.
+ */
+export function normalizeRemoteState(remoteState: string | null | undefined): CanonicalInstanceStatus | null {
+  if (!remoteState) return null;
+  const s = String(remoteState).toLowerCase().trim();
+  if (s === 'not_found' || s === 'deleted' || s === 'error' || s === 'failed' || s === 'missing') return 'error';
+  const norm = normalizeProviderStatus(s);
+  if (norm.connected) return 'online';
+  if (norm.status === 'pairing') return 'pairing';
+  if (norm.status === 'offline') return 'offline';
+  return null;
+}
+
 export function isOnlineStatus(status: string | null | undefined) {
-  return !!status && ONLINE_STATUSES.has(String(status).toLowerCase());
+  if (!status) return false;
+  const s = String(status).toLowerCase();
+  return s === 'online' || s === 'connected' || s === 'open';
 }
 
 export function isConnectingStatus(status: string | null | undefined) {
-  return !!status && (CONNECTING_STATUSES.has(String(status).toLowerCase()) || String(status).toLowerCase() === 'pairing');
+  if (!status) return false;
+  const s = String(status).toLowerCase();
+  return (
+    s === 'connecting' ||
+    s === 'pairing' ||
+    s === 'qrcode' ||
+    s === 'qr' ||
+    s === 'scan' ||
+    s === 'opening'
+  );
 }
 
 /** Conta como "desconectado" qualquer status que não seja online/conectando/pairing. */
 export function isDisconnectedStatus(status: string | null | undefined) {
   if (!status) return true;
-  const s = String(status).toLowerCase();
-  if (ONLINE_STATUSES.has(s)) return false;
-  if (CONNECTING_STATUSES.has(s) || s === 'pairing') return false;
+  if (isOnlineStatus(status)) return false;
+  if (isConnectingStatus(status)) return false;
   return true;
 }
 
