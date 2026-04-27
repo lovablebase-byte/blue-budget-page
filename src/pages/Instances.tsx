@@ -587,15 +587,27 @@ export default function Instances() {
     return `data:image/png;base64,${qr}`;
   };
 
-  const fetchQRCode = async (instanceOrName: Instance | string) => {
+  const cancelQrAutoRetry = () => {
+    if (qrAutoRetryRef.current) {
+      qrAutoRetryRef.current.cancelled = true;
+      if (qrAutoRetryRef.current.timer) clearTimeout(qrAutoRetryRef.current.timer);
+      qrAutoRetryRef.current = null;
+    }
+  };
+
+  const fetchQRCode = async (instanceOrName: Instance | string, opts?: { silent?: boolean }) => {
     if (!company) return;
     const instance = typeof instanceOrName === 'string'
       ? instances.find(i => i.name === instanceOrName) || createdInstance
       : instanceOrName;
     if (!instance) return;
+    if (qrFetchInFlightRef.current) return;
+    qrFetchInFlightRef.current = true;
 
-    setQrCodeBase64(null);
-    setQrError(null);
+    if (!opts?.silent) {
+      setQrCodeBase64(null);
+      setQrError(null);
+    }
     setQrLoading(true);
     try {
       if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
@@ -615,39 +627,79 @@ export default function Instances() {
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
-      if (remoteOffline) {
-        await markInstanceOffline(instance.id);
-        setQrError('Instância desconectada no provider. Clique em "Atualizar QR" para gerar novo pareamento.');
-      } else if (qr) {
+      if (qr) {
         setQrCodeBase64(normalizeQrBase64(qr));
-      } else if (data?.connected === true) {
+        setQrError(null);
+        return { qr: true, connected: false, offline: false };
+      }
+      if (data?.connected === true || remoteState === 'open' || remoteState === 'connected') {
         setConnectionSuccess(true);
-      } else {
-        // Sem QR e sem confirmação: ler status real do provider
-        try {
-          const statusData = await callProviderProxy('status', instance.provider, providerName);
-          const state = String(statusData?.instance?.state || '').toLowerCase();
-          if (state === 'open' || state === 'connected') {
-            setConnectionSuccess(true);
-          } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(state)) {
-            setQrError('Instância desconectada no provider. Clique em "Atualizar QR" para gerar novo pareamento.');
-          } else if (state === 'not_found') {
-            setQrError('Instância não encontrada no provider. Recrie ou aguarde a sincronização.');
-          } else {
-            setQrError(`Nenhum QR retornado. Status atual: ${state || 'desconhecido'}. Tente novamente.`);
-          }
-        } catch {
-          setQrError('Nenhum QR retornado pelo provider. Tente novamente em alguns segundos.');
+        return { qr: false, connected: true, offline: false };
+      }
+      if (remoteOffline) {
+        // No QR yet and remote reports closed: keep silent during auto-retry
+        if (!opts?.silent) {
+          setQrError('Aguardando geração do QR Code pelo provider...');
         }
+        return { qr: false, connected: false, offline: true };
+      }
+      // Sem QR e sem confirmação: ler status real do provider
+      try {
+        const statusData = await callProviderProxy('status', instance.provider, providerName);
+        const state = String(statusData?.instance?.state || '').toLowerCase();
+        if (state === 'open' || state === 'connected') {
+          setConnectionSuccess(true);
+          return { qr: false, connected: true, offline: false };
+        }
+        if (!opts?.silent) {
+          setQrError(`QR Code ainda não disponível. Tente novamente em alguns segundos.`);
+        }
+        return { qr: false, connected: false, offline: false };
+      } catch {
+        if (!opts?.silent) {
+          setQrError('Provider temporariamente indisponível. Tente novamente em alguns segundos.');
+        }
+        return { qr: false, connected: false, offline: false };
       }
     } catch (err: any) {
       const msg = err.message || 'Falha ao gerar QR Code';
       console.error('[fetchQRCode]', instance.provider, msg);
-      setQrError(msg);
+      if (!opts?.silent) setQrError(msg);
+      return { qr: false, connected: false, offline: false, error: true };
     } finally {
       setQrLoading(false);
+      qrFetchInFlightRef.current = false;
     }
   };
+
+  // Polling controlado para tentar gerar o QR Code automaticamente após criação
+  const startQrAutoRetry = (instance: Instance) => {
+    cancelQrAutoRetry();
+    const ctrl = { timer: null as any, attempts: 0, cancelled: false };
+    qrAutoRetryRef.current = ctrl;
+    const MAX_ATTEMPTS = 10; // ~25-30s total
+
+    const tick = async () => {
+      if (ctrl.cancelled) return;
+      ctrl.attempts += 1;
+      const isFirst = ctrl.attempts === 1;
+      const result = await fetchQRCode(instance, { silent: !isFirst });
+      if (ctrl.cancelled) return;
+      if (result?.qr || result?.connected) {
+        cancelQrAutoRetry();
+        return;
+      }
+      if (ctrl.attempts >= MAX_ATTEMPTS) {
+        setQrError('QR Code ainda não disponível. Clique em "Gerar QR Code" para tentar novamente.');
+        cancelQrAutoRetry();
+        return;
+      }
+      ctrl.timer = setTimeout(tick, 2500);
+    };
+    // Primeira tentativa imediata
+    tick();
+  };
+
 
   // ── Filtering & Sorting ──
   const filtered = useMemo(() => {
