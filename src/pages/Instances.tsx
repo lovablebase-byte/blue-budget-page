@@ -186,20 +186,12 @@ export default function Instances() {
   };
 
   const markInstanceOffline = async (instanceId: string) => {
+    connectedInstanceIdsRef.current.delete(instanceId);
     await supabase.from('instances').update({ status: 'offline' }).eq('id', instanceId);
     setInstances((current) => current.map((item) => (
       item.id === instanceId ? { ...item, status: 'offline' } : item
     )));
     invalidateDashboards();
-  };
-
-  // Aplica patch local em uma instância pelo id (sem tocar no banco).
-  const applyInstanceStatusLocally = (instanceId: string, patch: Partial<Instance>) => {
-    setInstances((current) => current.map((item) => (
-      item.id === instanceId ? { ...item, ...patch } : item
-    )));
-    setSelectedInstance((current) => (current?.id === instanceId ? { ...current, ...patch } : current));
-    setCreatedInstance((current) => (current?.id === instanceId ? { ...current, ...patch } : current));
   };
 
   const markInstanceAsConnectedLocally = (instanceId: string, phoneNumber?: string | null) => {
@@ -227,6 +219,10 @@ export default function Instances() {
       const currentById = new Map(current.map((item) => [item.id, item]));
       return dbInstances.map((row) => {
         if (!connectedInstanceIdsRef.current.has(row.id)) return row;
+        if (!isConnectingStatus(row.status)) {
+          if (!isOnlineStatus(row.status)) connectedInstanceIdsRef.current.delete(row.id);
+          return row;
+        }
         const currentRow = currentById.get(row.id);
         return {
           ...row,
