@@ -135,6 +135,8 @@ export default function Instances() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState(false);
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
+  const qrFetchInFlightRef = useRef(false);
+  const qrAutoRetryRef = useRef<{ timer: any; attempts: number; cancelled: boolean } | null>(null);
 
   // Form states
   const [newName, setNewName] = useState('');
@@ -245,8 +247,13 @@ export default function Instances() {
           if (cleanPhone) updateData.phone_number = cleanPhone;
           await supabase.from('instances').update(updateData).eq('id', instanceToWatch.id);
         } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(String(state).toLowerCase())) {
-          await markInstanceOffline(instanceToWatch.id);
-          setQrError('Instância desconectada no provider. Gere um novo QR Code para parear.');
+          // Não declarar offline enquanto a tentativa automática de QR ainda está ativa
+          // ou enquanto já temos um QR Code visível aguardando leitura.
+          const autoRetryActive = qrAutoRetryRef.current && !qrAutoRetryRef.current.cancelled;
+          if (!autoRetryActive && !qrCodeBase64) {
+            await markInstanceOffline(instanceToWatch.id);
+            setQrError('Instância desconectada no provider. Gere um novo QR Code para parear.');
+          }
         }
       } catch {
         setQrError('Provider temporariamente indisponível. Tente novamente em alguns segundos.');
@@ -384,7 +391,8 @@ export default function Instances() {
       fetchInstances();
 
       if (providerActive) {
-        setTimeout(() => fetchQRCode(data as Instance), 500);
+        // Inicia tentativas automáticas de geração do QR Code
+        setTimeout(() => startQrAutoRetry(data as Instance), 400);
       }
     } catch (e: any) {
       toast.error(e.message);
@@ -585,15 +593,27 @@ export default function Instances() {
     return `data:image/png;base64,${qr}`;
   };
 
-  const fetchQRCode = async (instanceOrName: Instance | string) => {
+  const cancelQrAutoRetry = () => {
+    if (qrAutoRetryRef.current) {
+      qrAutoRetryRef.current.cancelled = true;
+      if (qrAutoRetryRef.current.timer) clearTimeout(qrAutoRetryRef.current.timer);
+      qrAutoRetryRef.current = null;
+    }
+  };
+
+  const fetchQRCode = async (instanceOrName: Instance | string, opts?: { silent?: boolean }) => {
     if (!company) return;
     const instance = typeof instanceOrName === 'string'
       ? instances.find(i => i.name === instanceOrName) || createdInstance
       : instanceOrName;
     if (!instance) return;
+    if (qrFetchInFlightRef.current) return;
+    qrFetchInFlightRef.current = true;
 
-    setQrCodeBase64(null);
-    setQrError(null);
+    if (!opts?.silent) {
+      setQrCodeBase64(null);
+      setQrError(null);
+    }
     setQrLoading(true);
     try {
       if (!hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
@@ -613,39 +633,79 @@ export default function Instances() {
       const qr = data?.qrCode || data?.base64 || data?.qr?.data?.QRCode;
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
-      if (remoteOffline) {
-        await markInstanceOffline(instance.id);
-        setQrError('Instância desconectada no provider. Clique em "Atualizar QR" para gerar novo pareamento.');
-      } else if (qr) {
+      if (qr) {
         setQrCodeBase64(normalizeQrBase64(qr));
-      } else if (data?.connected === true) {
+        setQrError(null);
+        return { qr: true, connected: false, offline: false };
+      }
+      if (data?.connected === true || remoteState === 'open' || remoteState === 'connected') {
         setConnectionSuccess(true);
-      } else {
-        // Sem QR e sem confirmação: ler status real do provider
-        try {
-          const statusData = await callProviderProxy('status', instance.provider, providerName);
-          const state = String(statusData?.instance?.state || '').toLowerCase();
-          if (state === 'open' || state === 'connected') {
-            setConnectionSuccess(true);
-          } else if (['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected'].includes(state)) {
-            setQrError('Instância desconectada no provider. Clique em "Atualizar QR" para gerar novo pareamento.');
-          } else if (state === 'not_found') {
-            setQrError('Instância não encontrada no provider. Recrie ou aguarde a sincronização.');
-          } else {
-            setQrError(`Nenhum QR retornado. Status atual: ${state || 'desconhecido'}. Tente novamente.`);
-          }
-        } catch {
-          setQrError('Nenhum QR retornado pelo provider. Tente novamente em alguns segundos.');
+        return { qr: false, connected: true, offline: false };
+      }
+      if (remoteOffline) {
+        // No QR yet and remote reports closed: keep silent during auto-retry
+        if (!opts?.silent) {
+          setQrError('Aguardando geração do QR Code pelo provider...');
         }
+        return { qr: false, connected: false, offline: true };
+      }
+      // Sem QR e sem confirmação: ler status real do provider
+      try {
+        const statusData = await callProviderProxy('status', instance.provider, providerName);
+        const state = String(statusData?.instance?.state || '').toLowerCase();
+        if (state === 'open' || state === 'connected') {
+          setConnectionSuccess(true);
+          return { qr: false, connected: true, offline: false };
+        }
+        if (!opts?.silent) {
+          setQrError(`QR Code ainda não disponível. Tente novamente em alguns segundos.`);
+        }
+        return { qr: false, connected: false, offline: false };
+      } catch {
+        if (!opts?.silent) {
+          setQrError('Provider temporariamente indisponível. Tente novamente em alguns segundos.');
+        }
+        return { qr: false, connected: false, offline: false };
       }
     } catch (err: any) {
       const msg = err.message || 'Falha ao gerar QR Code';
       console.error('[fetchQRCode]', instance.provider, msg);
-      setQrError(msg);
+      if (!opts?.silent) setQrError(msg);
+      return { qr: false, connected: false, offline: false, error: true };
     } finally {
       setQrLoading(false);
+      qrFetchInFlightRef.current = false;
     }
   };
+
+  // Polling controlado para tentar gerar o QR Code automaticamente após criação
+  const startQrAutoRetry = (instance: Instance) => {
+    cancelQrAutoRetry();
+    const ctrl = { timer: null as any, attempts: 0, cancelled: false };
+    qrAutoRetryRef.current = ctrl;
+    const MAX_ATTEMPTS = 10; // ~25-30s total
+
+    const tick = async () => {
+      if (ctrl.cancelled) return;
+      ctrl.attempts += 1;
+      const isFirst = ctrl.attempts === 1;
+      const result = await fetchQRCode(instance, { silent: !isFirst });
+      if (ctrl.cancelled) return;
+      if (result?.qr || result?.connected) {
+        cancelQrAutoRetry();
+        return;
+      }
+      if (ctrl.attempts >= MAX_ATTEMPTS) {
+        setQrError('QR Code ainda não disponível. Clique em "Gerar QR Code" para tentar novamente.');
+        cancelQrAutoRetry();
+        return;
+      }
+      ctrl.timer = setTimeout(tick, 2500);
+    };
+    // Primeira tentativa imediata
+    tick();
+  };
+
 
   // ── Filtering & Sorting ──
   const filtered = useMemo(() => {
@@ -852,7 +912,7 @@ export default function Instances() {
                           <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => { setSelectedInstance(row); setConnectionSuccess(false); setQrCodeBase64(null); setQrError(null); setShowQR(true); }}>
+                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSelectedInstance(row); setConnectionSuccess(false); setQrCodeBase64(null); setQrError(null); setShowQR(true); setTimeout(() => startQrAutoRetry(row), 300); }}>
                           <QrCode className="mr-2 h-4 w-4" /> Parear QR Code
                         </DropdownMenuItem>
                         {row.status === 'online' || row.status === 'connected' ? (
@@ -873,7 +933,16 @@ export default function Instances() {
                         {!isReadOnly && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => { setSelectedInstance(row); setShowDelete(true); }}>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                setSelectedInstance(row);
+                                // Defer to next tick so the dropdown finishes closing
+                                // before the AlertDialog opens (avoids focus/pointer-events race).
+                                setTimeout(() => setShowDelete(true), 50);
+                              }}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" /> Excluir
                             </DropdownMenuItem>
                           </>
@@ -977,7 +1046,7 @@ export default function Instances() {
       </Dialog>
 
       {/* Post-creation info dialog */}
-      <Dialog open={showPostCreate} onOpenChange={(o) => { setShowPostCreate(o); if (!o) { setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
+      <Dialog open={showPostCreate} onOpenChange={(o) => { setShowPostCreate(o); if (!o) { cancelQrAutoRetry(); setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-primary">
@@ -1004,10 +1073,13 @@ export default function Instances() {
               <>
                 <div className="flex flex-col items-center gap-3 py-3">
                   <div className="w-52 h-52 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
-                    {qrLoading ? (
-                      <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-                    ) : qrCodeBase64 ? (
+                    {qrCodeBase64 ? (
                       <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
+                    ) : qrLoading ? (
+                      <div className="text-center text-muted-foreground p-4">
+                        <Loader2 className="h-10 w-10 animate-spin mx-auto mb-2" />
+                        <p className="text-xs">Gerando QR Code, aguarde...</p>
+                      </div>
                     ) : (
                       <div className="text-center text-muted-foreground p-4">
                         <QrCode className="h-14 w-14 mx-auto mb-2" />
@@ -1017,12 +1089,12 @@ export default function Instances() {
                     )}
                   </div>
                   {!qrLoading && !qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => fetchQRCode(createdInstance)}>
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
                       <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
                     </Button>
                   )}
                   {qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => fetchQRCode(createdInstance)}>
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
                       <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
                     </Button>
                   )}
@@ -1070,7 +1142,7 @@ export default function Instances() {
       </Dialog>
 
       {/* QR Code dialog */}
-      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { setQrCodeBase64(null); setQrError(null); setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
+      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { cancelQrAutoRetry(); setQrCodeBase64(null); setQrError(null); setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
@@ -1105,7 +1177,7 @@ export default function Instances() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => selectedInstance && fetchQRCode(selectedInstance)} disabled={qrLoading}>
+                <Button onClick={() => selectedInstance && startQrAutoRetry(selectedInstance)} disabled={qrLoading}>
                   {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
                   {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
                 </Button>
