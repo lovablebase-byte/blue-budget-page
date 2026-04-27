@@ -386,7 +386,8 @@ export default function Instances() {
       fetchInstances();
 
       if (providerActive) {
-        setTimeout(() => fetchQRCode(data as Instance), 500);
+        // Inicia tentativas automáticas de geração do QR Code
+        setTimeout(() => startQrAutoRetry(data as Instance), 400);
       }
     } catch (e: any) {
       toast.error(e.message);
