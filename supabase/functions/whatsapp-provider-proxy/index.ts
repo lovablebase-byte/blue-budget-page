@@ -820,9 +820,10 @@ async function handleWuzapi(
     }
     case "connect": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token da instância obrigatório" } };
-      const eventList: string[] = Array.isArray(payload?.events) && payload.events.length
+      const requestedEvents: string[] = Array.isArray(payload?.events) && payload.events.length
         ? payload.events
-        : ["Message", "Connected", "Disconnected", "LoggedOut", "QRCode", "ReadReceipt", "ChatPresence"];
+        : ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"];
+      let eventList = sanitizeWuzapiEvents(requestedEvents);
       const connectBody: any = {
         Subscribe: eventList,
         Immediate: true,
@@ -832,7 +833,20 @@ async function handleWuzapi(
       }
       // Session endpoints use Token header
       console.log(`[wuzapi:connect] Calling /session/connect for token=${instanceName?.slice(0,6)}...`);
-      const cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+      let cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+      // Fallback if Wuzapi rejects an event in Subscribe
+      if (!cr.ok && isInvalidEventError(cr.data)) {
+        const bad = extractInvalidEvent(cr.data);
+        eventList = bad ? eventList.filter((e) => e.toLowerCase() !== bad.toLowerCase()) : ["Message"];
+        connectBody.Subscribe = eventList;
+        console.warn(`[wuzapi:connect] invalid event '${bad}', retrying with`, eventList);
+        cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+        if (!cr.ok && isInvalidEventError(cr.data)) {
+          connectBody.Subscribe = ["Message"];
+          console.warn(`[wuzapi:connect] retrying with minimal event list`);
+          cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+        }
+      }
 
       // "already connected" is not a real error — proceed to QR/status check
       if (!cr.ok) {
