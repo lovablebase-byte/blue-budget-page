@@ -975,7 +975,6 @@ export default function Instances() {
                             <DropdownMenuItem
                               className="text-destructive"
                               onSelect={(e) => {
-                                e.preventDefault();
                                 console.info('delete_click_first', { instanceId: row.id, provider: row.provider });
                                 setInstanceToDelete(row);
                                 setSelectedInstance(row);
