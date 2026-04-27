@@ -387,7 +387,12 @@ function normalizeWuzapiStatusResponse(raw: any): {
     truthy(data?.authenticated) || truthy(data?.ready);
 
   const jid = data?.Jid || data?.jid || data?.JID || data?.phone || data?.Phone || null;
-  const phoneNumber = jid ? String(jid).split("@")[0].replace(/\D/g, "") || null : null;
+  // Telefone normalizado por helper central (remove `:device` antes de filtrar não numéricos).
+  const phoneNumber =
+    normalizeWhatsappPhone(jid) ||
+    extractPhoneFromObject(data) ||
+    extractPhoneFromObject(root) ||
+    null;
 
   const rawStatus = String(data?.status || data?.state || root?.status || root?.state || "").toLowerCase();
   const offlineWords = ["close", "closed", "disconnected", "offline", "logout", "logged_out", "not_logged", "not_connected"];
