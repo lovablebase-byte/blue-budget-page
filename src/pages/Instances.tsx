@@ -1075,12 +1075,12 @@ export default function Instances() {
                     )}
                   </div>
                   {!qrLoading && !qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => fetchQRCode(createdInstance)}>
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
                       <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
                     </Button>
                   )}
                   {qrCodeBase64 && createdInstance && (
-                    <Button variant="outline" size="sm" onClick={() => fetchQRCode(createdInstance)}>
+                    <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
                       <RefreshCw className="h-4 w-4 mr-2" /> Atualizar QR Code
                     </Button>
                   )}
