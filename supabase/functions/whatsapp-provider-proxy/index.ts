@@ -975,10 +975,21 @@ async function handleWuzapi(
 
       if (qrCode) {
         console.log(`[wuzapi:connect] QR obtained successfully`);
-        return { ok: true, status: 200, body: { qrCode, raw: { connect: cr.data } } };
+        // QR present => pairing. NEVER online from connect action.
+        return {
+          ok: true, status: 200,
+          body: {
+            qrCode,
+            connected: false,
+            status: "pairing",
+            state: "qrcode",
+            instance: { state: "qrcode", instanceName },
+            raw: { connect: cr.data },
+          },
+        };
       }
 
-      // No QR returned - check status to see if already connected
+      // No QR returned - check status to see if already connected (real JID/login)
       console.log(`[wuzapi:connect] No QR, checking /session/status...`);
       const sr = await wuzFetchSession(baseUrl, instanceName, "GET", "/session/status");
       const norm = normalizeWuzapiStatusResponse(sr.data);
