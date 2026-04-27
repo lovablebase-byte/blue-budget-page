@@ -928,7 +928,16 @@ export default function Instances() {
                         {!isReadOnly && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => { setSelectedInstance(row); setShowDelete(true); }}>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                setSelectedInstance(row);
+                                // Defer to next tick so the dropdown finishes closing
+                                // before the AlertDialog opens (avoids focus/pointer-events race).
+                                setTimeout(() => setShowDelete(true), 50);
+                              }}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" /> Excluir
                             </DropdownMenuItem>
                           </>
