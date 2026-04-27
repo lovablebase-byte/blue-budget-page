@@ -298,6 +298,55 @@ async function wuzFetchSession(
   return { ok: res.ok, status: res.status, data };
 }
 
+// Helper: normalize WuzAPI status payload — accepts many shapes/casings.
+// Returns canonical { connected, state } where state ∈ "open" | "close" | "qrcode" | "connecting".
+function normalizeWuzapiStatusResponse(raw: any): {
+  connected: boolean;
+  state: "open" | "close" | "qrcode" | "connecting";
+  phoneNumber: string | null;
+} {
+  const root = raw || {};
+  const data = root?.data?.data || root?.data || root;
+
+  const truthy = (v: any) =>
+    v === true || v === 1 || String(v).toLowerCase() === "true" || String(v).toLowerCase() === "1";
+
+  const isConnected =
+    truthy(data?.Connected) || truthy(data?.connected) ||
+    truthy(data?.IsConnected) || truthy(data?.isConnected) ||
+    truthy(data?.LoggedIn) || truthy(data?.loggedIn) ||
+    truthy(data?.IsLogged) || truthy(data?.isLogged) ||
+    truthy(root?.Connected) || truthy(root?.connected) ||
+    truthy(root?.LoggedIn) || truthy(root?.loggedIn);
+
+  const isLoggedIn =
+    truthy(data?.LoggedIn) || truthy(data?.loggedIn) ||
+    truthy(data?.IsLogged) || truthy(data?.isLogged) ||
+    truthy(root?.LoggedIn) || truthy(root?.loggedIn);
+
+  const rawStatus = String(data?.status || data?.state || root?.status || root?.state || "").toLowerCase();
+  const offlineWords = ["close", "closed", "disconnected", "offline", "logout", "logged_out", "not_logged", "not_connected"];
+  const onlineWords = ["connected", "open", "online", "ready", "logged", "authenticated"];
+  const pairingWords = ["qr", "qrcode", "scan", "pairing", "awaiting_qr"];
+
+  const jid = data?.Jid || data?.jid || data?.JID || data?.phone || data?.Phone || null;
+  const phoneNumber = jid ? String(jid).split("@")[0].replace(/\D/g, "") || null : null;
+
+  let state: "open" | "close" | "qrcode" | "connecting" = "close";
+
+  if (isConnected && isLoggedIn) state = "open";
+  else if (onlineWords.includes(rawStatus)) state = "open";
+  else if (pairingWords.includes(rawStatus)) state = "qrcode";
+  else if (rawStatus === "connecting") state = "connecting";
+  else if (offlineWords.includes(rawStatus)) state = "close";
+  else if (isConnected && !isLoggedIn) state = "connecting";
+
+  // Final guard: if we got a real JID, the user is connected.
+  if (jid && state !== "open") state = "open";
+
+  return { connected: state === "open", state, phoneNumber };
+}
+
 // Helper: poll for QR with retries
 async function wuzPollQR(baseUrl: string, userToken: string, maxAttempts = 4, delayMs = 1500): Promise<string | null> {
   for (let i = 0; i < maxAttempts; i++) {
