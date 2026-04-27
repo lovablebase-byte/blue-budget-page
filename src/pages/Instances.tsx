@@ -1114,6 +1114,11 @@ export default function Instances() {
                         <Loader2 className="h-10 w-10 animate-spin mx-auto mb-2" />
                         <p className="text-xs">Gerando QR Code, aguarde...</p>
                       </div>
+                    ) : autoQrRunning ? (
+                      <div className="text-center text-muted-foreground p-4">
+                        <Loader2 className="h-10 w-10 animate-spin mx-auto mb-2" />
+                        <p className="text-xs">Gerando QR Code, aguarde...</p>
+                      </div>
                     ) : (
                       <div className="text-center text-muted-foreground p-4">
                         <QrCode className="h-14 w-14 mx-auto mb-2" />
@@ -1122,7 +1127,7 @@ export default function Instances() {
                       </div>
                     )}
                   </div>
-                  {!qrLoading && !qrCodeBase64 && createdInstance && (
+                  {!qrLoading && !autoQrRunning && !qrCodeBase64 && createdInstance && (
                     <Button variant="outline" size="sm" onClick={() => startQrAutoRetry(createdInstance)} disabled={qrLoading}>
                       <QrCode className="h-4 w-4 mr-2" /> Gerar QR Code
                     </Button>
@@ -1199,7 +1204,7 @@ export default function Instances() {
           ) : (
             <div className="flex flex-col items-center gap-4 py-4">
               <div className="w-64 h-64 bg-card rounded-lg flex items-center justify-center border border-border/60 overflow-hidden shadow-[inset_0_0_20px_-8px_hsl(var(--primary)/0.1)]">
-                {qrLoading ? (
+                {qrLoading || autoQrRunning ? (
                   <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
                 ) : qrCodeBase64 ? (
                   <img src={qrCodeBase64} alt="QR Code" className="w-full h-full object-contain" />
@@ -1212,7 +1217,7 @@ export default function Instances() {
               </div>
               <div className="flex gap-2">
                 <Button onClick={() => selectedInstance && startQrAutoRetry(selectedInstance)} disabled={qrLoading}>
-                  {qrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                  {qrLoading || autoQrRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
                   {qrCodeBase64 ? 'Atualizar QR' : 'Gerar QR Code'}
                 </Button>
               </div>
