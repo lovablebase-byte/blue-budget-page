@@ -135,6 +135,8 @@ export default function Instances() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState(false);
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
+  const qrFetchInFlightRef = useRef(false);
+  const qrAutoRetryRef = useRef<{ timer: any; attempts: number; cancelled: boolean } | null>(null);
 
   // Form states
   const [newName, setNewName] = useState('');
