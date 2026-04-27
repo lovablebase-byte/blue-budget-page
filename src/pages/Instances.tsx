@@ -135,6 +135,7 @@ export default function Instances() {
   // QR Code states
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [autoQrRunning, setAutoQrRunning] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState(false);
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
@@ -618,6 +619,7 @@ export default function Instances() {
       if (qrAutoRetryRef.current.timer) clearTimeout(qrAutoRetryRef.current.timer);
       qrAutoRetryRef.current = null;
     }
+    setAutoQrRunning(false);
   };
 
   const fetchQRCode = async (instanceOrName: Instance | string, opts?: { silent?: boolean }) => {
@@ -715,6 +717,9 @@ export default function Instances() {
       const isFirst = ctrl.attempts === 1;
       const result = await fetchQRCode(instance, { silent: !isFirst });
       if (ctrl.cancelled) return;
+      if (result?.error) {
+        console.info('auto_qr_error', { instanceId: instance.id, provider: instance.provider, attempt: ctrl.attempts });
+      }
       if (result?.qr || result?.connected) {
         console.info(result.qr ? 'auto_qr_success' : 'auto_qr_connected', { instanceId: instance.id, provider: instance.provider, attempt: ctrl.attempts });
         cancelQrAutoRetry();
