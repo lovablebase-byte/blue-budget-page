@@ -651,6 +651,13 @@ export default function Instances() {
         events: getProviderEvents(instance.provider),
       });
 
+      console.debug('auto_qr_response', {
+        instanceId: instance.id,
+        provider: instance.provider,
+        hasQr: Boolean(data?.qrCode || data?.qrcode || data?.base64 || data?.qr?.data?.Qrcode || data?.qr?.data?.QRCode),
+        state: data?.state || data?.instance?.state || null,
+        connected: data?.connected === true,
+      });
       const qr = data?.qrCode || data?.qrcode || data?.base64 || data?.qr?.data?.Qrcode || data?.qr?.data?.QRCode;
       const remoteState = String(data?.state || data?.instance?.state || '').toLowerCase();
       const remoteOffline = ['close', 'closed', 'disconnected', 'logout', 'logged_out', 'not_logged', 'device_not_connected', 'not_found'].includes(remoteState);
