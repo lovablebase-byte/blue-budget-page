@@ -815,9 +815,9 @@ export default function Instances() {
     let result = instances.filter(inst => {
       if (filterProvider !== 'all' && inst.provider !== filterProvider) return false;
       if (filterStatus !== 'all') {
-        if (filterStatus === 'online' && inst.status !== 'online' && inst.status !== 'connected') return false;
-        if (filterStatus === 'offline' && inst.status !== 'offline') return false;
-        if (filterStatus === 'connecting' && inst.status !== 'connecting' && inst.status !== 'pairing') return false;
+        if (filterStatus === 'online' && !isOnlineStatus(inst.status)) return false;
+        if (filterStatus === 'offline' && !isDisconnectedStatus(inst.status)) return false;
+        if (filterStatus === 'connecting' && !isConnectingStatus(inst.status)) return false;
         if (filterStatus === 'error' && inst.status !== 'error') return false;
       }
       if (searchText) {
