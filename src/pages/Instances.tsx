@@ -226,6 +226,13 @@ export default function Instances() {
     return () => clearInterval(interval);
   }, [company]);
 
+  useEffect(() => {
+    if (!showPostCreate || !createdInstance || autoStartQrInstanceId !== createdInstance.id) return;
+    console.info('auto_qr_start', { instanceId: createdInstance.id, provider: createdInstance.provider });
+    setAutoStartQrInstanceId(null);
+    startQrAutoRetry(createdInstance);
+  }, [showPostCreate, createdInstance, autoStartQrInstanceId]);
+
   // Poll connection status when QR modal is open
   useEffect(() => {
     const instanceToWatch = showPostCreate ? createdInstance : showQR ? selectedInstance : null;
