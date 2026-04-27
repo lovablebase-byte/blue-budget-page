@@ -469,6 +469,7 @@ async function handleEvolutionGo(
         },
       };
     }
+    case "qrcode":
     case "connect": {
       let { dbInstance, remote, listError } = await resolveEvolutionGoRemote(
         supabase,
