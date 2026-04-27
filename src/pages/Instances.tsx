@@ -342,6 +342,26 @@ export default function Instances() {
     return () => { supabase.removeChannel(channel); };
   }, [company?.id]);
 
+  // Fallback leve: ao voltar para a aba/janela do navegador, reconciliar
+  // estados remotos uma única vez (sem loop). Evita ficar mostrando
+  // "Conectado" quando o usuário desconectou no painel externo do provider.
+  useEffect(() => {
+    if (!company?.id) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current < 10000) return;
+      lastRefreshAtRef.current = now;
+      fetchInstances({ syncRemote: true });
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [company?.id]);
+
   useEffect(() => {
     if (!showPostCreate || !createdInstance || autoStartQrInstanceId !== createdInstance.id) return;
     console.info('auto_qr_start', { instanceId: createdInstance.id, provider: createdInstance.provider });
