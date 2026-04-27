@@ -229,6 +229,33 @@ export default function Instances() {
   // Sincronização remota geral só acontece via botão "Atualizar".
   useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
 
+  // Realtime: when a webhook updates an instance (e.g. WuzAPI Connected event),
+  // the row in `instances` changes — reflect it in the UI immediately, no polling needed.
+  useEffect(() => {
+    if (!company?.id) return;
+    const channel = supabase
+      .channel(`instances-${company.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'instances', filter: `company_id=eq.${company.id}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new as Instance;
+            setInstances((curr) => (curr.some(i => i.id === row.id) ? curr : [row, ...curr]));
+          } else if (payload.eventType === 'UPDATE') {
+            const row = payload.new as Instance;
+            setInstances((curr) => curr.map(i => (i.id === row.id ? { ...i, ...row } : i)));
+            invalidateDashboards();
+          } else if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as { id?: string })?.id;
+            if (oldId) setInstances((curr) => curr.filter(i => i.id !== oldId));
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [company?.id]);
+
   useEffect(() => {
     if (!showPostCreate || !createdInstance || autoStartQrInstanceId !== createdInstance.id) return;
     console.info('auto_qr_start', { instanceId: createdInstance.id, provider: createdInstance.provider });
