@@ -320,6 +320,12 @@ export default function Instances() {
             const row = payload.new as Instance;
             setInstances((curr) => curr.map(i => {
               if (i.id !== row.id) return i;
+              // Se o realtime trouxer um status terminal (offline/error/online),
+              // limpa a proteção local — desconexão externa deve refletir no UI.
+              if (!isOnlineStatus(row.status) && !isConnectingStatus(row.status)) {
+                connectedInstanceIdsRef.current.delete(row.id);
+                return { ...i, ...row };
+              }
               if (connectedInstanceIdsRef.current.has(row.id) && isConnectingStatus(row.status)) {
                 return { ...i, ...row, status: 'online', phone_number: i.phone_number || row.phone_number, last_connected_at: i.last_connected_at || row.last_connected_at };
               }
@@ -334,6 +340,26 @@ export default function Instances() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+  }, [company?.id]);
+
+  // Fallback leve: ao voltar para a aba/janela do navegador, reconciliar
+  // estados remotos uma única vez (sem loop). Evita ficar mostrando
+  // "Conectado" quando o usuário desconectou no painel externo do provider.
+  useEffect(() => {
+    if (!company?.id) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current < 10000) return;
+      lastRefreshAtRef.current = now;
+      fetchInstances({ syncRemote: true });
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [company?.id]);
 
   useEffect(() => {

@@ -27,8 +27,22 @@ function normalizeEvolutionEvent(body: any): {
     "connection.update": "connection.update",
     "qrcode.updated": "qr.updated",
     "messages.update": "delivery.status",
-    "status.instance": "instance.status",
+    "status.instance": "connection.update",
     "presence.update": "presence.update",
+    // Eventos de topo emitidos por algumas integrações Evolution/Go
+    "disconnected": "connection.update",
+    "close": "connection.update",
+    "closed": "connection.update",
+    "offline": "connection.update",
+    "logout": "connection.update",
+    "logged_out": "connection.update",
+    "loggedout": "connection.update",
+    "not_logged": "connection.update",
+    "not_connected": "connection.update",
+    "connected": "connection.update",
+    "open": "connection.update",
+    "online": "connection.update",
+    "ready": "connection.update",
   };
 
   const eventType = eventMap[event] || event || "unknown";
@@ -41,9 +55,20 @@ function normalizeEvolutionEvent(body: any): {
   }
 
   let connectionState: string | null = null;
-  if (event === "connection.update") {
-    const state = (data?.state || "").toLowerCase();
+  if (event === "connection.update" || event === "status.instance") {
+    const state = String(data?.state || data?.status || "").toLowerCase();
     connectionState = state;
+  }
+  // Evolution / Evolution Go: alguns providers enviam o estado como evento
+  // de topo (ex: "disconnected", "logout", "close") sem wrapper de connection.update.
+  const DIRECT_DISCONNECT = new Set([
+    "disconnected", "close", "closed", "offline", "logout", "logged_out",
+    "loggedout", "not_logged", "not_connected",
+  ]);
+  const DIRECT_CONNECT = new Set(["connected", "open", "online", "ready", "authenticated"]);
+  if (!connectionState) {
+    if (DIRECT_DISCONNECT.has(event)) connectionState = "close";
+    else if (DIRECT_CONNECT.has(event)) connectionState = "open";
   }
 
   return {
