@@ -141,11 +141,26 @@ export async function syncSingleInstanceStatus<T extends SyncableInstance>(
 
   try {
     const res = await callProviderProxy('status', instance.provider, providerName);
-    const remoteState = res?.instance?.state || '';
-    const rawPhone = res?.instance?.phoneNumber;
-    const cleanPhone = rawPhone ? String(rawPhone).split('@')[0].replace(/\D/g, '') : '';
 
-    const normalized = normalizeRemoteState(remoteState);
+    // Normalizador central: garante que conexão real (Connected/LoggedIn/jid)
+    // vença qualquer sinal de QR/pareamento, e que o telefone seja extraído
+    // corretamente independentemente do provider.
+    const norm = normalizeProviderStatus(res);
+    const cleanPhone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res);
+
+    // Sinal de "instância não existe mais no provider" continua sendo error.
+    const rawTokens = String(
+      res?.instance?.state ?? res?.state ?? res?.status ?? '',
+    ).toLowerCase();
+    const isMissing = ['not_found', 'deleted', 'missing'].includes(rawTokens);
+
+    let normalized: CanonicalInstanceStatus | null;
+    if (isMissing) normalized = 'error';
+    else if (norm.connected) normalized = 'online';
+    else if (norm.status === 'pairing') normalized = 'pairing';
+    else if (norm.status === 'offline') normalized = 'offline';
+    else normalized = null;
+
     if (!normalized) return instance;
 
     const phoneChanged = !!cleanPhone && cleanPhone !== (instance.phone_number || '').replace(/\D/g, '');
@@ -160,7 +175,6 @@ export async function syncSingleInstanceStatus<T extends SyncableInstance>(
 
     const { error } = await supabase.from('instances').update(updateData).eq('id', instance.id);
     if (error) {
-      // Se a constraint rejeitar, NÃO retorna o status novo no objeto local
       console.warn('[instances-sync] update failed', error.message);
       return instance;
     }
