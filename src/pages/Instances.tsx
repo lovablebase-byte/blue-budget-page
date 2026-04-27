@@ -186,7 +186,7 @@ export default function Instances() {
     invalidateDashboards();
   };
 
-  const fetchInstances = async () => {
+  const fetchInstances = async (options?: { syncRemote?: boolean }) => {
     if (!company) return;
     if (fetchInFlightRef.current) return;
     fetchInFlightRef.current = true;
@@ -202,11 +202,15 @@ export default function Instances() {
       const dbInstances = (data as Instance[]) || [];
       setInstances(dbInstances);
 
-      const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
-      const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
-      if (changed) {
-        setInstances(synced);
-        invalidateDashboards();
+      // Sincronização remota só ocorre sob demanda (botão "Atualizar"
+      // ou após ações diretas que precisem reconciliar com o provider).
+      if (options?.syncRemote) {
+        const synced = await syncCompanyInstancesStatus(dbInstances, activeProvidersRef.current);
+        const changed = synced.some((s, i) => s.status !== dbInstances[i]?.status);
+        if (changed) {
+          setInstances(synced);
+          invalidateDashboards();
+        }
       }
     } finally {
       setLoading(false);
@@ -218,12 +222,11 @@ export default function Instances() {
     const now = Date.now();
     if (now - lastRefreshAtRef.current < 2500) return;
     lastRefreshAtRef.current = now;
-    fetchInstances();
+    fetchInstances({ syncRemote: true });
   };
 
-  // Carrega ao montar e quando a empresa mudar.
-  // NÃO usar setInterval global: a tela só atualiza via botão "Atualizar",
-  // ao voltar para a tela ou após ações diretas (criar/excluir/parear/conectar).
+  // Carrega ao montar e quando a empresa mudar (apenas leitura do banco).
+  // Sincronização remota geral só acontece via botão "Atualizar".
   useEffect(() => { fetchInstances(); fetchActiveProviders(); }, [company]);
 
   useEffect(() => {
