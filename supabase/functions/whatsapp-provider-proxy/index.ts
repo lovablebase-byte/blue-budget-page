@@ -794,6 +794,7 @@ async function handleEvolutionGo(
         instanceId: item?.id || null,
         status: mapEvolutionGoStatus(item),
         token: item?.token || null,
+        phoneNumber: extractPhoneFromObject(item) || null,
         raw: item,
       }));
       return { ok: true, status: 200, body: { data: items } };
