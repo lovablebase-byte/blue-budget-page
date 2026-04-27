@@ -408,20 +408,26 @@ export default function Instances() {
   };
 
   const handleDelete = async () => {
-    if (!selectedInstance) return;
+    const pending = instanceToDelete || selectedInstance;
+    if (!pending) return;
+    console.info('delete_confirm', { instanceId: pending.id, provider: pending.provider });
+    cancelQrAutoRetry();
     setDeleting(true);
+    setDeletingId(pending.id);
+    toast.info('Excluindo instância...');
     try {
       const { data: freshInstance, error: freshError } = await supabase
-        .from('instances').select('*').eq('id', selectedInstance.id).single();
+        .from('instances').select('*').eq('id', pending.id).maybeSingle();
       if (freshError) throw freshError;
-      const instance = freshInstance as Instance;
+      const instance = (freshInstance as Instance | null) || pending;
       const providerName = getProviderInstanceName(instance);
 
       let remoteAlreadyMissing = false;
       let providerFailedSoftly = false;
       if (providerName && hasActiveProviderConfig(activeProvidersRef.current, instance.provider)) {
         try {
-          await callProviderProxy('delete', instance.provider, providerName);
+          const providerResult = await callProviderProxy('delete', instance.provider, providerName);
+          console.info('delete_provider_result', { instanceId: instance.id, provider: instance.provider, status: providerResult?.status || 'ok' });
         } catch (err: any) {
           const msg = String(err?.message || '').toLowerCase();
           const isNotFound = /404|not\s*found|deleted_already|does not exist|sess(ã|a)o inexistente|instance not found/i.test(msg);
@@ -437,6 +443,8 @@ export default function Instances() {
 
       const { error: localErr } = await supabase.from('instances').delete().eq('id', instance.id);
       if (localErr) throw localErr;
+      setInstances((current) => current.filter((item) => item.id !== instance.id));
+      console.info('delete_local_success', { instanceId: instance.id, provider: instance.provider });
 
       try {
         const auditAction = remoteAlreadyMissing
@@ -455,12 +463,17 @@ export default function Instances() {
       notify.instanceDeleted(instance.name);
       setShowDelete(false);
       setSelectedInstance(null);
+      setInstanceToDelete(null);
       fetchInstances();
       invalidateDashboards();
+      queryClient.invalidateQueries({ queryKey: ['instances'] });
+      queryClient.invalidateQueries({ queryKey: ['instance-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-enforcement'] });
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setDeleting(false);
+      setDeletingId(null);
     }
   };
 
