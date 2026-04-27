@@ -1039,6 +1039,7 @@ async function handleWuzapi(
         instanceId: String(u.id || ""),
         status: u.connected ? "open" : "close",
         token: u.token,
+        phoneNumber: extractPhoneFromObject(u) || null,
         raw: u,
       }));
       return { ok: true, status: 200, body: { data: items } };
