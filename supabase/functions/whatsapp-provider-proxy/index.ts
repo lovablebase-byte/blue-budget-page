@@ -338,38 +338,40 @@ function normalizeWuzapiStatusResponse(raw: any): {
   const truthy = (v: any) =>
     v === true || v === 1 || String(v).toLowerCase() === "true" || String(v).toLowerCase() === "1";
 
-  const isConnected =
+  // Connection signals — ANY one of these means real connection.
+  const connectedFlag =
     truthy(data?.Connected) || truthy(data?.connected) ||
     truthy(data?.IsConnected) || truthy(data?.isConnected) ||
-    truthy(data?.LoggedIn) || truthy(data?.loggedIn) ||
-    truthy(data?.IsLogged) || truthy(data?.isLogged) ||
-    truthy(root?.Connected) || truthy(root?.connected) ||
-    truthy(root?.LoggedIn) || truthy(root?.loggedIn);
+    truthy(root?.Connected) || truthy(root?.connected);
 
-  const isLoggedIn =
+  const loggedFlag =
     truthy(data?.LoggedIn) || truthy(data?.loggedIn) ||
     truthy(data?.IsLogged) || truthy(data?.isLogged) ||
-    truthy(root?.LoggedIn) || truthy(root?.loggedIn);
+    truthy(root?.LoggedIn) || truthy(root?.loggedIn) ||
+    truthy(data?.authenticated) || truthy(data?.ready);
+
+  const jid = data?.Jid || data?.jid || data?.JID || data?.phone || data?.Phone || null;
+  const phoneNumber = jid ? String(jid).split("@")[0].replace(/\D/g, "") || null : null;
 
   const rawStatus = String(data?.status || data?.state || root?.status || root?.state || "").toLowerCase();
   const offlineWords = ["close", "closed", "disconnected", "offline", "logout", "logged_out", "not_logged", "not_connected"];
   const onlineWords = ["connected", "open", "online", "ready", "logged", "authenticated"];
   const pairingWords = ["qr", "qrcode", "scan", "pairing", "awaiting_qr"];
 
-  const jid = data?.Jid || data?.jid || data?.JID || data?.phone || data?.Phone || null;
-  const phoneNumber = jid ? String(jid).split("@")[0].replace(/\D/g, "") || null : null;
-
+  // PRIORITY 1: connected wins over QR. Any one of: connectedFlag, loggedFlag,
+  // online status string, or real JID => state "open".
   let state: "open" | "close" | "qrcode" | "connecting" = "close";
+  if (connectedFlag || loggedFlag || onlineWords.includes(rawStatus) || jid) {
+    state = "open";
+  } else if (pairingWords.includes(rawStatus)) {
+    state = "qrcode";
+  } else if (rawStatus === "connecting") {
+    state = "connecting";
+  } else if (offlineWords.includes(rawStatus)) {
+    state = "close";
+  }
 
-  if (isConnected && isLoggedIn) state = "open";
-  else if (onlineWords.includes(rawStatus)) state = "open";
-  else if (pairingWords.includes(rawStatus)) state = "qrcode";
-  else if (rawStatus === "connecting") state = "connecting";
-  else if (offlineWords.includes(rawStatus)) state = "close";
-  else if (isConnected && !isLoggedIn) state = "connecting";
-
-  // Final guard: if we got a real JID, the user is connected.
-  if (jid && state !== "open") state = "open";
+  console.log(`[wuzapi:normalize] connectedFlag=${connectedFlag} loggedFlag=${loggedFlag} jid=${!!jid} rawStatus=${rawStatus} => state=${state}`);
 
   return { connected: state === "open", state, phoneNumber };
 }
