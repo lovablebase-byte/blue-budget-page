@@ -907,7 +907,7 @@ export default function Instances() {
                           <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => { setSelectedInstance(row); setConnectionSuccess(false); setQrCodeBase64(null); setQrError(null); setShowQR(true); }}>
+                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setSelectedInstance(row); setConnectionSuccess(false); setQrCodeBase64(null); setQrError(null); setShowQR(true); setTimeout(() => startQrAutoRetry(row), 300); }}>
                           <QrCode className="mr-2 h-4 w-4" /> Parear QR Code
                         </DropdownMenuItem>
                         {row.status === 'online' || row.status === 'connected' ? (
