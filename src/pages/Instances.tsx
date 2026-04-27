@@ -1125,7 +1125,7 @@ export default function Instances() {
       </Dialog>
 
       {/* QR Code dialog */}
-      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { setQrCodeBase64(null); setQrError(null); setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
+      <Dialog open={showQR} onOpenChange={(o) => { setShowQR(o); if (!o) { cancelQrAutoRetry(); setQrCodeBase64(null); setQrError(null); setConnectionSuccess(false); setAutoCloseCountdown(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Parear WhatsApp</DialogTitle>
