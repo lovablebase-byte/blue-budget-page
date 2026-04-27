@@ -270,7 +270,7 @@ export default function Instances() {
       } finally {
         statusPollInFlightRef.current = false;
       }
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(pollInterval);
   }, [showPostCreate, showQR, createdInstance, selectedInstance, connectionSuccess, activeProviders]);
