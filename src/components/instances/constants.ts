@@ -74,5 +74,7 @@ export function getProviderEvents(provider: string): string[] {
 }
 
 export function getStatusConfig(status: string): StatusConfig {
-  return statusConfig[status] || statusConfig.offline;
+  if (!status) return statusConfig.offline;
+  const key = String(status).toLowerCase().trim();
+  return statusConfig[key] || statusConfig.offline;
 }
