@@ -175,7 +175,7 @@ export default function InstanceDetailPage() {
     const poll = setInterval(async () => {
       try {
         const res = await callProviderProxy('status', instance.provider, providerName);
-        const norm = normalizeProviderStatus(res);
+        const norm = normalizeProviderStatus(res, instance.provider);
         if (norm.connected) {
           setConnectionSuccess(true);
           const phone = extractWhatsappPhone(res?.instance) || extractWhatsappPhone(res);
