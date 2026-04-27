@@ -262,6 +262,8 @@ export function useCompanyDashboard(companyId: string | undefined) {
         openInvoices: (invoicesRes.data || []).length,
       };
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 }
