@@ -399,14 +399,18 @@ function normalizeWuzapiStatusResponse(raw: any): {
   const onlineWords = ["connected", "open", "online", "ready", "logged", "authenticated"];
   const pairingWords = ["qr", "qrcode", "scan", "pairing", "awaiting_qr"];
 
-  // PRIORITY 1: connected wins over QR. Any one of: connectedFlag, loggedFlag,
-  // online status string, or real JID => state "open".
+  // WuzAPI specific rule: `Connected: true` ALONE is NOT real WhatsApp pairing.
+  // It just means the wuzapi session/websocket is up. Real online requires
+  // strong auth signal (loggedFlag) OR an explicit "open"/"loggedin" status
+  // OR a real JID. Without those, treat as pairing/connecting.
+  const strongOnlineToken = rawStatus === "open" || rawStatus === "loggedin" || rawStatus === "logged_in" || rawStatus === "ready" || rawStatus === "authenticated";
   let state: "open" | "close" | "qrcode" | "connecting" = "close";
-  if (connectedFlag || loggedFlag || onlineWords.includes(rawStatus) || jid) {
+  if (loggedFlag || strongOnlineToken || jid) {
     state = "open";
   } else if (pairingWords.includes(rawStatus)) {
     state = "qrcode";
-  } else if (rawStatus === "connecting") {
+  } else if (connectedFlag || rawStatus === "connecting") {
+    // Connected websocket without login → still pairing/connecting, NEVER online
     state = "connecting";
   } else if (offlineWords.includes(rawStatus)) {
     state = "close";
