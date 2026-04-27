@@ -298,6 +298,33 @@ async function wuzFetchSession(
   return { ok: res.ok, status: res.status, data };
 }
 
+// Wuzapi only accepts a fixed set of Subscribe events. QR is fetched via /session/qr,
+// not via webhook events. Strip anything Wuzapi will reject.
+const WUZAPI_VALID_EVENTS = new Set([
+  "Message", "ReadReceipt", "ChatPresence", "HistorySync",
+  "Connected", "Disconnected", "LoggedOut", "PairSuccess", "PairError",
+  "QR", "All",
+]);
+function sanitizeWuzapiEvents(events: any): string[] {
+  const list = Array.isArray(events) ? events : [];
+  const cleaned = list
+    .map((e) => (typeof e === "string" ? e.trim() : ""))
+    .filter((e) => e.length > 0)
+    .filter((e) => !/^qr ?code$/i.test(e))
+    .filter((e) => WUZAPI_VALID_EVENTS.has(e) || WUZAPI_VALID_EVENTS.has(e.charAt(0).toUpperCase() + e.slice(1)));
+  const deduped = Array.from(new Set(cleaned));
+  return deduped.length ? deduped : ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"];
+}
+function isInvalidEventError(data: any): boolean {
+  const msg = String(data?.error || data?.message || data?.data?.Details || "").toLowerCase();
+  return msg.includes("invalid event");
+}
+function extractInvalidEvent(data: any): string | null {
+  const msg = String(data?.error || data?.message || data?.data?.Details || "");
+  const m = msg.match(/invalid event(?: type)?:?\s*([A-Za-z0-9_]+)/i);
+  return m?.[1] || null;
+}
+
 // Helper: normalize WuzAPI status payload — accepts many shapes/casings.
 // Returns canonical { connected, state } where state ∈ "open" | "close" | "qrcode" | "connecting".
 function normalizeWuzapiStatusResponse(raw: any): {
@@ -732,15 +759,30 @@ async function handleWuzapi(
     }
     case "create": {
       const userToken = payload?.token || crypto.randomUUID().replace(/-/g, "").slice(0, 20);
-      const eventList: string[] = Array.isArray(payload?.events) && payload.events.length
+      const requestedEvents: string[] = Array.isArray(payload?.events) && payload.events.length
         ? payload.events
-        : ["Message", "Connected", "Disconnected", "LoggedOut", "QRCode", "ReadReceipt", "ChatPresence"];
+        : ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"];
+      let eventList = sanitizeWuzapiEvents(requestedEvents);
       const b: any = { name: instanceName, token: userToken };
       if (payload?.webhook) {
         b.webhook = payload.webhook;
         b.events = eventList.join(",");
       }
-      const r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+      let r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+      // Fallback: if Wuzapi rejects an event, retry by removing the offending one, then minimal list
+      if (!r.ok && isInvalidEventError(r.data)) {
+        const bad = extractInvalidEvent(r.data);
+        eventList = bad ? eventList.filter((e) => e.toLowerCase() !== bad.toLowerCase()) : ["Message"];
+        if (b.events) b.events = eventList.join(",");
+        console.warn(`[wuzapi:create] invalid event '${bad}', retrying with`, eventList);
+        r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+        if (!r.ok && isInvalidEventError(r.data)) {
+          eventList = ["Message"];
+          if (b.events) b.events = "Message";
+          console.warn(`[wuzapi:create] retrying with minimal event list`);
+          r = await wuzFetchAdmin(baseUrl, apiKey, "POST", "/admin/users", b);
+        }
+      }
       if (!r.ok) return { ok: false, status: r.status, body: r.data };
 
       // Connect session to start QR generation (uses Token header)
@@ -778,9 +820,10 @@ async function handleWuzapi(
     }
     case "connect": {
       if (!instanceName) return { ok: false, status: 400, body: { error: "Token da instância obrigatório" } };
-      const eventList: string[] = Array.isArray(payload?.events) && payload.events.length
+      const requestedEvents: string[] = Array.isArray(payload?.events) && payload.events.length
         ? payload.events
-        : ["Message", "Connected", "Disconnected", "LoggedOut", "QRCode", "ReadReceipt", "ChatPresence"];
+        : ["Message", "ReadReceipt", "ChatPresence", "Connected", "Disconnected"];
+      let eventList = sanitizeWuzapiEvents(requestedEvents);
       const connectBody: any = {
         Subscribe: eventList,
         Immediate: true,
@@ -790,7 +833,20 @@ async function handleWuzapi(
       }
       // Session endpoints use Token header
       console.log(`[wuzapi:connect] Calling /session/connect for token=${instanceName?.slice(0,6)}...`);
-      const cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+      let cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+      // Fallback if Wuzapi rejects an event in Subscribe
+      if (!cr.ok && isInvalidEventError(cr.data)) {
+        const bad = extractInvalidEvent(cr.data);
+        eventList = bad ? eventList.filter((e) => e.toLowerCase() !== bad.toLowerCase()) : ["Message"];
+        connectBody.Subscribe = eventList;
+        console.warn(`[wuzapi:connect] invalid event '${bad}', retrying with`, eventList);
+        cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+        if (!cr.ok && isInvalidEventError(cr.data)) {
+          connectBody.Subscribe = ["Message"];
+          console.warn(`[wuzapi:connect] retrying with minimal event list`);
+          cr = await wuzFetchSession(baseUrl, instanceName, "POST", "/session/connect", connectBody);
+        }
+      }
 
       // "already connected" is not a real error — proceed to QR/status check
       if (!cr.ok) {
