@@ -409,8 +409,9 @@ export default function InstanceDetailPage() {
     );
   }
 
-  const isOnline = instance.status === 'online' || instance.status === 'connected';
-  const isOffline = instance.status === 'offline';
+  const statusKey = String(instance.status || '').toLowerCase();
+  const isOnline = statusKey === 'online' || statusKey === 'connected' || statusKey === 'open';
+  const isOffline = !isOnline && (statusKey === 'offline' || statusKey === 'close' || statusKey === 'closed' || statusKey === 'disconnected');
   const canEdit = hasPermission('instances', 'edit') && !isReadOnly;
 
   const eventColumns: Column<WebhookEvent>[] = [
