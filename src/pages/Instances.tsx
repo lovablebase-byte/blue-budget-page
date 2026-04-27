@@ -11,6 +11,11 @@ import {
   isConnectingStatus,
   isDisconnectedStatus,
 } from '@/services/instances-sync';
+import {
+  normalizeProviderStatus,
+  extractWhatsappPhone,
+  normalizeWhatsappPhone,
+} from '@/lib/whatsapp-normalizers';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { GuardedButton } from '@/components/PlanEnforcementGuard';
 import { PlanStatusBanner } from '@/components/PlanStatusBanner';
