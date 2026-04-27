@@ -398,12 +398,8 @@ export default function Instances() {
       resetForm();
       setCreatedInstance(data as Instance);
       setShowPostCreate(true);
+      setAutoStartQrInstanceId((data as Instance).id);
       fetchInstances();
-
-      if (providerActive) {
-        // Inicia tentativas automáticas de geração do QR Code
-        setTimeout(() => startQrAutoRetry(data as Instance), 400);
-      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
