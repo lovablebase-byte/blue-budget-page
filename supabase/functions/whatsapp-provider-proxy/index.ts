@@ -716,14 +716,25 @@ async function handleEvolutionGo(
 
       const raw = r.data?.data || r.data?.instance || r.data;
       const state = mapEvolutionGoStatus({ ...raw, remoteStatus: remote?.status, status: remote?.status ?? raw?.status, state: remote?.state ?? raw?.state });
+      const connected = state === "open";
+      // Telefone normalizado (remove `:device` antes de filtrar não numéricos).
+      const phoneNumber = connected
+        ? (extractPhoneFromObject(raw) || extractPhoneFromObject(remote) || null)
+        : null;
+      const statusOut = connected ? "online" : state === "connecting" ? "connecting" : state === "qrcode" ? "pairing" : "offline";
+      const stateOut = connected ? "open" : state === "connecting" ? "connecting" : state === "qrcode" ? "qrcode" : "close";
       return {
         ok: true, status: 200,
         body: {
+          success: true,
+          connected,
+          status: statusOut,
+          state: stateOut,
           instance: {
-            state,
+            state: stateOut,
             instanceName,
-            connected: state === "open",
-            phoneNumber: state === "open" ? (raw?.jid || raw?.phoneNumber || null) : null,
+            connected,
+            phoneNumber,
           },
           raw: r.data,
         },
