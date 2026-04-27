@@ -27,8 +27,22 @@ function normalizeEvolutionEvent(body: any): {
     "connection.update": "connection.update",
     "qrcode.updated": "qr.updated",
     "messages.update": "delivery.status",
-    "status.instance": "instance.status",
+    "status.instance": "connection.update",
     "presence.update": "presence.update",
+    // Eventos de topo emitidos por algumas integrações Evolution/Go
+    "disconnected": "connection.update",
+    "close": "connection.update",
+    "closed": "connection.update",
+    "offline": "connection.update",
+    "logout": "connection.update",
+    "logged_out": "connection.update",
+    "loggedout": "connection.update",
+    "not_logged": "connection.update",
+    "not_connected": "connection.update",
+    "connected": "connection.update",
+    "open": "connection.update",
+    "online": "connection.update",
+    "ready": "connection.update",
   };
 
   const eventType = eventMap[event] || event || "unknown";
