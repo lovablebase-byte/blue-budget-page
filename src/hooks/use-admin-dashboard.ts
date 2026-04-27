@@ -131,7 +131,9 @@ export function useAdminDashboard() {
         paidRevenueCents: paidRevenue,
       };
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const recentCompanies = useQuery({
@@ -223,7 +225,9 @@ export function useAdminDashboard() {
 
       return result;
     },
-    refetchInterval: 60000,
+    refetchInterval: 120000,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   return { stats, recentCompanies, recentInstances, recentInvoices, alerts };
@@ -258,6 +262,8 @@ export function useCompanyDashboard(companyId: string | undefined) {
         openInvoices: (invoicesRes.data || []).length,
       };
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 }

@@ -19,7 +19,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const REFRESH_INTERVAL = 15000;
+// Atualização leve do dashboard (somente leitura no banco; sem chamar providers).
+// Intervalo amplo para evitar requisições constantes — invalidação após ações é preferida.
+const REFRESH_INTERVAL = 60000;
 
 function UsageBar({ label, used, max, icon: Icon, colorClass = 'metric-green' }: { label: string; used: number; max: number; icon: any; colorClass?: string }) {
   const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
