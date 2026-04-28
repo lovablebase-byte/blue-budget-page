@@ -7,352 +7,32 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// ---------- Evolution event normalization (v1 lowercase, v2/Go UPPERCASE) ----------
+// ---------- Redaction Helper ----------
 
-function normalizeEvolutionEvent(body: any): {
-  eventType: string;
-  direction: string;
-  remoteJid: string | null;
-  messageId: string | null;
-  connectionState: string | null;
-  qrCode: string | null;
-} {
-  const rawEvent = body?.event || "";
-  // Normalize Evolution Go uppercase events to v1 dot-notation for downstream consistency
-  const event = String(rawEvent).toLowerCase().replace(/_/g, ".");
-
-  const eventMap: Record<string, string> = {
-    "messages.upsert": "message.received",
-    "send.message": "message.sent",
-    "connection.update": "connection.update",
-    "qrcode.updated": "qr.updated",
-    "messages.update": "delivery.status",
-    "status.instance": "connection.update",
-    "presence.update": "presence.update",
-    // Eventos de topo emitidos por algumas integrações Evolution/Go
-    "disconnected": "connection.update",
-    "close": "connection.update",
-    "closed": "connection.update",
-    "offline": "connection.update",
-    "logout": "connection.update",
-    "logged_out": "connection.update",
-    "loggedout": "connection.update",
-    "not_logged": "connection.update",
-    "not_connected": "connection.update",
-    "connected": "connection.update",
-    "open": "connection.update",
-    "online": "connection.update",
-    "ready": "connection.update",
-  };
-
-  const eventType = eventMap[event] || event || "unknown";
-  const data = body?.data || body;
-
-  let direction = "inbound";
-  if (event === "send.message") direction = "outbound";
-  else if (event === "messages.upsert") {
-    direction = data?.key?.fromMe ? "outbound" : "inbound";
-  }
-
-  let connectionState: string | null = null;
-  if (event === "connection.update" || event === "status.instance") {
-    const state = String(data?.state || data?.status || "").toLowerCase();
-    connectionState = state;
-  }
-  // Evolution / Evolution Go: alguns providers enviam o estado como evento
-  // de topo (ex: "disconnected", "logout", "close") sem wrapper de connection.update.
-  const DIRECT_DISCONNECT = new Set([
-    "disconnected", "close", "closed", "offline", "logout", "logged_out",
-    "loggedout", "not_logged", "not_connected",
+function redactSensitiveData(obj: any): any {
+  if (!obj || typeof obj !== "object") return obj;
+  const copy = Array.isArray(obj) ? [...obj] : { ...obj };
+  const sensitiveKeys = new Set([
+    "token", "secret", "authorization", "apikey", "api_key", "secret_key", 
+    "webhook_secret", "service_role", "password", "auth", "key"
   ]);
-  const DIRECT_CONNECT = new Set(["connected", "open", "online", "ready", "authenticated"]);
-  if (!connectionState) {
-    if (DIRECT_DISCONNECT.has(event)) connectionState = "close";
-    else if (DIRECT_CONNECT.has(event)) connectionState = "open";
-  }
 
-  return {
-    eventType,
-    direction,
-    remoteJid: data?.key?.remoteJid || data?.remoteJid || null,
-    messageId: data?.key?.id || data?.messageId || null,
-    connectionState,
-    qrCode: event === "qrcode.updated" ? (data?.qrcode?.base64 || data?.base64 || null) : null,
-  };
-}
-
-// ---------- Wuzapi event normalization ----------
-
-function normalizeWuzapiEvent(body: any): {
-  eventType: string;
-  direction: string;
-  remoteJid: string | null;
-  messageId: string | null;
-  connectionState: string | null;
-  qrCode: string | null;
-} {
-  // Wuzapi sends events with different structure / casing
-  const rawEventType = body?.type || body?.event || body?.Event || "unknown";
-  const eventType = String(rawEventType);
-  const lowered = eventType.toLowerCase();
-
-  // Map wuzapi event types (case-insensitive)
-  let normalizedType = "unknown";
-  if (lowered === "message") normalizedType = "message.received";
-  else if (lowered === "readreceipt" || lowered === "read_receipt") normalizedType = "delivery.status";
-  else if (lowered === "historysync" || lowered === "history_sync") normalizedType = "history.sync";
-  else if (lowered === "chatpresence" || lowered === "chat_presence") normalizedType = "presence.update";
-  else if (
-    lowered === "connected" || lowered === "disconnected" ||
-    lowered === "loggedout" || lowered === "logged_out" || lowered === "logout" ||
-    lowered === "connection.update" || lowered === "connection_update"
-  ) normalizedType = "connection.update";
-  else if (lowered === "qrcode" || lowered === "qr" || lowered === "qr.updated") normalizedType = "qr.updated";
-  else normalizedType = eventType;
-
-  let direction = "inbound";
-  if (body?.data?.Info?.IsFromMe || body?.Info?.IsFromMe) direction = "outbound";
-
-  const data = body?.data || body;
-
-  let connectionState: string | null = null;
-  if (lowered === "connected" || lowered === "connection.update" || lowered === "connection_update") {
-    // Some payloads may be a generic connection update with explicit state
-    const innerState = String(data?.state || data?.State || data?.status || "").toLowerCase();
-    if (innerState === "close" || innerState === "closed" || innerState === "disconnected" || innerState === "logout") {
-      connectionState = "close";
-    } else {
-      connectionState = "open";
-    }
-  } else if (lowered === "disconnected" || lowered === "loggedout" || lowered === "logged_out" || lowered === "logout") {
-    connectionState = "close";
-  }
-
-  return {
-    eventType: normalizedType,
-    direction,
-    remoteJid: data?.Info?.RemoteJid || data?.RemoteJid || data?.Phone || null,
-    messageId: data?.Info?.Id || data?.Id || null,
-    connectionState,
-    qrCode: (lowered === "qrcode" || lowered === "qr") ? (data?.QRCode || data?.qrcode || data?.qr || data?.data?.QRCode || null) : null,
-  };
-}
-
-// ---------- WPPConnect event normalization ----------
-// Reference: https://wppconnect.io/docs/
-// WPPConnect emits events such as: onmessage, onack, onstatuschange,
-// status-find, qrcode, incomingcall, etc. The exact key may be `event`,
-// `type`, or inferred from the payload shape.
-function normalizeWppConnectEvent(body: any): {
-  eventType: string;
-  direction: string;
-  remoteJid: string | null;
-  messageId: string | null;
-  connectionState: string | null;
-  qrCode: string | null;
-} {
-  const rawEvent = String(body?.event || body?.type || "").toLowerCase();
-  const data = body?.data || body?.response || body;
-
-  // Map WPPConnect events to internal vocabulary
-  const eventMap: Record<string, string> = {
-    onmessage: "message.received",
-    "message-received": "message.received",
-    "incoming-call": "call.received",
-    onack: "delivery.status",
-    ack: "delivery.status",
-    onstatuschange: "connection.update",
-    "status-find": "connection.update",
-    qrcode: "qr.updated",
-    "qrcode-updated": "qr.updated",
-    onstatefind: "connection.update",
-    onpresencechanged: "presence.update",
-  };
-
-  // Detect message events when event key is missing but body looks like a message
-  let detected = rawEvent;
-  if (!detected && (data?.body || data?.content || data?.message) && (data?.from || data?.chatId || data?.to)) {
-    detected = "onmessage";
-  }
-  if (!detected && (data?.qrcode || data?.qr || body?.qrcode)) {
-    detected = "qrcode";
-  }
-
-  const eventType = eventMap[detected] || detected || "unknown";
-
-  // WPPConnect status-find/onstatuschange status values:
-  // CONNECTED, isLogged, qrReadSuccess, qrReadFail, autocloseCalled,
-  // desconnectedMobile, deleteToken, chatsAvailable, deviceNotConnected,
-  // serverWssNotConnected, noOpenBrowser, browserClose
-  let connectionState: string | null = null;
-  if (eventType === "connection.update") {
-    const statusVal = String(
-      data?.status || data?.state || body?.status || body?.statusFind || ""
-    ).toLowerCase();
-
-    // CRÍTICO: termos NEGATIVOS primeiro — `disconnected`/`notconnected`
-    // contêm a substring `connected` e seriam capturados pelo branch positivo.
-    if (
-      statusVal.includes("disconnect") ||
-      statusVal.includes("desconnect") ||
-      statusVal.includes("notlogged") ||
-      statusVal.includes("notconnected") ||
-      statusVal.includes("not_connected") ||
-      statusVal.includes("devicenotconnected") ||
-      statusVal.includes("browserclose") ||
-      statusVal.includes("autoclose") ||
-      statusVal.includes("deletetoken") ||
-      statusVal.includes("logout") ||
-      statusVal === "close" ||
-      statusVal === "closed"
-    ) {
-      connectionState = "close";
-    } else if (
-      statusVal.includes("qr") ||
-      statusVal.includes("scan") ||
-      statusVal.includes("opening") ||
-      statusVal.includes("pairing") ||
-      statusVal === "connecting"
-    ) {
-      connectionState = "connecting";
-    } else if (
-      statusVal.includes("connected") ||
-      statusVal.includes("islogged") ||
-      statusVal.includes("inchat") ||
-      statusVal.includes("chatsavailable") ||
-      statusVal === "open" ||
-      statusVal === "ready"
-    ) {
-      connectionState = "open";
+  for (const key in copy) {
+    if (typeof copy[key] === "object" && copy[key] !== null) {
+      copy[key] = redactSensitiveData(copy[key]);
+    } else if (typeof key === "string" && sensitiveKeys.has(key.toLowerCase())) {
+      copy[key] = "[REDACTED]";
+    } else if (typeof copy[key] === "string") {
+      // Mascarar strings longas que parecem tokens/hashes se a chave for suspeita
+      if (copy[key].length > 32 && (key.toLowerCase().includes("token") || key.toLowerCase().includes("signature"))) {
+        copy[key] = `${copy[key].substring(0, 8)}...[REDACTED]`;
+      }
     }
   }
-
-  // Direction: WPPConnect's onmessage uses fromMe boolean
-  let direction = "inbound";
-  if (data?.fromMe === true || data?.from?.fromMe === true) direction = "outbound";
-
-  const qrCode =
-    eventType === "qr.updated"
-      ? (data?.qrcode || data?.qr || data?.base64Qrimg || body?.qrcode || null)
-      : null;
-
-  return {
-    eventType,
-    direction,
-    remoteJid:
-      data?.from || data?.chatId || data?.to || data?.chat?.id || null,
-    messageId: data?.id || data?.messageId || null,
-    connectionState,
-    qrCode,
-  };
+  return copy;
 }
 
-// ---------- QuePasa event normalization ----------
-// Reference: https://github.com/nocodeleaks/quepasa
-// QuePasa emits events like: message, receipt, status, qrcode, system,
-// disconnected, ready. The exact key may live in `event`, `type`, `eventname`
-// or be inferred from the payload shape. Direction is taken from `fromme`.
-function normalizeQuePasaEvent(body: any): {
-  eventType: string;
-  direction: string;
-  remoteJid: string | null;
-  messageId: string | null;
-  connectionState: string | null;
-  qrCode: string | null;
-} {
-  const rawEvent = String(
-    body?.event || body?.eventname || body?.type || body?.kind || ""
-  ).toLowerCase();
-  const data = body?.message || body?.data || body?.payload || body;
-
-  const eventMap: Record<string, string> = {
-    message: "message.received",
-    "message.received": "message.received",
-    receipt: "delivery.status",
-    ack: "delivery.status",
-    status: "connection.update",
-    system: "connection.update",
-    ready: "connection.update",
-    connected: "connection.update",
-    disconnected: "connection.update",
-    logout: "connection.update",
-    qrcode: "qr.updated",
-    qr: "qr.updated",
-  };
-
-  // Detect message events when the key is missing but body looks like a message
-  let detected = rawEvent;
-  if (!detected && (data?.text || data?.body || data?.content)
-      && (data?.chatid || data?.chat?.id || data?.from || data?.sender)) {
-    detected = "message";
-  }
-  if (!detected && (data?.qrcode || body?.qrcode)) {
-    detected = "qrcode";
-  }
-
-  const eventType = eventMap[detected] || detected || "unknown";
-
-  // Direction: QuePasa uses fromme/FromMe boolean
-  const fromMe =
-    data?.fromme === true || data?.FromMe === true ||
-    body?.fromme === true || body?.FromMe === true;
-  const direction = fromMe ? "outbound" : "inbound";
-
-  // Connection state mapping
-  let connectionState: string | null = null;
-  if (eventType === "connection.update") {
-    const statusVal = String(
-      data?.status || data?.state || body?.status || body?.state || rawEvent || ""
-    ).toLowerCase();
-
-    // CRÍTICO: termos NEGATIVOS primeiro (disconnected contém "connected").
-    if (
-      statusVal.includes("disconnect") ||
-      statusVal.includes("logout") ||
-      statusVal.includes("logged_out") ||
-      statusVal.includes("loggedout") ||
-      statusVal.includes("notconnected") ||
-      statusVal.includes("not_connected") ||
-      statusVal.includes("closed") ||
-      statusVal === "close"
-    ) {
-      connectionState = "close";
-    } else if (
-      statusVal.includes("qr") ||
-      statusVal.includes("scan") ||
-      statusVal.includes("starting") ||
-      statusVal.includes("pairing") ||
-      statusVal.includes("connecting")
-    ) {
-      connectionState = "connecting";
-    } else if (
-      statusVal.includes("ready") ||
-      statusVal.includes("connected") ||
-      statusVal.includes("logged") ||
-      statusVal === "open"
-    ) {
-      connectionState = "open";
-    }
-  }
-
-  const qrCode =
-    eventType === "qr.updated"
-      ? (data?.qrcode || data?.qr || data?.base64 || body?.qrcode || null)
-      : null;
-
-  return {
-    eventType,
-    direction,
-    remoteJid:
-      data?.chatid || data?.chat?.id || data?.from || data?.sender ||
-      data?.remoteJid || null,
-    messageId: data?.id || data?.messageid || data?.MessageId || null,
-    connectionState,
-    qrCode,
-  };
-}
-
-// ---------- Phone normalization (mirror of src/lib/whatsapp-normalizers.ts) ----------
+// ---------- Phone normalization ----------
 
 function normalizeWhatsappPhone(input: unknown): string {
   if (input === null || input === undefined) return "";
@@ -387,6 +67,145 @@ function extractPhoneFromPayload(body: any): string {
   return "";
 }
 
+// ---------- Unified Normalizer ----------
+
+interface NormalizedEvent {
+  provider: string;
+  eventType: string; // standard internal type
+  rawEventType: string;
+  direction: "inbound" | "outbound" | "system";
+  remoteJid: string | null;
+  messageId: string | null;
+  connectionState: "open" | "close" | "connecting" | "unknown" | null;
+  qrCode: string | null;
+  text: string | null;
+  from: string | null;
+  to: string | null;
+  raw: any;
+}
+
+function normalizeProviderWebhookEvent(body: any, provider: string): NormalizedEvent {
+  const rawEventType = String(body?.event || body?.type || body?.Event || body?.eventname || "unknown");
+  const event = rawEventType.toLowerCase().replace(/_/g, ".");
+  const data = body?.data || body?.message || body?.payload || body;
+
+  let eventType = "provider.unknown";
+  let direction: "inbound" | "outbound" | "system" = "system";
+  let connectionState: NormalizedEvent["connectionState"] = null;
+  let remoteJid: string | null = null;
+  let messageId: string | null = null;
+  let text: string | null = null;
+  let from: string | null = null;
+  let to: string | null = null;
+
+  // 1. Identify Event Type & State
+  if (provider === "evolution" || provider === "evolution_go") {
+    const eventMap: Record<string, string> = {
+      "messages.upsert": "message.received",
+      "send.message": "message.sent",
+      "messages.update": "message.delivered", // can be read/delivered
+      "connection.update": "connection.update",
+      "qrcode.updated": "connection.qrcode",
+      "status.instance": "connection.update",
+    };
+    eventType = eventMap[event] || "provider.unknown";
+    
+    // Check if it's actually read status
+    if (event === "messages.update" && data?.status === "READ") eventType = "message.read";
+
+    if (eventType.startsWith("message.")) {
+      direction = data?.key?.fromMe ? "outbound" : "inbound";
+      remoteJid = data?.key?.remoteJid || data?.remoteJid || null;
+      messageId = data?.key?.id || data?.messageId || null;
+      text = data?.message?.conversation || data?.message?.extendedTextMessage?.text || null;
+    }
+    
+    // Connection states
+    const state = String(data?.state || data?.status || "").toLowerCase();
+    if (["open", "connected", "online", "ready", "authenticated"].includes(state)) connectionState = "open";
+    else if (["close", "closed", "disconnected", "logout", "offline"].includes(state)) connectionState = "close";
+    else if (["qr", "qrcode", "scan", "pairing", "connecting"].includes(state)) connectionState = "connecting";
+    
+    // Direct states outside connection.update
+    if (!connectionState) {
+      if (["disconnected", "close", "closed", "offline", "logout"].includes(event)) connectionState = "close";
+      else if (["connected", "open", "online", "ready"].includes(event)) connectionState = "open";
+    }
+  } else if (provider === "wuzapi") {
+    if (event === "message") eventType = "message.received";
+    else if (event === "readreceipt" || event === "read_receipt") eventType = "message.read";
+    else if (event === "connection.update" || event === "connected" || event === "disconnected") eventType = "connection.update";
+    else if (event === "qrcode" || event === "qr") eventType = "connection.qrcode";
+
+    direction = (data?.Info?.IsFromMe || data?.IsFromMe) ? "outbound" : "inbound";
+    remoteJid = data?.Info?.RemoteJid || data?.RemoteJid || null;
+    messageId = data?.Info?.Id || data?.Id || null;
+    text = data?.Text || data?.text || null;
+
+    const state = String(data?.state || data?.State || event).toLowerCase();
+    if (["connected", "open"].includes(state)) connectionState = "open";
+    else if (["disconnected", "logout", "closed", "close"].includes(state)) connectionState = "close";
+  } else if (provider === "wppconnect") {
+    if (event === "onmessage" || event === "message-received") eventType = "message.received";
+    else if (event === "onack" || event === "ack") eventType = "message.delivered";
+    else if (event === "onstatuschange" || event === "status-find") eventType = "connection.update";
+    else if (event === "qrcode" || event === "qrcode-updated") eventType = "connection.qrcode";
+
+    direction = (data?.fromMe || data?.from?.fromMe) ? "outbound" : "inbound";
+    remoteJid = data?.from || data?.chatId || null;
+    messageId = data?.id || null;
+    text = data?.body || data?.content || null;
+
+    const state = String(data?.status || data?.state || "").toLowerCase();
+    if (state.includes("connected") || state.includes("islogged") || state === "open") connectionState = "open";
+    else if (state.includes("disconnect") || state.includes("logout") || state === "close") connectionState = "close";
+    else if (state.includes("qr") || state.includes("pairing")) connectionState = "connecting";
+  } else if (provider === "quepasa") {
+    if (event === "message") eventType = "message.received";
+    else if (event === "receipt" || event === "ack") eventType = "message.delivered";
+    else if (event === "status" || event === "ready" || event === "connected" || event === "disconnected") eventType = "connection.update";
+    else if (event === "qrcode" || event === "qr") eventType = "connection.qrcode";
+
+    direction = (data?.fromme || body?.fromme) ? "outbound" : "inbound";
+    remoteJid = data?.chatid || data?.from || null;
+    messageId = data?.id || null;
+    text = data?.text || data?.body || null;
+
+    const state = String(data?.status || data?.state || event).toLowerCase();
+    if (["ready", "connected", "open", "logged"].includes(state)) connectionState = "open";
+    else if (["disconnected", "logout", "close"].includes(state)) connectionState = "close";
+    else if (["qr", "scan", "pairing", "connecting"].includes(state)) connectionState = "connecting";
+  }
+
+  // Final Mapping Fixes
+  if (eventType === "connection.qrcode") connectionState = "connecting";
+
+  // Phone Normalization for from/to
+  if (remoteJid) {
+    const normalizedJid = normalizeWhatsappPhone(remoteJid);
+    if (direction === "inbound") {
+      from = normalizedJid;
+    } else {
+      to = normalizedJid;
+    }
+  }
+
+  return {
+    provider,
+    eventType,
+    rawEventType,
+    direction,
+    remoteJid,
+    messageId,
+    connectionState,
+    qrCode: eventType === "connection.qrcode" ? (data?.qrcode || data?.qr || data?.base64 || null) : null,
+    text,
+    from,
+    to,
+    raw: body,
+  };
+}
+
 // ---------- Main handler ----------
 
 serve(async (req) => {
@@ -394,7 +213,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Only accept POST
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
@@ -407,17 +225,12 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // --- Parse query params for identification ---
     const url = new URL(req.url);
     const instanceId = url.searchParams.get("instance_id");
     const secret = url.searchParams.get("secret");
     const providerHint = url.searchParams.get("provider");
-    const hmacHeader =
-      req.headers.get("x-webhook-signature") ||
-      req.headers.get("X-Webhook-Signature") ||
-      "";
+    const hmacHeader = req.headers.get("x-webhook-signature") || req.headers.get("X-Webhook-Signature") || "";
 
-    // Read raw body once so we can both parse JSON and verify HMAC over it.
     const rawBody = await req.text();
     let body: any;
     try {
@@ -429,216 +242,169 @@ serve(async (req) => {
       });
     }
 
-    console.log("[webhook-receiver] Received", {
-      instanceId,
-      providerHint,
-      hasSecret: !!secret,
-      hasHmac: !!hmacHeader,
-      event: body?.event || body?.type || body?.Event || "unknown",
-    });
-
-    // --- Identify instance ---
+    // --- Identification ---
     let instance: any = null;
 
     if (instanceId) {
       const { data } = await supabase
         .from("instances")
-        .select("id, company_id, provider, provider_instance_id, evolution_instance_id, name, webhook_secret, status")
+        .select("*")
         .eq("id", instanceId)
         .single();
       instance = data;
     }
 
-    if (!instance && body?.instance) {
-      const evoInstanceName = body.instance;
+    // Fallback search by provider instance ID or name
+    if (!instance && (body?.instance || body?.instanceName || body?.instance_id)) {
+      const searchName = body.instance || body.instanceName || body.instance_id;
       const { data } = await supabase
         .from("instances")
-        .select("id, company_id, provider, provider_instance_id, evolution_instance_id, name, webhook_secret, status")
-        .or(
-          `name.eq.${evoInstanceName},provider_instance_id.eq.${evoInstanceName},evolution_instance_id.eq.${evoInstanceName}`
-        )
+        .select("*")
+        .or(`name.eq."${searchName}",provider_instance_id.eq."${searchName}",evolution_instance_id.eq."${searchName}"`)
         .limit(1)
-        .single();
+        .maybeSingle();
       instance = data;
     }
 
     if (!instance) {
-      console.warn("[webhook-receiver] Instance not found", { instanceId, bodyInstance: body?.instance });
-      return new Response(JSON.stringify({ status: "ignored", reason: "instance_not_found" }), {
+      console.warn("[webhook-receiver] Instance not found for payload", { 
+        instanceId, 
+        bodyInstance: body?.instance || body?.instanceName 
+      });
+      return new Response(JSON.stringify({ success: true, received: true, matched: false }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // --- Validate secret: HMAC header (preferred) OR secret in query (legacy) ---
+    // --- Security ---
     if (instance.webhook_secret) {
       let authorized = false;
-
       if (hmacHeader) {
         try {
           const enc = new TextEncoder();
           const key = await crypto.subtle.importKey(
-            "raw",
-            enc.encode(instance.webhook_secret),
-            { name: "HMAC", hash: "SHA-256" },
-            false,
-            ["sign"],
+            "raw", enc.encode(instance.webhook_secret),
+            { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
           );
           const sigBuf = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
-          const sigHex = Array.from(new Uint8Array(sigBuf))
-            .map(b => b.toString(16).padStart(2, "0")).join("");
-          // Accept either raw hex or "sha256=<hex>"
+          const sigHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
           const provided = hmacHeader.replace(/^sha256=/i, "").trim().toLowerCase();
           if (provided === sigHex) authorized = true;
         } catch (e) {
-          console.warn("[webhook-receiver] HMAC verify failed", (e as any)?.message);
+          console.warn("[webhook-receiver] HMAC validation error", e.message);
         }
       }
-
-      if (!authorized && secret && secret === instance.webhook_secret) {
-        authorized = true;
-      }
+      if (!authorized && secret === instance.webhook_secret) authorized = true;
 
       if (!authorized) {
-        console.warn("[webhook-receiver] Invalid secret/HMAC for instance", instance.id);
-        return new Response(JSON.stringify({ status: "ignored", reason: "invalid_secret" }), {
-          status: 200,
+        console.warn("[webhook-receiver] Unauthorized access attempt for instance", instance.id);
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
-    // --- Detect provider ---
+    // --- Normalize ---
     const provider = providerHint || instance.provider || "evolution";
+    const normalized = normalizeProviderWebhookEvent(body, provider);
 
-    // --- Normalize event ---
-    let normalized;
-    if (provider === "wuzapi") {
-      normalized = normalizeWuzapiEvent(body);
-    } else if (provider === "wppconnect") {
-      normalized = normalizeWppConnectEvent(body);
-    } else if (provider === "quepasa") {
-      normalized = normalizeQuePasaEvent(body);
-    } else {
-      // evolution + evolution_go share normalization (v2 events are uppercased upstream)
-      normalized = normalizeEvolutionEvent(body);
+    // --- Handle Test Events ---
+    if (body?._test === true || body?.test === true) {
+      console.log("[webhook-receiver] Test event received", { instanceId: instance.id });
+      return new Response(JSON.stringify({ success: true, received: true, test: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log("[webhook-receiver] Normalized", {
-      instanceId: instance.id,
-      provider,
-      eventType: normalized.eventType,
-      direction: normalized.direction,
-    });
+    // --- Update Instance Status ---
+    let newStatus: "online" | "offline" | "pairing" | null = null;
+    if (normalized.connectionState === "open") newStatus = "online";
+    else if (normalized.connectionState === "close") newStatus = "offline";
+    else if (normalized.connectionState === "connecting") newStatus = "pairing";
 
-    // --- Update instance status on connection events ---
-    // Canonical mapping with "Connected-Wins" rule:
-    //   open/connected/authenticated/ready/online -> online
-    //   close/closed/disconnected/logout/logged_out/offline -> offline
-    //   qr/qrcode/scan/pairing/connecting -> pairing (only if not already online)
-    const stateRaw = String(normalized.connectionState || "").toLowerCase();
-    const ONLINE_TOKENS = new Set([
-      "open", "connected", "authenticated", "ready", "online", "inchat", "islogged",
-    ]);
-    const OFFLINE_TOKENS = new Set([
-      "close", "closed", "disconnected", "logout", "logged_out", "loggedout", "offline",
-    ]);
-    const PAIRING_TOKENS = new Set([
-      "connecting", "qr", "qrcode", "scan", "pairing", "opening",
-    ]);
-
-    let newStatus: string | null = null;
-    if (ONLINE_TOKENS.has(stateRaw)) newStatus = "online";
-    else if (OFFLINE_TOKENS.has(stateRaw)) newStatus = "offline";
-    else if (PAIRING_TOKENS.has(stateRaw)) newStatus = "pairing";
-
-    // QR/pairing event MUST NOT downgrade an instance that is already online
-    const isQrEvent = normalized.eventType === "qr.updated" || stateRaw === "qr" || stateRaw === "qrcode" || stateRaw === "scan" || stateRaw === "pairing";
-    if (isQrEvent && instance.status === "online") {
+    // QR Logic: No downgrade from online
+    if (newStatus === "pairing" && instance.status === "online") {
       newStatus = null;
-      console.log("[webhook-receiver] Skipping QR downgrade for online instance", instance.id);
+      console.log("[webhook-receiver] QR/Connecting ignored to prevent online downgrade", instance.id);
     }
 
-    // WuzAPI specific: the "Connected" event fires when the websocket session
-    // opens — BEFORE actual WhatsApp pairing. Without a real JID/phone in the
-    // payload, this is NOT real online — treat as pairing.
-    if (
-      provider === "wuzapi" &&
-      newStatus === "online" &&
-      normalized.eventType === "connection.update"
-    ) {
-      const phoneCheck = extractPhoneFromPayload(body);
-      if (!phoneCheck) {
-        console.log("[webhook-receiver] WuzAPI Connected without JID — downgrading online -> pairing");
+    // WuzAPI Logic: Connected != Online
+    if (provider === "wuzapi" && newStatus === "online" && !extractPhoneFromPayload(body)) {
+      const strongSignals = ["LoggedIn", "isLogged", "authenticated", "ready", "open"];
+      const rawBodyString = JSON.stringify(body);
+      const hasStrongSignal = strongSignals.some(s => rawBodyString.includes(s));
+      
+      if (!hasStrongSignal) {
+        console.log("[webhook-receiver] WuzAPI weak connection signal — treating as pairing");
         newStatus = instance.status === "online" ? null : "pairing";
       }
     }
 
     if (newStatus && newStatus !== instance.status) {
-      const updateData: Record<string, any> = { status: newStatus, updated_at: new Date().toISOString() };
+      const updateData: any = { status: newStatus, updated_at: new Date().toISOString() };
       if (newStatus === "online") {
         updateData.last_connected_at = new Date().toISOString();
         const phone = extractPhoneFromPayload(body);
         if (phone) updateData.phone_number = phone;
       }
-      const { error: updErr } = await supabase.from("instances").update(updateData).eq("id", instance.id);
-      if (updErr) console.error("[webhook-receiver] Failed to update instance", updErr.message);
-      else console.log("[webhook-receiver] Updated instance status", { id: instance.id, newStatus, phone: updateData.phone_number || null });
+      await supabase.from("instances").update(updateData).eq("id", instance.id);
+      console.log("[webhook-receiver] Instance status updated", { id: instance.id, newStatus });
     } else if (newStatus === "online") {
-      // Already online — still try to fill phone_number if we don't have it yet
+      // Sync phone if missing
       const phone = extractPhoneFromPayload(body);
-      if (phone) {
-        await supabase
-          .from("instances")
-          .update({ phone_number: phone, last_connected_at: new Date().toISOString() })
-          .eq("id", instance.id)
-          .is("phone_number", null);
+      if (phone && !instance.phone_number) {
+        await supabase.from("instances").update({ phone_number: phone }).eq("id", instance.id);
       }
     }
 
-    // --- Insert into webhook_events ---
-    const eventPayload = {
-      company_id: instance.company_id,
+    // --- Register Event ---
+    const sanitizedBody = redactSensitiveData(body);
+    const { error: insertErr } = await supabase.from("webhook_events").insert({
       instance_id: instance.id,
+      company_id: instance.company_id,
       event_type: normalized.eventType,
+      raw_event_type: normalized.rawEventType,
+      provider: provider,
       direction: normalized.direction,
-      status: "processed",
+      message_id: normalized.messageId,
+      from_number: normalized.from,
+      to_number: normalized.to,
+      text_preview: normalized.text ? normalized.text.substring(0, 200) : null,
+      connection_state: normalized.connectionState,
       payload: {
         provider,
         normalized: {
           remoteJid: normalized.remoteJid,
           messageId: normalized.messageId,
           connectionState: normalized.connectionState,
-          qrCode: normalized.qrCode ? "[present]" : null,
+          text: normalized.text,
+          from: normalized.from,
+          to: normalized.to,
+          qrCode: normalized.qrCode ? "[PRESENT]" : null
         },
-        raw: body,
+        raw: sanitizedBody
       },
-    };
+      status: "processed",
+      processed: true
+    });
 
-    const { error: insertError } = await supabase
-      .from("webhook_events")
-      .insert(eventPayload);
-
-    if (insertError) {
-      console.error("[webhook-receiver] Failed to insert event", insertError.message);
+    if (insertErr) {
+      console.error("[webhook-receiver] Database insert error", insertErr.message);
     }
 
-    return new Response(
-      JSON.stringify({ status: "ok", eventType: normalized.eventType }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ success: true, received: true, event: normalized.eventType }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   } catch (error: any) {
-    console.error("[webhook-receiver] ERROR", error.message);
-    // Always return 200 to prevent provider retries
-    return new Response(
-      JSON.stringify({ status: "error", message: error.message }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    console.error("[webhook-receiver] Critical error", error.message);
+    return new Response(JSON.stringify({ success: false, error: "Internal server error" }), {
+      status: 200, // Still return 200 to prevent retries
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
