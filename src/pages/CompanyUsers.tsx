@@ -49,7 +49,7 @@ export default function CompanyUsers() {
           .eq('company_id', (u as any).company_id || '249e802a-203e-4437-b92e-a7f77bf1cdcc') // tenant principal fallback
           .maybeSingle();
 
-        const { data: insts } = await supabase
+        const { count: instCount } = await supabase
           .from('instances')
           .select('id', { count: 'exact', head: true })
           .eq('company_id', (u as any).company_id || '249e802a-203e-4437-b92e-a7f77bf1cdcc');
@@ -64,7 +64,7 @@ export default function CompanyUsers() {
           ...u,
           plan_name: (sub as any)?.plans?.name || 'Sem plano',
           sub_status: sub?.status || 'inactive',
-          instance_count: insts?.count || 0,
+          instance_count: instCount || 0,
           messages_month: msgs || 0,
           max_instances: (sub as any)?.plans?.max_instances || 0,
           max_messages_month: (sub as any)?.plans?.max_messages_month || 0,
