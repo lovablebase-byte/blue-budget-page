@@ -64,16 +64,8 @@ export function InstanceStatsCards({
             </div>
           </div>
           <div className="text-2xl font-bold tracking-tight metric-cyan">
-            {total}<span className="text-muted-foreground font-semibold">/{limitLabel}</span>
+            {total}/{limitLabel}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Instâncias utilizadas{available != null ? ` · ${available} disponíveis` : ''}
-          </p>
-          {providerBreakdown && Object.keys(providerBreakdown).length > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-              {Object.entries(providerBreakdown).map(([p, c]) => `${p}: ${c}`).join(' · ')}
-            </p>
-          )}
         </CardContent>
       </Card>
     </div>
