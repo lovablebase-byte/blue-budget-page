@@ -601,48 +601,151 @@ serve(async (req) => {
     body = { ...queryPayload, ...body };
 
     console.log(`[api-send-text] Request id=${requestId}`);
-    console.log(`[api-send-text] URL=${url.origin}${url.pathname} query=${url.search}`);
+    console.log(`[api-send-text] URL=${url.origin}${url.pathname}`);
     console.log(`[api-send-text] Method=${req.method} content_type=${contentType || "unknown"}`);
     console.log(`[api-send-text] Headers=${JSON.stringify(sanitizeHeaders(req.headers))}`);
-    console.log(`[api-send-text] Raw body=${truncate(rawBody)}`);
+    console.log(`[api-send-text] Raw body=${truncate(redactRawBody(rawBody))}`);
     console.log(`[api-send-text] Parser used: ${parserUsed}, parsed keys: ${JSON.stringify(Object.keys(body))}`);
+
+    // ============================================================
+    // Auth: Authorization Bearer (preferred) OR uuid+access_token (legacy)
+    // ============================================================
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    const bearerToken = bearerMatch ? bearerMatch[1].trim() : "";
+
     const uuid = url.searchParams.get("uuid") || body.uuid || body.instance_id || body.instanceId || "";
-    const accessToken =
+    const legacyToken =
       url.searchParams.get("access_token") ||
       body.access_token ||
       body.token ||
       body.session_token ||
       "";
 
-    console.log(`[api-send-text] Received auth params uuid=${uuid || "missing"}, access_token=${accessToken ? "***" : "missing"}`);
+    const presentedToken = bearerToken || legacyToken;
+    const usingBearer = !!bearerToken;
+
+    if (!presentedToken) {
+      return jsonError("missing_token", "Token de autenticação obrigatório.", 401, requestId);
+    }
+
+    let instance: any = null;
+    if (usingBearer) {
+      const { data } = await supabase
+        .from("instances")
+        .select("id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token")
+        .eq("access_token", bearerToken)
+        .maybeSingle();
+      instance = data;
+      if (instance && uuid && instance.id !== uuid) {
+        return jsonError("invalid_token", "Token inválido.", 401, requestId);
+      }
+    } else {
+      if (!uuid) {
+        return jsonError("missing_token", "Token de autenticação obrigatório.", 401, requestId);
+      }
+      const { data } = await supabase
+        .from("instances")
+        .select("id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token")
+        .eq("id", uuid)
+        .maybeSingle();
+      instance = data;
+      if (instance && instance.access_token !== legacyToken) {
+        return jsonError("invalid_token", "Token inválido.", 401, requestId);
+      }
+    }
+
+    if (!instance) {
+      return jsonError("invalid_token", "Token inválido.", 401, requestId);
+    }
+
+    console.log(`[api-send-text] Instance validated: id=${instance.id}, provider=${instance.provider}, auth=${usingBearer ? "bearer" : "legacy"}`);
 
     // ============================================================
-    // Auth: validate uuid + access_token
+    // Plan enforcement: api_access + max_messages_month (admin bypass)
     // ============================================================
-    if (!uuid) {
-      return jsonResponse({ error: "uuid is required as query parameter", request_id: requestId }, 400);
-    }
-    if (!accessToken) {
-      return jsonResponse({ error: "access_token is required as query parameter", request_id: requestId }, 400);
+    try {
+      const { data: adminRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("company_id", instance.company_id)
+        .in("role", ["admin", "super_admin"])
+        .limit(1)
+        .maybeSingle();
+      const isAdminCompany = !!adminRole;
+
+      if (!isAdminCompany) {
+        const { data: sub } = await supabase
+          .from("subscriptions")
+          .select("plan_id, status, plans:plan_id(api_access, max_messages_month)")
+          .eq("company_id", instance.company_id)
+          .in("status", ["active", "trialing"])
+          .maybeSingle();
+        const plan: any = sub?.plans;
+        if (!sub || !plan || !plan.api_access) {
+          return jsonError("api_access_not_allowed", "Seu plano não permite uso da API externa.", 403, requestId);
+        }
+        const maxMonth = Number(plan.max_messages_month || 0);
+        if (maxMonth > 0) {
+          const monthStart = new Date();
+          monthStart.setUTCDate(1);
+          monthStart.setUTCHours(0, 0, 0, 0);
+          const { count } = await supabase
+            .from("messages_log")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", instance.company_id)
+            .gte("created_at", monthStart.toISOString());
+          if ((count || 0) >= maxMonth) {
+            return jsonError("monthly_message_limit_reached", "Limite mensal de mensagens atingido.", 429, requestId);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error(`[api-send-text] Plan check failed:`, e?.message);
     }
 
-    const { data: instance, error: instErr } = await supabase
-      .from("instances")
-      .select("id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token")
-      .eq("id", uuid)
-      .single();
+    // ============================================================
+    // Rate limit per instance (instance_limits)
+    // ============================================================
+    {
+      const { data: lim } = await supabase
+        .from("instance_limits")
+        .select("*")
+        .eq("instance_id", instance.id)
+        .maybeSingle();
 
-    if (instErr || !instance) {
-      console.error(`[api-send-text] Instance not found: uuid=${uuid}`, instErr?.message);
-      return jsonResponse({ error: "Instance not found", uuid, request_id: requestId }, 404);
+      const now = new Date();
+      if (lim) {
+        if (lim.cooldown_until && new Date(lim.cooldown_until) > now) {
+          return jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429, requestId);
+        }
+        const resetMin = new Date(lim.last_reset_minute).getTime() + 60_000 < now.getTime();
+        const resetHour = new Date(lim.last_reset_hour).getTime() + 3_600_000 < now.getTime();
+        const resetDay = new Date(lim.last_reset_day).getTime() + 86_400_000 < now.getTime();
+        const curMin = resetMin ? 0 : lim.messages_sent_minute;
+        const curHour = resetHour ? 0 : lim.messages_sent_hour;
+        const curDay = resetDay ? 0 : lim.messages_sent_day;
+        if (curMin >= lim.max_per_minute || curHour >= lim.max_per_hour || curDay >= lim.max_per_day) {
+          return jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429, requestId);
+        }
+        const updates: Record<string, any> = {
+          messages_sent_minute: curMin + 1,
+          messages_sent_hour: curHour + 1,
+          messages_sent_day: curDay + 1,
+        };
+        if (resetMin) updates.last_reset_minute = now.toISOString();
+        if (resetHour) updates.last_reset_hour = now.toISOString();
+        if (resetDay) updates.last_reset_day = now.toISOString();
+        await supabase.from("instance_limits").update(updates).eq("id", lim.id);
+      } else {
+        await supabase.from("instance_limits").insert({
+          instance_id: instance.id,
+          messages_sent_minute: 1,
+          messages_sent_hour: 1,
+          messages_sent_day: 1,
+        });
+      }
     }
-
-    if (instance.access_token !== accessToken) {
-      console.error(`[api-send-text] Invalid access_token for uuid=${uuid}`);
-      return jsonResponse({ error: "Invalid access_token", request_id: requestId }, 401);
-    }
-
-    console.log(`[api-send-text] Instance validated: id=${instance.id}, name=${instance.name}, provider=${instance.provider}, company=${instance.company_id}`);
 
     // ============================================================
     // Auto-detect action
