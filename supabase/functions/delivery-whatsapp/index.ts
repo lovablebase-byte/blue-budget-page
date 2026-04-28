@@ -407,7 +407,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const url = new URL(req.url);
-    const queryInstanceId = url.searchParams.get('instance_id') || url.searchParams.get('token');
+    const queryInstanceId = url.searchParams.get('instance_id') || url.searchParams.get('uuid') || url.searchParams.get('token');
 
     let action = body.action;
     if (!action) {
@@ -418,17 +418,60 @@ serve(async (req) => {
       }
     }
 
-    const resolvedInstanceId = queryInstanceId || body.instance_id || body.token;
+    const resolvedInstanceId = queryInstanceId || body.instance_id;
 
     console.log(`[delivery-whatsapp] action="${action}" instance_id="${resolvedInstanceId}" at ${new Date().toISOString()}`);
-    console.log(`[delivery-whatsapp] Full payload:`, JSON.stringify(body));
 
     // ============================================================
-    // ACTION: health
+    // ACTION: health (no auth required)
     // ============================================================
     if (action === 'health') {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
+
+    // ============================================================
+    // Auth: require Bearer or access_token, validated against instance
+    // ============================================================
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    const bearerToken = bearerMatch ? bearerMatch[1].trim() : '';
+    const legacyToken = url.searchParams.get('access_token') || body.access_token || body.token || '';
+    const presentedToken = bearerToken || legacyToken;
+
+    if (!presentedToken) {
+      return jsonResponse({ success: false, error: 'missing_token', message: 'Token de autenticação obrigatório.' }, 401);
+    }
+
+    let authedInstance: any = null;
+    if (bearerToken) {
+      const { data } = await supabase
+        .from('instances')
+        .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token')
+        .eq('access_token', bearerToken)
+        .maybeSingle();
+      authedInstance = data;
+      if (authedInstance && resolvedInstanceId && authedInstance.id !== resolvedInstanceId) {
+        return jsonResponse({ success: false, error: 'invalid_token', message: 'Token inválido.' }, 401);
+      }
+    } else if (resolvedInstanceId) {
+      const { data } = await supabase
+        .from('instances')
+        .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token')
+        .eq('id', resolvedInstanceId)
+        .maybeSingle();
+      authedInstance = data;
+      if (authedInstance && authedInstance.access_token !== legacyToken) {
+        return jsonResponse({ success: false, error: 'invalid_token', message: 'Token inválido.' }, 401);
+      }
+    }
+
+    if (!authedInstance) {
+      return jsonResponse({ success: false, error: 'invalid_token', message: 'Token inválido.' }, 401);
+    }
+
+    // Override resolvedInstanceId from authed source for downstream lookups
+    const effectiveInstanceId = authedInstance.id;
+
 
     // ============================================================
     // ACTION: order_status_updated / send_status_change
@@ -453,18 +496,18 @@ serve(async (req) => {
         return jsonResponse({ error: 'customer_phone is required', received_fields: Object.keys(body) }, 400);
       }
 
-      if (!resolvedInstanceId) {
+      if (!effectiveInstanceId) {
         return jsonResponse({ error: 'instance_id is required', received_fields: Object.keys(body) }, 400);
       }
 
       const { data: instance, error: instErr } = await supabase
         .from('instances')
         .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id, status')
-        .eq('id', resolvedInstanceId)
+        .eq("id", effectiveInstanceId)
         .single();
 
       if (instErr || !instance) {
-        return jsonResponse({ error: 'Instance not found', instance_id: resolvedInstanceId }, 404);
+        return jsonResponse({ error: 'Instance not found', instance_id: effectiveInstanceId }, 404);
       }
 
       const normalizedPhone = normalizePhone(customerPhone);
@@ -682,14 +725,14 @@ serve(async (req) => {
       const phone = body.phone || body.customer_phone;
       const testMessage = body.message;
 
-      if (!resolvedInstanceId || !phone) {
+      if (!effectiveInstanceId || !phone) {
         return jsonResponse({ error: 'instance_id and phone are required' }, 400);
       }
 
       const { data: instance } = await supabase
         .from('instances')
         .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id')
-        .eq('id', resolvedInstanceId)
+        .eq("id", effectiveInstanceId)
         .single();
 
       if (!instance) {

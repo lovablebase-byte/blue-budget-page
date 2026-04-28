@@ -159,6 +159,29 @@ async function sendViaProvider(
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  // ============================================================
+  // Auth: require X-Cron-Secret OR Authorization Bearer matching
+  // a configured internal secret. The service-role key is also accepted
+  // so internal Supabase scheduled invocations work out of the box.
+  // ============================================================
+  const internalSecret = Deno.env.get('QUEUE_WORKER_SECRET') || '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const cronSecret = req.headers.get('x-cron-secret') || req.headers.get('X-Cron-Secret') || '';
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const bearer = bearerMatch ? bearerMatch[1].trim() : '';
+
+  const allowed =
+    (internalSecret && (cronSecret === internalSecret || bearer === internalSecret)) ||
+    (serviceRoleKey && bearer === serviceRoleKey);
+
+  if (!allowed) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'unauthorized', message: 'Acesso não autorizado.' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -539,6 +562,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    console.error('[queue-worker] error:', err?.message);
+    return new Response(JSON.stringify({ success: false, error: 'internal_error', message: 'Erro interno ao processar a solicitação.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

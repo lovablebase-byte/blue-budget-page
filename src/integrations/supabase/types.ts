@@ -1994,6 +1994,7 @@ export type Database = {
         }
         Returns: string
       }
+      rotate_instance_token: { Args: { _instance_id: string }; Returns: Json }
       update_instance_provider_safe: {
         Args: {
           _evolution_instance_id?: string

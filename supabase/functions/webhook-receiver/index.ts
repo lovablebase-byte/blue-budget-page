@@ -412,11 +412,16 @@ serve(async (req) => {
     const instanceId = url.searchParams.get("instance_id");
     const secret = url.searchParams.get("secret");
     const providerHint = url.searchParams.get("provider");
+    const hmacHeader =
+      req.headers.get("x-webhook-signature") ||
+      req.headers.get("X-Webhook-Signature") ||
+      "";
 
-    // Parse body
+    // Read raw body once so we can both parse JSON and verify HMAC over it.
+    const rawBody = await req.text();
     let body: any;
     try {
-      body = await req.json();
+      body = rawBody ? JSON.parse(rawBody) : {};
     } catch {
       return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
         status: 400,
@@ -428,6 +433,7 @@ serve(async (req) => {
       instanceId,
       providerHint,
       hasSecret: !!secret,
+      hasHmac: !!hmacHeader,
       event: body?.event || body?.type || body?.Event || "unknown",
     });
 
@@ -435,7 +441,6 @@ serve(async (req) => {
     let instance: any = null;
 
     if (instanceId) {
-      // Primary: lookup by instance_id from query param
       const { data } = await supabase
         .from("instances")
         .select("id, company_id, provider, provider_instance_id, evolution_instance_id, name, webhook_secret, status")
@@ -444,7 +449,6 @@ serve(async (req) => {
       instance = data;
     }
 
-    // Fallback: try to identify by Evolution's instance field in payload
     if (!instance && body?.instance) {
       const evoInstanceName = body.instance;
       const { data } = await supabase
@@ -460,20 +464,48 @@ serve(async (req) => {
 
     if (!instance) {
       console.warn("[webhook-receiver] Instance not found", { instanceId, bodyInstance: body?.instance });
-      // Still return 200 to prevent provider from retrying
       return new Response(JSON.stringify({ status: "ignored", reason: "instance_not_found" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // --- Validate secret ---
-    if (instance.webhook_secret && secret !== instance.webhook_secret) {
-      console.warn("[webhook-receiver] Invalid secret for instance", instance.id);
-      return new Response(JSON.stringify({ status: "ignored", reason: "invalid_secret" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // --- Validate secret: HMAC header (preferred) OR secret in query (legacy) ---
+    if (instance.webhook_secret) {
+      let authorized = false;
+
+      if (hmacHeader) {
+        try {
+          const enc = new TextEncoder();
+          const key = await crypto.subtle.importKey(
+            "raw",
+            enc.encode(instance.webhook_secret),
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["sign"],
+          );
+          const sigBuf = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
+          const sigHex = Array.from(new Uint8Array(sigBuf))
+            .map(b => b.toString(16).padStart(2, "0")).join("");
+          // Accept either raw hex or "sha256=<hex>"
+          const provided = hmacHeader.replace(/^sha256=/i, "").trim().toLowerCase();
+          if (provided === sigHex) authorized = true;
+        } catch (e) {
+          console.warn("[webhook-receiver] HMAC verify failed", (e as any)?.message);
+        }
+      }
+
+      if (!authorized && secret && secret === instance.webhook_secret) {
+        authorized = true;
+      }
+
+      if (!authorized) {
+        console.warn("[webhook-receiver] Invalid secret/HMAC for instance", instance.id);
+        return new Response(JSON.stringify({ status: "ignored", reason: "invalid_secret" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // --- Detect provider ---
