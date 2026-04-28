@@ -457,7 +457,7 @@ serve(async (req) => {
       const { data } = await supabase
         .from('instances')
         .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token')
-        .eq("id", effectiveInstanceId)
+        .eq('id', resolvedInstanceId)
         .maybeSingle();
       authedInstance = data;
       if (authedInstance && authedInstance.access_token !== legacyToken) {
