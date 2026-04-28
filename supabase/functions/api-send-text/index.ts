@@ -708,42 +708,15 @@ serve(async (req) => {
     // Rate limit per instance (instance_limits)
     // ============================================================
     {
-      const { data: lim } = await supabase
-        .from("instance_limits")
-        .select("*")
-        .eq("instance_id", instance.id)
-        .maybeSingle();
+      const { data: rlData, error: rlError } = await supabase.rpc("check_and_update_rate_limit", {
+        p_instance_id: instance.id,
+        p_increment: 1
+      });
 
-      const now = new Date();
-      if (lim) {
-        if (lim.cooldown_until && new Date(lim.cooldown_until) > now) {
-          return jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429, requestId);
-        }
-        const resetMin = new Date(lim.last_reset_minute).getTime() + 60_000 < now.getTime();
-        const resetHour = new Date(lim.last_reset_hour).getTime() + 3_600_000 < now.getTime();
-        const resetDay = new Date(lim.last_reset_day).getTime() + 86_400_000 < now.getTime();
-        const curMin = resetMin ? 0 : lim.messages_sent_minute;
-        const curHour = resetHour ? 0 : lim.messages_sent_hour;
-        const curDay = resetDay ? 0 : lim.messages_sent_day;
-        if (curMin >= lim.max_per_minute || curHour >= lim.max_per_hour || curDay >= lim.max_per_day) {
-          return jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429, requestId);
-        }
-        const updates: Record<string, any> = {
-          messages_sent_minute: curMin + 1,
-          messages_sent_hour: curHour + 1,
-          messages_sent_day: curDay + 1,
-        };
-        if (resetMin) updates.last_reset_minute = now.toISOString();
-        if (resetHour) updates.last_reset_hour = now.toISOString();
-        if (resetDay) updates.last_reset_day = now.toISOString();
-        await supabase.from("instance_limits").update(updates).eq("id", lim.id);
-      } else {
-        await supabase.from("instance_limits").insert({
-          instance_id: instance.id,
-          messages_sent_minute: 1,
-          messages_sent_hour: 1,
-          messages_sent_day: 1,
-        });
+      if (rlError) {
+        console.error(`[api-send-text] Rate limit RPC error:`, rlError);
+      } else if (rlData && rlData.ok === false) {
+        return jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429, requestId);
       }
     }
 
