@@ -677,14 +677,8 @@ async function handleSendMedia(
   // Plan / limits / rate-limit
   const planCheck = await checkPlanAndLimits(supabase, inst, mediaType);
   if (!planCheck.ok) return planCheck.resp!;
-  const rl = await checkRateLimit(supabase, inst.id);
-  if (!rl.ok) return rl.resp!;
 
-  if (inst.status !== "online" && inst.status !== "connected") {
-    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
-  }
-
-  // Idempotency
+  // Idempotency BEFORE rate-limit
   const idemKey = idemHeader || null;
   const idemExternal = idemHeader ? null : externalId;
   const hasIdem = !!(idemKey || idemExternal);
@@ -693,6 +687,7 @@ async function handleSendMedia(
   const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, mediaType, mediaUrl, caption, filename, endpoint: endpointTag }));
   const messagePreview = (caption || `[${mediaType}] ${mediaUrl}`).slice(0, 255);
 
+  let existingIdem = null;
   if (hasIdem) {
     let query = supabase
       .from("public_api_idempotency_keys")
@@ -700,23 +695,33 @@ async function handleSendMedia(
       .eq("instance_id", inst.id);
     if (idemKey) query = query.eq("idempotency_key", idemKey);
     else query = query.eq("external_id", idemExternal).is("idempotency_key", null);
-    const { data: existing } = await query.maybeSingle();
+    const { data } = await query.maybeSingle();
+    existingIdem = data;
 
-    if (existing) {
-      if (existing.request_hash !== requestHash) {
+    if (existingIdem) {
+      if (existingIdem.request_hash !== requestHash) {
         return jsonError("idempotency_conflict", "A mesma chave de idempotência já foi usada com outro conteúdo.", 409, requestId);
       }
       return jsonOk({
         status: "duplicate_ignored",
         message: "Esta solicitação já foi processada anteriormente.",
-        provider: existing.provider || inst.provider,
+        provider: existingIdem.provider || inst.provider,
         instance_id: inst.id,
-        message_id: existing.provider_message_id,
+        message_id: existingIdem.provider_message_id,
         media_type: mediaType,
         external_id: externalId,
       });
     }
+  }
 
+  const rl = await checkRateLimit(supabase, inst.id);
+  if (!rl.ok) return rl.resp!;
+
+  if (inst.status !== "online" && inst.status !== "connected") {
+    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
+  }
+
+  if (hasIdem) {
     const { error: reserveErr } = await supabase
       .from("public_api_idempotency_keys")
       .insert({
