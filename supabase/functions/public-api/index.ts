@@ -458,6 +458,286 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
   });
 }
 
+// ---------- Media capabilities ----------
+const PROVIDER_MEDIA_CAPS: Record<string, Set<string>> = {
+  evolution:    new Set(["image", "audio", "document", "video"]),
+  evolution_go: new Set(["image", "audio", "document", "video"]),
+  wuzapi:       new Set(["image", "audio", "document", "video"]),
+  wppconnect:   new Set(["image", "audio", "document", "video"]),
+  quepasa:      new Set(["image", "document"]),
+};
+
+const ALLOWED_MEDIA_TYPES = new Set(["image", "audio", "document", "video"]);
+
+function detectMediaType(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.toLowerCase();
+    const ext = path.split(".").pop() || "";
+    if (["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(ext)) return "image";
+    if (["mp3", "ogg", "oga", "m4a", "wav", "aac", "opus"].includes(ext)) return "audio";
+    if (["mp4", "mov", "webm", "mkv", "avi", "3gp"].includes(ext)) return "video";
+    if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "zip", "rar"].includes(ext)) return "document";
+    return null;
+  } catch { return null; }
+}
+
+function isValidHttpUrl(s: string): boolean {
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch { return false; }
+}
+
+async function sendMedia(
+  supabase: any, instance: any,
+  phone: string, mediaType: string, mediaUrl: string,
+  caption: string | null, filename: string | null,
+) {
+  const provider = instance.provider || "evolution";
+  const cfg = await resolveProviderConfig(supabase, instance.company_id, provider);
+  if (!cfg) {
+    return { ok: false, status: 400, response: { error: `Provider '${provider}' não configurado` }, provider, providerMessageId: null };
+  }
+  const { baseUrl, apiKey } = cfg;
+  const phoneDigits = phone.replace(/\D/g, "");
+
+  try {
+    let res: Response, url: string, data: any;
+
+    if (provider === "evolution") {
+      const evoName = instance.evolution_instance_id || instance.name;
+      url = `${baseUrl}/message/sendMedia/${evoName}`;
+      const body: any = { number: phoneDigits, mediatype: mediaType, media: mediaUrl };
+      if (caption) body.caption = caption;
+      if (filename && mediaType === "document") body.fileName = filename;
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", apikey: apiKey }, body: JSON.stringify(body) });
+
+    } else if (provider === "evolution_go") {
+      const t = instance.provider_instance_id || "";
+      if (!t) return { ok: false, status: 400, response: { error: "Token Evolution Go ausente" }, provider, providerMessageId: null };
+      // Evolution Go path varies: image/audio/document/video
+      const pathMap: Record<string, string> = { image: "image", audio: "audio", document: "document", video: "video" };
+      url = `${baseUrl}/send/${pathMap[mediaType]}`;
+      const body: any = { number: phoneDigits, url: mediaUrl };
+      if (caption) body.caption = caption;
+      if (filename && mediaType === "document") body.fileName = filename;
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", apikey: t }, body: JSON.stringify(body) });
+
+    } else if (provider === "wuzapi") {
+      const t = instance.provider_instance_id || "";
+      if (!t) return { ok: false, status: 400, response: { error: "Token Wuzapi ausente" }, provider, providerMessageId: null };
+      const pathMap: Record<string, string> = { image: "/chat/send/image", audio: "/chat/send/audio", document: "/chat/send/document", video: "/chat/send/video" };
+      url = `${baseUrl}${pathMap[mediaType]}`;
+      const body: any = { Phone: phoneDigits, Image: undefined };
+      // Wuzapi expects field name per type
+      if (mediaType === "image") { body.Image = mediaUrl; if (caption) body.Caption = caption; }
+      else if (mediaType === "audio") { body.Audio = mediaUrl; }
+      else if (mediaType === "video") { body.Video = mediaUrl; if (caption) body.Caption = caption; }
+      else if (mediaType === "document") { body.Document = mediaUrl; if (filename) body.FileName = filename; if (caption) body.Caption = caption; }
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Token: t }, body: JSON.stringify(body) });
+
+    } else if (provider === "wppconnect") {
+      const session = instance.name;
+      const sessionToken = await wppGenerateToken(baseUrl, apiKey, session);
+      if (!sessionToken) return { ok: false, status: 401, response: { error: "WPPConnect: falha ao gerar token de sessão" }, provider, providerMessageId: null };
+      const endpointMap: Record<string, string> = { image: "send-image", audio: "send-voice", document: "send-file", video: "send-file" };
+      url = `${baseUrl}/api/${encodeURIComponent(session)}/${endpointMap[mediaType]}`;
+      const body: any = { phone: phoneDigits, isGroup: false, path: mediaUrl };
+      if (caption) body.caption = caption;
+      if (filename) body.filename = filename;
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` }, body: JSON.stringify(body) });
+
+    } else if (provider === "quepasa") {
+      const sessionToken = instance.provider_instance_id || apiKey;
+      url = `${baseUrl}/sendurl`;
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Accept: "application/json", "Content-Type": "application/json",
+          "X-QUEPASA-TOKEN": sessionToken,
+          "X-QUEPASA-CHATID": phoneDigits.includes("@") ? phoneDigits : `${phoneDigits}@s.whatsapp.net`,
+          "X-QUEPASA-TRACKID": instance.name,
+        },
+        body: JSON.stringify({ url: mediaUrl, text: caption || "", filename: filename || undefined }),
+      });
+
+    } else {
+      return { ok: false, status: 400, response: { error: "provider_not_supported" }, provider, providerMessageId: null };
+    }
+
+    data = await res.json().catch(() => ({ status: res.status }));
+    const providerMessageId =
+      data?.key?.id || data?.id || data?.messageId || data?.MessageId ||
+      data?.message_id || data?.data?.id || data?.data?.key?.id || null;
+    return { ok: res.ok, status: res.status, response: data, provider, providerMessageId };
+  } catch (err: any) {
+    return { ok: false, status: 500, response: { error: err?.message || "network_error" }, provider, providerMessageId: null };
+  }
+}
+
+async function handleSendMedia(
+  req: Request, supabase: any, requestId: string,
+  forcedType: string | null, // null = generic /messages/media; else "image"|"audio"|"document"
+) {
+  const auth = await authenticate(req, supabase);
+  if ("error" in auth) return auth.error;
+  const inst = auth.instance;
+
+  const idemHeader = (req.headers.get("idempotency-key") || req.headers.get("Idempotency-Key") || "").trim() || null;
+
+  const body = await parseBody(req);
+  const safeBody = redactObject(body);
+
+  const to = pickFirst(body, ["to", "phone", "phone_number", "number", "destination", "recipient"]);
+  const mediaUrl = pickFirst(body, ["media_url", "url", "file_url", "attachment_url"]);
+  const caption = pickFirst(body, ["caption", "text", "message", "body"]) || null;
+  const filename = pickFirst(body, ["filename", "file_name", "name"]) || null;
+  const externalId = pickFirst(body, ["external_id", "externalId", "client_message_id"]) || null;
+  const bodyMediaType = pickFirst(body, ["media_type", "mediaType", "type"]) || null;
+
+  // Resolve media type: forced (path) > body > URL extension
+  let mediaType = forcedType || bodyMediaType || (mediaUrl ? detectMediaType(mediaUrl) : null);
+  if (mediaType) mediaType = mediaType.toLowerCase();
+
+  console.log(`[public-api] media instance=${inst.id} provider=${inst.provider} type=${mediaType} to=${to ? to.replace(/\d(?=\d{4})/g, "*") : ""} ext=${externalId} idem=${idemHeader ? "yes" : "no"} body=${JSON.stringify(safeBody)}`);
+
+  if (!to) return jsonError("missing_recipient", "Informe o número de destino.", 400, requestId);
+  if (!mediaUrl) return jsonError("missing_media_url", "Informe a URL da mídia.", 400, requestId);
+  if (!isValidHttpUrl(mediaUrl)) return jsonError("invalid_media_url", "URL de mídia inválida.", 400, requestId);
+  if (!mediaType) return jsonError("missing_media_type", "Informe o tipo da mídia.", 400, requestId);
+  if (!ALLOWED_MEDIA_TYPES.has(mediaType)) return jsonError("unsupported_media_type", "Tipo de mídia não suportado.", 400, requestId);
+
+  // Provider capability
+  const caps = PROVIDER_MEDIA_CAPS[inst.provider] || new Set();
+  if (!caps.has(mediaType)) {
+    return jsonError("feature_not_supported", "Este recurso não é suportado pelo provider desta instância.", 400, requestId);
+  }
+
+  // Plan / limits / rate-limit
+  const planCheck = await checkPlanAndLimits(supabase, inst);
+  if (!planCheck.ok) return planCheck.resp!;
+  const rl = await checkRateLimit(supabase, inst.id);
+  if (!rl.ok) return rl.resp!;
+
+  if (inst.status !== "online" && inst.status !== "connected") {
+    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
+  }
+
+  // Idempotency
+  const idemKey = idemHeader || null;
+  const idemExternal = idemHeader ? null : externalId;
+  const hasIdem = !!(idemKey || idemExternal);
+  const recipientDigits = to.replace(/\D/g, "");
+  const endpointTag = `/v1/messages/${forcedType || "media"}`;
+  const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, mediaType, mediaUrl, caption, filename, endpoint: endpointTag }));
+  const messagePreview = (caption || `[${mediaType}] ${mediaUrl}`).slice(0, 255);
+
+  if (hasIdem) {
+    let query = supabase
+      .from("public_api_idempotency_keys")
+      .select("id, request_hash, provider, provider_message_id, response_status, response_body")
+      .eq("instance_id", inst.id);
+    if (idemKey) query = query.eq("idempotency_key", idemKey);
+    else query = query.eq("external_id", idemExternal).is("idempotency_key", null);
+    const { data: existing } = await query.maybeSingle();
+
+    if (existing) {
+      if (existing.request_hash !== requestHash) {
+        return jsonError("idempotency_conflict", "A mesma chave de idempotência já foi usada com outro conteúdo.", 409, requestId);
+      }
+      return jsonOk({
+        status: "duplicate_ignored",
+        message: "Esta solicitação já foi processada anteriormente.",
+        provider: existing.provider || inst.provider,
+        instance_id: inst.id,
+        message_id: existing.provider_message_id,
+        media_type: mediaType,
+        external_id: externalId,
+      });
+    }
+
+    const { error: reserveErr } = await supabase
+      .from("public_api_idempotency_keys")
+      .insert({
+        instance_id: inst.id,
+        company_id: inst.company_id,
+        idempotency_key: idemKey,
+        external_id: idemExternal,
+        endpoint: endpointTag,
+        request_hash: requestHash,
+        provider: inst.provider,
+        recipient: recipientDigits,
+        message_preview: messagePreview,
+        response_status: null,
+      });
+
+    if (reserveErr) {
+      return jsonOk({
+        status: "duplicate_ignored",
+        message: "Esta solicitação já está sendo processada.",
+        provider: inst.provider,
+        instance_id: inst.id,
+        message_id: null,
+        media_type: mediaType,
+        external_id: externalId,
+      });
+    }
+  }
+
+  const result = await sendMedia(supabase, inst, to, mediaType, mediaUrl, caption, filename);
+
+  // Log to messages_log (best-effort)
+  try {
+    await supabase.from("messages_log").insert({
+      company_id: inst.company_id,
+      instance_id: inst.id,
+      contact_number: recipientDigits,
+      message: caption || `[${mediaType}]`,
+      media_url: mediaUrl,
+      direction: "outgoing",
+      status: result.ok ? "sent" : "failed",
+      sent_at: result.ok ? new Date().toISOString() : null,
+    });
+  } catch (e) { console.log(`[public-api] media_log_err ${(e as any)?.message}`); }
+
+  if (result.ok) {
+    try { await supabase.rpc("increment_instance_counters" as any, { _instance_id: inst.id }).catch(() => {}); } catch {}
+  }
+
+  if (hasIdem) {
+    try {
+      let upd = supabase
+        .from("public_api_idempotency_keys")
+        .update({
+          provider_message_id: result.providerMessageId,
+          response_status: result.status,
+          response_body: redactObject(result.response),
+        })
+        .eq("instance_id", inst.id);
+      if (idemKey) upd = upd.eq("idempotency_key", idemKey);
+      else upd = upd.eq("external_id", idemExternal).is("idempotency_key", null);
+      await upd;
+    } catch (e) { console.log(`[public-api] idem_upd_err ${(e as any)?.message}`); }
+  }
+
+  if (!result.ok) {
+    if (result.response?.error === "provider_not_supported") {
+      return jsonError("feature_not_supported", "Este recurso não é suportado pelo provider desta instância.", 400, requestId);
+    }
+    return jsonError("send_failed", typeof result.response?.error === "string" ? result.response.error : "Falha ao enviar mídia.", result.status >= 400 && result.status < 600 ? result.status : 502, requestId);
+  }
+
+  return jsonOk({
+    status: "sent",
+    provider: result.provider,
+    instance_id: inst.id,
+    message_id: result.providerMessageId,
+    media_type: mediaType,
+    external_id: externalId,
+  });
+}
+
 // ---------- Router ----------
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
