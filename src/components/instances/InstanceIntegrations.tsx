@@ -71,6 +71,12 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
   const providerEvents = getProviderEvents(instance.provider);
   const maskedToken = instance.access_token.slice(0, 4) + '••••••••';
 
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const apiBase = `https://${projectId}.supabase.co/functions/v1/public-api/v1`;
+  const healthUrl = `${apiBase}/health`;
+  const statusUrl = `${apiBase}/instances/status`;
+  const sendTextUrl = `${apiBase}/messages/text`;
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copiado!');
