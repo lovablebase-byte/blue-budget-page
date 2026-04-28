@@ -457,7 +457,7 @@ serve(async (req) => {
       const { data } = await supabase
         .from('instances')
         .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, access_token')
-        .eq('id', resolvedInstanceId)
+        .eq("id", effectiveInstanceId)
         .maybeSingle();
       authedInstance = data;
       if (authedInstance && authedInstance.access_token !== legacyToken) {
@@ -496,18 +496,18 @@ serve(async (req) => {
         return jsonResponse({ error: 'customer_phone is required', received_fields: Object.keys(body) }, 400);
       }
 
-      if (!resolvedInstanceId) {
+      if (!effectiveInstanceId) {
         return jsonResponse({ error: 'instance_id is required', received_fields: Object.keys(body) }, 400);
       }
 
       const { data: instance, error: instErr } = await supabase
         .from('instances')
         .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id, status')
-        .eq('id', resolvedInstanceId)
+        .eq("id", effectiveInstanceId)
         .single();
 
       if (instErr || !instance) {
-        return jsonResponse({ error: 'Instance not found', instance_id: resolvedInstanceId }, 404);
+        return jsonResponse({ error: 'Instance not found', instance_id: effectiveInstanceId }, 404);
       }
 
       const normalizedPhone = normalizePhone(customerPhone);
@@ -725,14 +725,14 @@ serve(async (req) => {
       const phone = body.phone || body.customer_phone;
       const testMessage = body.message;
 
-      if (!resolvedInstanceId || !phone) {
+      if (!effectiveInstanceId || !phone) {
         return jsonResponse({ error: 'instance_id and phone are required' }, 400);
       }
 
       const { data: instance } = await supabase
         .from('instances')
         .select('id, name, company_id, provider, provider_instance_id, evolution_instance_id')
-        .eq('id', resolvedInstanceId)
+        .eq("id", effectiveInstanceId)
         .single();
 
       if (!instance) {
