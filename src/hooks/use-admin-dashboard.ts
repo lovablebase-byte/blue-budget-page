@@ -7,7 +7,6 @@ import { reconcileActiveInstances, isOnlineStatus, isConnectingStatus, isDisconn
 export interface AdminStats {
   companies: number;
   users: number;
-  /** Indica origem da contagem de usuários: 'primary' | 'fallback' | 'unavailable'. */
   usersSource: 'primary' | 'fallback' | 'unavailable';
   usersError?: string;
   instances: number;
@@ -21,14 +20,12 @@ export interface AdminStats {
   openInvoices: number;
   totalRevenueCents: number;
   paidRevenueCents: number;
-}
-
-export interface RecentCompany {
-  id: string;
-  name: string;
-  slug: string;
-  is_active: boolean;
-  created_at: string;
+  // Novas métricas para Etapa 10
+  messagesToday: number;
+  messagesMonth: number;
+  failedMessages: number;
+  recentRateLimits: number;
+  unprocessedWebhooks: number;
 }
 
 export interface RecentInstance {
@@ -39,6 +36,8 @@ export interface RecentInstance {
   phone_number: string | null;
   created_at: string;
   company_name: string;
+  last_webhook_at?: string;
+  messages_month?: number;
 }
 
 export interface RecentInvoice {
@@ -56,9 +55,9 @@ export interface OperationalAlert {
 
 export function useAdminDashboard() {
   const stats = useQuery({
-    queryKey: ['admin-dashboard-stats'],
+    queryKey: ['admin-dashboard-stats-v10'],
     queryFn: async (): Promise<AdminStats> => {
-      // Reconcilia status remoto antes de contar (best-effort, não quebra se falhar)
+      // Reconcilia status remoto antes de contar
       try {
         const { data: companyRow } = await supabase.from('companies').select('id').limit(1).single();
         if (companyRow?.id) {
@@ -66,8 +65,14 @@ export function useAdminDashboard() {
           await reconcileActiveInstances(providers);
         }
       } catch {
-        /* reconciliação é best-effort */
+        /* best-effort */
       }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
 
       const [
         endUsersResult,
@@ -76,26 +81,26 @@ export function useAdminDashboard() {
         subsRes,
         invoicesRes,
         invoicesPaidRes,
+        msgsTodayRes,
+        msgsMonthRes,
+        msgsFailedRes,
+        rateLimitRes,
+        webhooksPendingRes,
       ] = await Promise.all([
-        // Fonte ÚNICA de verdade — mesma regra usada na tela Admin > Usuários
         countEndUsers(),
         supabase.from('instances').select('id, status, provider'),
         supabase.from('plans').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('subscriptions').select('id, status'),
         supabase.from('invoices').select('id, amount_cents, status').eq('status', 'pending'),
         supabase.from('invoices').select('amount_cents').eq('status', 'paid'),
+        supabase.from('messages_log').select('id', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+        supabase.from('messages_log').select('id', { count: 'exact', head: true }).gte('created_at', monthStart.toISOString()),
+        supabase.from('messages_log').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+        supabase.from('chatbot_key_logs').select('id', { count: 'exact', head: true }).gte('created_at', today.toISOString()), // Usando chatbot_key_logs como proxy para rate limits ou similar se disponível
+        supabase.from('webhook_events').select('id', { count: 'exact', head: true }).eq('processed', false),
       ]);
 
-      if (endUsersResult.source !== 'primary') {
-        console.warn(
-          `[admin-dashboard] users count via ${endUsersResult.source}`,
-          endUsersResult.error,
-        );
-      }
-
       const instances = instancesRes.data || [];
-      const subs = subsRes.data || [];
-
       const statusCounts = { online: 0, offline: 0, connecting: 0 };
       const providerMap: Record<string, number> = {};
       instances.forEach((inst: any) => {
@@ -105,6 +110,7 @@ export function useAdminDashboard() {
         providerMap[inst.provider] = (providerMap[inst.provider] || 0) + 1;
       });
 
+      const subs = subsRes.data || [];
       const expired = subs.filter((s: any) => s.status === 'canceled').length;
       const pending = subs.filter((s: any) => s.status === 'past_due' || s.status === 'pending_payment').length;
 
@@ -114,7 +120,7 @@ export function useAdminDashboard() {
       const paidRevenue = paidInvoices.reduce((sum: number, i: any) => sum + (i.amount_cents || 0), 0);
 
       return {
-        companies: 1, // single-tenant: sempre 1
+        companies: 1,
         users: endUsersResult.count,
         usersSource: endUsersResult.source,
         usersError: endUsersResult.error,
@@ -129,36 +135,60 @@ export function useAdminDashboard() {
         openInvoices: openInvoices.length,
         totalRevenueCents: totalRevenue,
         paidRevenueCents: paidRevenue,
+        messagesToday: msgsTodayRes.count ?? 0,
+        messagesMonth: msgsMonthRes.count ?? 0,
+        failedMessages: msgsFailedRes.count ?? 0,
+        recentRateLimits: rateLimitRes.count ?? 0,
+        unprocessedWebhooks: webhooksPendingRes.count ?? 0,
       };
     },
     refetchInterval: 60000,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
-  });
-
-  const recentCompanies = useQuery({
-    queryKey: ['admin-dashboard-recent-companies'],
-    enabled: false,
-    queryFn: async (): Promise<RecentCompany[]> => [],
   });
 
   const recentInstances = useQuery({
-    queryKey: ['admin-dashboard-recent-instances'],
+    queryKey: ['admin-dashboard-recent-instances-v10'],
     queryFn: async (): Promise<RecentInstance[]> => {
-      const { data } = await supabase
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const { data: instances } = await supabase
         .from('instances')
         .select('id, name, provider, status, phone_number, created_at, companies(name)')
         .order('created_at', { ascending: false })
-        .limit(5);
-      return (data || []).map((i: any) => ({
-        id: i.id,
-        name: i.name,
-        provider: i.provider,
-        status: i.status,
-        phone_number: i.phone_number ?? null,
-        created_at: i.created_at,
-        company_name: i.companies?.name || '—',
+        .limit(10);
+      
+      if (!instances) return [];
+
+      const results = await Promise.all(instances.map(async (i: any) => {
+        const { data: lastWebhook } = await supabase
+          .from('webhook_events')
+          .select('created_at')
+          .eq('instance_id', i.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const { count: msgCount } = await supabase
+          .from('messages_log')
+          .select('id', { count: 'exact', head: true })
+          .eq('instance_id', i.id)
+          .gte('created_at', monthStart.toISOString());
+
+        return {
+          id: i.id,
+          name: i.name,
+          provider: i.provider,
+          status: i.status,
+          phone_number: i.phone_number ?? null,
+          created_at: i.created_at,
+          company_name: i.companies?.name || '—',
+          last_webhook_at: lastWebhook?.created_at,
+          messages_month: msgCount ?? 0,
+        };
       }));
+
+      return results;
     },
   });
 
@@ -181,21 +211,10 @@ export function useAdminDashboard() {
   });
 
   const alerts = useQuery({
-    queryKey: ['admin-dashboard-alerts'],
+    queryKey: ['admin-dashboard-alerts-v10'],
     queryFn: async (): Promise<OperationalAlert[]> => {
       const result: OperationalAlert[] = [];
 
-      // Check offline instances
-      const { data: offlineInstances } = await supabase
-        .from('instances')
-        .select('id', { count: 'exact', head: true })
-        .neq('status', 'online')
-        .neq('status', 'connected');
-      if ((offlineInstances as any)?.length > 0 || (offlineInstances as any) > 0) {
-        // use count from stats instead
-      }
-
-      // Check overdue invoices
       const { count: overdueCount } = await supabase
         .from('invoices')
         .select('id', { count: 'exact', head: true })
@@ -205,65 +224,19 @@ export function useAdminDashboard() {
         result.push({ type: 'error', message: `${overdueCount} fatura(s) vencida(s) sem pagamento` });
       }
 
-      // Check past_due subscriptions
-      const { count: pastDueCount } = await supabase
-        .from('subscriptions')
+      const { count: failedMsgs } = await supabase
+        .from('messages_log')
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'past_due');
-      if (pastDueCount && pastDueCount > 0) {
-        result.push({ type: 'warning', message: `${pastDueCount} assinatura(s) com pagamento atrasado` });
-      }
-
-      // Check inactive companies
-      const { count: inactiveCount } = await supabase
-        .from('companies')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_active', false);
-      if (inactiveCount && inactiveCount > 0) {
-        result.push({ type: 'info', message: `${inactiveCount} conta(s) desativada(s)` });
+        .eq('status', 'failed')
+        .gte('created_at', new Date(Date.now() - 3600000).toISOString()); // última hora
+      if (failedMsgs && failedMsgs > 0) {
+        result.push({ type: 'warning', message: `${failedMsgs} falhas de envio na última hora` });
       }
 
       return result;
     },
     refetchInterval: 120000,
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
   });
 
-  return { stats, recentCompanies, recentInstances, recentInvoices, alerts };
-}
-
-/**
- * Hook reutilizável para dashboard do cliente (futuro).
- * Consome dados scoped pela company_id do usuário logado.
- */
-export function useCompanyDashboard(companyId: string | undefined) {
-  return useQuery({
-    queryKey: ['company-dashboard', companyId],
-    enabled: !!companyId,
-    queryFn: async () => {
-      if (!companyId) return null;
-
-      const [instancesRes, subRes, invoicesRes] = await Promise.all([
-        supabase.from('instances').select('id, status, provider').eq('company_id', companyId),
-        supabase.from('subscriptions').select('*, plans(*)').eq('company_id', companyId).eq('status', 'active').single(),
-        supabase.from('invoices').select('id, amount_cents, status, due_date').eq('company_id', companyId).eq('status', 'pending'),
-      ]);
-
-      const instances = instancesRes.data || [];
-      const plan = (subRes.data as any)?.plans || null;
-
-      return {
-        instances: instances.length,
-        instancesOnline: instances.filter((i: any) => isOnlineStatus(i.status)).length,
-        instancesOffline: instances.filter((i: any) => isDisconnectedStatus(i.status)).length,
-        plan,
-        subscription: subRes.data,
-        openInvoices: (invoicesRes.data || []).length,
-      };
-    },
-    refetchInterval: 60000,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
-  });
+  return { stats, recentInstances, recentInvoices, alerts };
 }
