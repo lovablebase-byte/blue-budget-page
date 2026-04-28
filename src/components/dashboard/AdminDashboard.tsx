@@ -5,7 +5,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users, Smartphone, Wifi, WifiOff, Signal,
   CreditCard, AlertTriangle, Ban, DollarSign, FileText,
-  Server, Info, Phone,
+  Server, Info, Phone, MessageSquare, Activity, ShieldAlert, Webhook,
+  Clock, AlertCircle, TrendingUp
 } from 'lucide-react';
 
 function formatPhone(raw: string | null | undefined): string | null {
@@ -27,7 +28,7 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
   return (
     <Card className={`group premium-card ${colorClass} overflow-hidden transition-all duration-300 hover:shadow-lg border-white/5 bg-card/40 backdrop-blur-md`}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className={`text-[11px] font-black uppercase tracking-[0.18em] ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`} style={{ color: 'var(--icon-color)' }}>
+        <CardTitle className={`text-[10px] font-black uppercase tracking-[0.18em] ${colorClass} filter drop-shadow-[0_0_8px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`} style={{ color: 'var(--icon-color)' }}>
           {title}
         </CardTitle>
         <div className={`icon-premium ${colorClass} p-2.5 transition-all duration-300 group-hover:scale-110 shadow-[0_0_20px_var(--icon-shadow)]/20`}>
@@ -35,11 +36,11 @@ function StatCard({ title, value, icon: Icon, subtitle, colorClass = 'metric-gre
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`text-3xl font-black tracking-tighter ${colorClass} filter drop-shadow-[0_0_12px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_18px_var(--icon-shadow)]`}>
+        <div className={`text-2xl font-black tracking-tighter ${colorClass} filter drop-shadow-[0_0_12px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_18px_var(--icon-shadow)]`}>
           {value}
         </div>
         {subtitle && (
-          <p className={`text-[10px] ${colorClass} mt-2 font-bold uppercase tracking-widest filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90`}>
+          <p className={`text-[9px] ${colorClass} mt-2 font-bold uppercase tracking-widest filter drop-shadow-[0_0_4px_var(--icon-shadow)] opacity-90`}>
             {subtitle}
           </p>
         )}
@@ -53,6 +54,7 @@ function StatusBadge({ status }: { status: string }) {
     online: { label: 'ONLINE', variant: 'success' },
     connected: { label: 'ONLINE', variant: 'success' },
     connecting: { label: 'CONECTANDO', variant: 'warning' },
+    pairing: { label: 'EM PAREAMENTO', variant: 'warning' },
     offline: { label: 'OFFLINE', variant: 'destructive' },
     paid: { label: 'PAGO', variant: 'success' },
     pending: { label: 'PENDENTE', variant: 'warning' },
@@ -70,6 +72,8 @@ function SectionSkeleton() {
   );
 }
 
+const fmtDate = (d: string | null | undefined) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+
 export default function AdminDashboard() {
   const { stats, recentInstances, recentInvoices, alerts } = useAdminDashboard();
   const s = stats.data;
@@ -79,9 +83,22 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Admin</h1>
-        <p className="text-muted-foreground text-sm font-medium uppercase tracking-[0.2em] opacity-70">Visão consolidada do SaaS</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard de Diagnóstico</h1>
+          <p className="text-muted-foreground text-sm font-medium uppercase tracking-[0.2em] opacity-70">Monitoramento operacional e comercial</p>
+        </div>
+        {s && (
+          <div className="flex gap-4 overflow-x-auto pb-2 md:pb-0">
+             <div className="flex flex-col items-end">
+               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Saúde da API</span>
+               <div className="flex items-center gap-2">
+                 <div className="h-2 w-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(36,255,145,0.8)]" />
+                 <span className="text-xs font-bold metric-green">ESTÁVEL</span>
+               </div>
+             </div>
+          </div>
+        )}
       </div>
 
       {alerts.data && alerts.data.length > 0 && (
@@ -101,67 +118,136 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-        </div>
-      ) : s ? (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <StatCard
-            title="Usuários"
-            value={s.users}
-            icon={Users}
-            subtitle={
-              s.usersSource === 'fallback'
-                ? 'no sistema (fallback)'
-                : s.usersSource === 'unavailable'
-                  ? 'indisponível'
-                  : 'no sistema'
-            }
-            colorClass="metric-green"
-          />
-          <StatCard title="Instâncias" value={s.instances} icon={Smartphone} subtitle="total" colorClass="metric-cyan" />
-          <StatCard title="Planos Ativos" value={s.activePlans} icon={CreditCard} subtitle="habilitados" colorClass="metric-purple" />
-          <StatCard title="Faturas Abertas" value={s.openInvoices} icon={FileText} subtitle="pendentes" colorClass="metric-orange" />
-          <StatCard title="Faturamento" value={formatCurrency(s.paidRevenueCents)} icon={DollarSign} subtitle="recebido" colorClass="metric-emerald" />
-        </div>
-      ) : null}
+      {/* Primary Metrics */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+        ) : s ? (
+          <>
+            <StatCard title="Mensagens Hoje" value={s.messagesToday} icon={MessageSquare} subtitle="total disparos" colorClass="metric-turquoise" />
+            <StatCard title="Mensagens Mês" value={s.messagesMonth} icon={TrendingUp} subtitle="consumo acumulado" colorClass="metric-blue" />
+            <StatCard title="Instâncias Online" value={s.instancesOnline} icon={Signal} subtitle={`${s.instances} no total`} colorClass="metric-green" />
+            <StatCard title="Taxa de Falha" value={s.messagesMonth > 0 ? `${((s.failedMessages / s.messagesMonth) * 100).toFixed(1)}%` : '0%'} icon={ShieldAlert} subtitle={`${s.failedMessages} erros total`} colorClass="metric-red" />
+            <StatCard title="Faturamento" value={formatCurrency(s.paidRevenueCents)} icon={DollarSign} subtitle="pago este mês" colorClass="metric-emerald" />
+          </>
+        ) : null}
+      </div>
 
-      {s && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/20">
-            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Status das Instâncias</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-green rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(36,255,145,0.2)]"><Wifi className="h-5 w-5" /></div>
-                  <div>
-                    <p className="text-xl font-black metric-green filter drop-shadow-[0_0_10px_rgba(36,255,145,0.5)]">{s.instancesOnline}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Online</p>
+      {/* Operational Diagnostic Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)
+        ) : s ? (
+          <>
+            <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-orange flex items-center gap-2"><Webhook className="h-3 w-3" /> Webhooks</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground font-medium">Pendentes</span>
+                    <span className={`text-lg font-black ${s.unprocessedWebhooks > 50 ? 'metric-red' : 'metric-orange'}`}>{s.unprocessedWebhooks}</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-red rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,90,95,0.2)]"><WifiOff className="h-5 w-5" /></div>
-                  <div>
-                    <p className="text-xl font-black metric-red filter drop-shadow-[0_0_10px_rgba(255,90,95,0.5)]">{s.instancesOffline}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Offline</p>
+                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-1">
+                    <div className="bg-orange-500 h-full transition-all" style={{ width: `${Math.min(100, s.unprocessedWebhooks)}%` }} />
                   </div>
+                  <p className="text-[9px] text-muted-foreground uppercase font-bold mt-2 tracking-widest">Processamento em tempo real</p>
                 </div>
-                <div className="flex items-center gap-3 group">
-                  <div className="icon-premium metric-yellow rounded-full p-2 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,214,0,0.2)]"><Signal className="h-5 w-5" /></div>
-                  <div>
-                    <p className="text-xl font-black metric-yellow filter drop-shadow-[0_0_10px_rgba(255,214,0,0.5)]">{s.instancesConnecting}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Conectando</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/20">
-            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-80">Instâncias por Provider</CardTitle></CardHeader>
+            <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-pink flex items-center gap-2"><ShieldAlert className="h-3 w-3" /> Rate Limits</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground font-medium">Bloqueios Hoje</span>
+                    <span className="text-lg font-black metric-pink">{s.recentRateLimits}</span>
+                  </div>
+                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-1">
+                    <div className="bg-pink-500 h-full transition-all" style={{ width: `${Math.min(100, s.recentRateLimits * 5)}%` }} />
+                  </div>
+                  <p className="text-[9px] text-muted-foreground uppercase font-bold mt-2 tracking-widest">Proteção contra abuso ativa</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-purple flex items-center gap-2"><Users className="h-3 w-3" /> Comercial</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Planos</p>
+                    <p className="text-lg font-black metric-purple">{s.activePlans}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Assinaturas</p>
+                    <p className="text-lg font-black metric-purple">{s.users}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        ) : null}
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Status das Instâncias</CardTitle>
+            <Badge variant="outline" className="text-[9px] font-bold opacity-50">TOP 10 RECENTES</Badge>
+          </CardHeader>
+          <CardContent>
+            {recentInstances.isLoading ? <SectionSkeleton /> :
+             (recentInstances.data?.length ?? 0) === 0 ? (
+               <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma instância</p>
+             ) : (
+               <div className="space-y-4">
+                 {recentInstances.data!.map((inst) => {
+                   const phone = formatPhone(inst.phone_number);
+                   const isOnline = inst.status === 'online' || inst.status === 'connected';
+                   const statusColor = isOnline ? 'metric-green' : (inst.status === 'connecting' || inst.status === 'pairing') ? 'metric-yellow' : 'metric-red';
+                   return (
+                    <div key={inst.id} className="flex flex-col border-b border-white/5 pb-3 last:border-0 last:pb-0 group">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inst.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                             <span className="text-[9px] text-muted-foreground opacity-60 uppercase tracking-widest font-black flex items-center gap-1">
+                               <Server className="h-2 w-2" /> {inst.provider}
+                             </span>
+                             <span className="text-[9px] text-muted-foreground opacity-60 uppercase tracking-widest font-black flex items-center gap-1">
+                               <Users className="h-2 w-2" /> {inst.company_name}
+                             </span>
+                          </div>
+                        </div>
+                        <StatusBadge status={inst.status} />
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground/80 mt-1">
+                        <div className="flex items-center gap-3">
+                          {phone && (
+                            <span className="flex items-center gap-1"><Phone className="h-2.5 w-2.5 opacity-50" /> {phone}</span>
+                          )}
+                          <span className="flex items-center gap-1" title="Mensagens este mês"><MessageSquare className="h-2.5 w-2.5 opacity-50" /> {inst.messages_month} msg/mês</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5 opacity-50" />
+                          <span className="truncate">Ult. Hook: {inst.last_webhook_at ? fmtDate(inst.last_webhook_at) : 'Nunca'}</span>
+                        </div>
+                      </div>
+                    </div>
+                   );
+                 })}
+               </div>
+             )}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-turquoise filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Consumo por Provider</CardTitle></CardHeader>
             <CardContent>
-              {s.instancesByProvider.length > 0 ? (
+              {s && s.instancesByProvider.length > 0 ? (
                 <div className="space-y-3">
                   {s.instancesByProvider.map((p, idx) => {
                     const colorClass = p.provider === 'evolution' ? 'metric-pink' : idx === 0 ? 'metric-cyan' : idx === 1 ? 'metric-sky' : 'metric-emerald';
@@ -172,101 +258,47 @@ export default function AdminDashboard() {
                           <span className={`text-[10px] font-black uppercase tracking-widest ${colorClass} filter drop-shadow-[0_0_6px_var(--icon-shadow)] transition-all duration-300 group-hover:drop-shadow-[0_0_10px_var(--icon-shadow)]`}>{p.provider}</span>
                         </div>
                         <div className={`px-2 py-0.5 rounded-full border border-[var(--icon-border)] bg-[var(--icon-bg)] ${colorClass} text-[11px] font-black tabular-nums filter drop-shadow-[0_0_8px_var(--icon-shadow)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>
-                          {p.count}
+                          {p.count} inst.
                         </div>
                       </div>
                     );
                   })}
                 </div>
-
               ) : (
-                <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma instância cadastrada</p>
+                <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhum dado de provider</p>
               )}
             </CardContent>
           </Card>
+
+          <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
+            <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-orange filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Saúde Financeira</CardTitle></CardHeader>
+            <CardContent>
+              {recentInvoices.isLoading ? <SectionSkeleton /> :
+               (recentInvoices.data?.length ?? 0) === 0 ? (
+                 <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma fatura</p>
+               ) : (
+                 <div className="space-y-3">
+                   {recentInvoices.data!.map((inv) => {
+                     const statusColor = inv.status === 'paid' ? 'metric-green' : inv.status === 'pending' ? 'metric-yellow' : 'metric-red';
+                     return (
+                     <div key={inv.id} className="flex items-center justify-between group">
+                       <div className="min-w-0">
+                          <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>Fatura #{inv.id.slice(0, 8)}</p>
+                          <p className="text-[9px] text-muted-foreground opacity-50 uppercase tracking-widest font-black">{inv.company_name} · Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
+                       </div>
+                       <div className="flex items-center gap-2 shrink-0">
+                         <span className={`text-sm font-black tabular-nums tracking-tighter ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{formatCurrency(inv.amount_cents)}</span>
+                         <StatusBadge status={inv.status} />
+                       </div>
+                     </div>
+                     );
+                   })}
+                 </div>
+               )}
+            </CardContent>
+          </Card>
         </div>
-      )}
-
-      {s && (s.expiredSubscriptions > 0 || s.pendingSubscriptions > 0) && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {s.pendingSubscriptions > 0 && (
-            <StatCard title="Assinaturas Atrasadas" value={s.pendingSubscriptions} icon={AlertTriangle} subtitle="pagamento pendente" colorClass="metric-amber" />
-          )}
-          {s.expiredSubscriptions > 0 && (
-            <StatCard title="Assinaturas Canceladas" value={s.expiredSubscriptions} icon={Ban} subtitle="canceladas" colorClass="metric-red" />
-          )}
-        </div>
-      )}
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
-          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-cyan filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Últimas Instâncias</CardTitle></CardHeader>
-          <CardContent>
-            {recentInstances.isLoading ? <SectionSkeleton /> :
-             (recentInstances.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma instância</p>
-             ) : (
-               <div className="space-y-3">
-                 {recentInstances.data!.map((inst) => {
-                   const phone = formatPhone(inst.phone_number);
-                   const isOnline = inst.status === 'online' || inst.status === 'connected';
-                   const statusColor = isOnline ? 'metric-green' : inst.status === 'connecting' ? 'metric-yellow' : 'metric-red';
-                   return (
-                   <div key={inst.id} className="flex items-center justify-between gap-2 group">
-                     <div className="min-w-0">
-                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>{inst.name}</p>
-                        <p className="text-[10px] text-muted-foreground opacity-50 truncate uppercase tracking-widest font-black">{inst.provider}</p>
-                       {phone ? (
-                         <p className={`text-[11px] font-black tabular-nums flex items-center gap-1 mt-0.5 ${statusColor} filter drop-shadow-[0_0_5px_var(--icon-shadow)]`}>
-                           <Phone className="h-3 w-3" />
-                           {phone}
-                         </p>
-                       ) : (
-                         <p className="text-[10px] text-muted-foreground/30 italic mt-0.5 font-bold uppercase tracking-widest">Sem número</p>
-                       )}
-                     </div>
-                     <StatusBadge status={inst.status} />
-                   </div>
-                   );
-                 })}
-               </div>
-             )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/40 backdrop-blur-sm border-white/5 shadow-xl shadow-black/10">
-          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] metric-orange filter drop-shadow-[0_0_8px_var(--icon-shadow)]">Últimas Faturas</CardTitle></CardHeader>
-          <CardContent>
-            {recentInvoices.isLoading ? <SectionSkeleton /> :
-             (recentInvoices.data?.length ?? 0) === 0 ? (
-               <p className="text-sm text-muted-foreground/60 italic font-medium">Nenhuma fatura</p>
-             ) : (
-               <div className="space-y-3">
-                 {recentInvoices.data!.map((inv) => {
-                   const statusColor = inv.status === 'paid' ? 'metric-green' : inv.status === 'pending' ? 'metric-yellow' : 'metric-red';
-                   return (
-                   <div key={inv.id} className="flex items-center justify-between group">
-                     <div className="min-w-0">
-                        <p className={`text-sm font-black truncate ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]/30 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--icon-shadow)]`}>Fatura #{inv.id.slice(0, 8)}</p>
-                        <p className="text-[10px] text-muted-foreground opacity-50 uppercase tracking-widest font-black">Venc: {new Date(inv.due_date).toLocaleDateString('pt-BR')}</p>
-                     </div>
-                     <div className="flex items-center gap-2 shrink-0">
-                       <span className={`text-sm font-black tabular-nums tracking-tighter ${statusColor} filter drop-shadow-[0_0_8px_var(--icon-shadow)]`}>{formatCurrency(inv.amount_cents)}</span>
-                       <StatusBadge status={inv.status} />
-                     </div>
-                   </div>
-                   );
-                 })}
-               </div>
-
-             )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
-}
-
-function formatCurrency(cents: number) {
-  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 }
