@@ -274,6 +274,18 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
   --data-urlencode "external_id=pedido_123"`}</pre>
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Exemplo — Idempotency-Key (anti-duplicação)</Label>
+              <pre className="text-[11px] bg-muted/30 p-3 rounded font-mono overflow-x-auto whitespace-pre-wrap">{`curl -X POST ${sendTextUrl} \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  -H "Idempotency-Key: pedido_123_status_pago" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"5511999999999","text":"Seu pagamento foi confirmado.","external_id":"pedido_123_status_pago"}'`}</pre>
+              <p className="text-[11px] text-muted-foreground">
+                Use <code className="bg-muted px-1 rounded">Idempotency-Key</code> ou <code className="bg-muted px-1 rounded">external_id</code> para evitar mensagens duplicadas em caso de retry do seu sistema. A chave é isolada por instância.
+              </p>
+            </div>
+
             <p className="text-[11px] text-muted-foreground">
               Campos aceitos para destinatário: <code className="bg-muted px-1 rounded">to</code>, <code className="bg-muted px-1 rounded">phone</code>, <code className="bg-muted px-1 rounded">phone_number</code>, <code className="bg-muted px-1 rounded">number</code>, <code className="bg-muted px-1 rounded">destination</code>, <code className="bg-muted px-1 rounded">recipient</code>.
               Para a mensagem: <code className="bg-muted px-1 rounded">text</code>, <code className="bg-muted px-1 rounded">message</code>, <code className="bg-muted px-1 rounded">body</code>.
