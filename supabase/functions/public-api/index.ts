@@ -302,10 +302,18 @@ async function handleStatus(req: Request, supabase: any) {
   });
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function handleSendText(req: Request, supabase: any, requestId: string) {
   const auth = await authenticate(req, supabase);
   if ("error" in auth) return auth.error;
   const inst = auth.instance;
+
+  const idemHeader = (req.headers.get("idempotency-key") || req.headers.get("Idempotency-Key") || "").trim() || null;
 
   const body = await parseBody(req);
   const safeBody = redactObject(body);
@@ -314,7 +322,7 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
   const text = pickFirst(body, ["text", "message", "body"]);
   const externalId = pickFirst(body, ["external_id", "externalId", "client_message_id"]) || null;
 
-  console.log(`[public-api] send instance=${inst.id} provider=${inst.provider} to=${to ? to.replace(/\d(?=\d{4})/g, "*") : ""} ext=${externalId} body=${JSON.stringify(safeBody)}`);
+  console.log(`[public-api] send instance=${inst.id} provider=${inst.provider} to=${to ? to.replace(/\d(?=\d{4})/g, "*") : ""} ext=${externalId} idem=${idemHeader ? "yes" : "no"} body=${JSON.stringify(safeBody)}`);
 
   if (!to) return jsonError("missing_recipient", "Informe o número de destino.", 400, requestId);
   if (!text) return jsonError("missing_message", "Informe o texto da mensagem.", 400, requestId);
@@ -330,6 +338,72 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
     return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
   }
 
+  // ---------- Idempotency ----------
+  // Priority: Idempotency-Key header > external_id field
+  const idemKey = idemHeader || null;
+  const idemExternal = idemHeader ? null : externalId; // only use external_id for unique constraint when no header
+  const hasIdem = !!(idemKey || idemExternal);
+
+  const recipientDigits = to.replace(/\D/g, "");
+  const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, text, endpoint: "/v1/messages/text" }));
+  const messagePreview = text.length > 255 ? text.slice(0, 255) : text;
+
+  if (hasIdem) {
+    // Lookup existing record
+    let query = supabase
+      .from("public_api_idempotency_keys")
+      .select("id, request_hash, provider, provider_message_id, response_status, response_body")
+      .eq("instance_id", inst.id);
+    if (idemKey) query = query.eq("idempotency_key", idemKey);
+    else query = query.eq("external_id", idemExternal).is("idempotency_key", null);
+    const { data: existing } = await query.maybeSingle();
+
+    if (existing) {
+      if (existing.request_hash !== requestHash) {
+        console.log(`[public-api] idempotency_conflict instance=${inst.id} key=${idemKey ? "***" : "(ext)"}`);
+        return jsonError("idempotency_conflict", "A mesma chave de idempotência já foi usada com outro conteúdo.", 409, requestId);
+      }
+      console.log(`[public-api] duplicate_ignored instance=${inst.id} prev_msg=${existing.provider_message_id}`);
+      return jsonOk({
+        status: "duplicate_ignored",
+        message: "Esta solicitação já foi processada anteriormente.",
+        provider: existing.provider || inst.provider,
+        instance_id: inst.id,
+        message_id: existing.provider_message_id,
+        external_id: externalId,
+      });
+    }
+
+    // Reserve key (insert with unique index → race condition fallback)
+    const { error: reserveErr } = await supabase
+      .from("public_api_idempotency_keys")
+      .insert({
+        instance_id: inst.id,
+        company_id: inst.company_id,
+        idempotency_key: idemKey,
+        external_id: idemExternal,
+        endpoint: "/v1/messages/text",
+        request_hash: requestHash,
+        provider: inst.provider,
+        recipient: recipientDigits,
+        message_preview: messagePreview,
+        response_status: null,
+      });
+
+    if (reserveErr) {
+      // Race condition: another request already reserved the key — return duplicate
+      console.log(`[public-api] race_condition_dup instance=${inst.id} err=${reserveErr.code}`);
+      return jsonOk({
+        status: "duplicate_ignored",
+        message: "Esta solicitação já está sendo processada.",
+        provider: inst.provider,
+        instance_id: inst.id,
+        message_id: null,
+        external_id: externalId,
+      });
+    }
+  }
+
   const result = await sendText(supabase, inst, to, text);
 
   // Log message + bump counters (best-effort)
@@ -337,7 +411,7 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
     await supabase.from("messages_log").insert({
       company_id: inst.company_id,
       instance_id: inst.id,
-      contact_number: to.replace(/\D/g, ""),
+      contact_number: recipientDigits,
       message: text,
       direction: "outgoing",
       status: result.ok ? "sent" : "failed",
@@ -349,6 +423,23 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
     try {
       await supabase.rpc("increment_instance_counters" as any, { _instance_id: inst.id }).catch(() => {});
     } catch { /* ignore */ }
+  }
+
+  // Update idempotency record with final result
+  if (hasIdem) {
+    try {
+      let upd = supabase
+        .from("public_api_idempotency_keys")
+        .update({
+          provider_message_id: result.providerMessageId,
+          response_status: result.status,
+          response_body: redactObject(result.response),
+        })
+        .eq("instance_id", inst.id);
+      if (idemKey) upd = upd.eq("idempotency_key", idemKey);
+      else upd = upd.eq("external_id", idemExternal).is("idempotency_key", null);
+      await upd;
+    } catch (e) { console.log(`[public-api] idem_update_err ${(e as any)?.message}`); }
   }
 
   if (!result.ok) {
