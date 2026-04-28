@@ -761,6 +761,21 @@ serve(async (req) => {
     if (req.method === "POST" && (path === "/v1/messages/text" || path === "/v1/messages/text/")) {
       return handleSendText(req, getSupabase(), requestId);
     }
+    if (req.method === "POST" && (path === "/v1/messages/media" || path === "/v1/messages/media/")) {
+      return handleSendMedia(req, getSupabase(), requestId, null);
+    }
+    if (req.method === "POST" && (path === "/v1/messages/image" || path === "/v1/messages/image/")) {
+      return handleSendMedia(req, getSupabase(), requestId, "image");
+    }
+    if (req.method === "POST" && (path === "/v1/messages/audio" || path === "/v1/messages/audio/")) {
+      return handleSendMedia(req, getSupabase(), requestId, "audio");
+    }
+    if (req.method === "POST" && (path === "/v1/messages/document" || path === "/v1/messages/document/")) {
+      return handleSendMedia(req, getSupabase(), requestId, "document");
+    }
+    if (req.method === "POST" && (path === "/v1/messages/video" || path === "/v1/messages/video/")) {
+      return handleSendMedia(req, getSupabase(), requestId, "video");
+    }
     return jsonError("not_found", "Rota não encontrada.", 404, requestId);
   } catch (err: any) {
     console.error(`[public-api] internal_error req=${requestId} msg=${err?.message}`);
