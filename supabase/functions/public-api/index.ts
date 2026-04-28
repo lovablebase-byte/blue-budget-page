@@ -123,15 +123,11 @@ async function authenticate(req: Request, supabase: any) {
 
 // ---------- Plan & limits ----------
 async function checkPlanAndLimits(supabase: any, instance: any, resourceType: string = "text") {
-  // Admin bypass: company has any admin user → no limits
-  const { data: adminCheck } = await supabase
-    .from("user_roles")
-    .select("id")
-    .eq("company_id", instance.company_id)
-    .in("role", ["admin", "super_admin"])
-    .limit(1);
-  const isAdminCompany = (adminCheck?.length ?? 0) > 0;
-  if (isAdminCompany) return { ok: true };
+  // Bypass comercial SOMENTE para admin global da plataforma (company_id IS NULL).
+  // Admin de empresa cliente (company_id IS NOT NULL) NÃO recebe bypass comercial.
+  // A RPC is_platform_admin() verifica role='admin' AND company_id IS NULL para auth.uid().
+  const { data: isPlatformAdmin } = await supabase.rpc("is_platform_admin");
+  if (isPlatformAdmin === true) return { ok: true };
 
   const { data: sub } = await supabase
     .from("subscriptions")
@@ -165,12 +161,16 @@ async function checkPlanAndLimits(supabase: any, instance: any, resourceType: st
   }
 
   // Check Provider Access
-  const allowedProviders = plan.allowed_providers;
-  if (allowedProviders && Array.isArray(allowedProviders) && allowedProviders.length > 0) {
-    const instProvider = instance.provider || "evolution";
-    if (!allowedProviders.includes(instProvider)) {
-      return { ok: false, resp: jsonError("provider_not_allowed", "Este provider não está disponível no seu plano.", 403) };
-    }
+  // Regra segura: lista vazia ou NULL bloqueiam TODOS os providers.
+  // Somente uma lista explícita com o provider libera o acesso.
+  const allowedProviders: string[] | null = plan.allowed_providers;
+  const instProvider = instance.provider || "evolution";
+  if (!allowedProviders || !Array.isArray(allowedProviders) || allowedProviders.length === 0) {
+    // NULL ou array vazio → nenhum provider permitido
+    return { ok: false, resp: jsonError("provider_not_allowed", "Este provider não está disponível no seu plano.", 403) };
+  }
+  if (!allowedProviders.includes(instProvider)) {
+    return { ok: false, resp: jsonError("provider_not_allowed", "Este provider não está disponível no seu plano.", 403) };
   }
 
   // Check Resource specific permissions

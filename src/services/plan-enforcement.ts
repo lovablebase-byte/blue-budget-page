@@ -153,9 +153,11 @@ export async function getAllowedProviders(companyId: string): Promise<string[]> 
 
   const providers = planData?.allowed_providers as string[] | null;
 
-  // Fallback (plano sem providers explícitos): libera todos os conhecidos
-  if (!providers || providers.length === 0) {
-    return ['evolution', 'wuzapi', 'evolution_go', 'wppconnect', 'quepasa'];
+  // Regra segura: NULL ou array vazio bloqueiam TODOS os providers.
+  // Somente uma lista explícita com providers libera o acesso.
+  // NÃO usar fallback que libera todos — isso seria um bypass de segurança.
+  if (!providers || !Array.isArray(providers)) {
+    return []; // NULL → bloqueia tudo
   }
-  return providers;
+  return providers; // array vazio também bloqueia tudo (retorna [])
 }

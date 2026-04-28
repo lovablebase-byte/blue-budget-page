@@ -662,19 +662,14 @@ serve(async (req) => {
     console.log(`[api-send-text] Instance validated: id=${instance.id}, provider=${instance.provider}, auth=${usingBearer ? "bearer" : "legacy"}`);
 
     // ============================================================
-    // Plan enforcement: api_access + max_messages_month (admin bypass)
+    // Plan enforcement: api_access + max_messages_month
+    // Bypass SOMENTE para admin global da plataforma (company_id IS NULL).
+    // Admin de empresa cliente NÃO recebe bypass comercial.
     // ============================================================
     try {
-      const { data: adminRole } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("company_id", instance.company_id)
-        .in("role", ["admin", "super_admin"])
-        .limit(1)
-        .maybeSingle();
-      const isAdminCompany = !!adminRole;
+      const { data: isPlatformAdmin } = await supabase.rpc("is_platform_admin");
 
-      if (!isAdminCompany) {
+      if (!isPlatformAdmin) {
         const { data: sub } = await supabase
           .from("subscriptions")
           .select("plan_id, status, plans:plan_id(api_access, max_messages_month)")

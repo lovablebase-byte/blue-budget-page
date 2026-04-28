@@ -1,5 +1,11 @@
 project_id = "rmswpurvnqqayemvuocv"
 
+[functions.public-api]
+verify_jwt = false
+
+[functions.queue-worker]
+verify_jwt = false
+
 [functions.delivery-whatsapp]
 verify_jwt = false
 

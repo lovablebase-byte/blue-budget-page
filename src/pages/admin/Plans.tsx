@@ -228,7 +228,7 @@ export default function AdminPlans() {
       key: 'providers', label: 'Providers',
       render: (row) => {
         const pp = planProviders.filter((p: any) => p.plan_id === row.id);
-        if (pp.length === 0) return <span className="text-xs text-muted-foreground">Todos</span>;
+        if (pp.length === 0) return <span className="text-xs text-destructive font-medium">Nenhum (bloqueado)</span>;
         return (
           <div className="flex gap-1">
             {pp.map((p: any) => (
@@ -342,7 +342,10 @@ export default function AdminPlans() {
               </TabsContent>
 
               <TabsContent value="providers" className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">Selecione os providers de WhatsApp permitidos. Se nenhum for selecionado, todos serão permitidos.</p>
+                <p className="text-sm text-muted-foreground">
+                  Selecione os providers de WhatsApp permitidos neste plano.
+                  <span className="text-destructive font-medium"> Se nenhum for selecionado, NENHUM provider será permitido (bloqueio total).</span>
+                </p>
                 <div className="space-y-3">
                   {['evolution', 'evolution_go', 'wuzapi', 'wppconnect', 'quepasa'].map(provider => (
                     <label key={provider} className="flex items-center gap-3 border border-border/30 rounded-md p-3 cursor-pointer bg-muted/10 hover:bg-muted/20 transition-colors">
