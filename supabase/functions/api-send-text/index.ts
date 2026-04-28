@@ -340,19 +340,59 @@ function detectAction(payload: Record<string, any>): string | undefined {
 }
 
 function sanitizeHeaders(headers: Headers): Record<string, string> {
-  const sensitive = new Set(["authorization", "apikey", "x-api-key", "cookie", "set-cookie"]);
+  const sensitive = new Set([
+    "authorization", "apikey", "x-api-key", "cookie", "set-cookie",
+    "token", "x-auth-token", "x-access-token", "x-webhook-signature",
+  ]);
   const out: Record<string, string> = {};
-
   headers.forEach((value, key) => {
-    out[key] = sensitive.has(key.toLowerCase()) ? "***" : value;
+    out[key] = sensitive.has(key.toLowerCase()) ? "***REDACTED***" : value;
   });
-
   return out;
 }
 
-function truncate(value: string, limit = 4000): string {
+const SENSITIVE_BODY_KEYS = new Set([
+  "access_token", "accesstoken", "token", "session_token",
+  "api_key", "apikey", "x-api-key", "secret", "webhook_secret",
+  "password", "authorization", "service_role", "service_role_key",
+  "bearer",
+]);
+
+function redactObject(value: any, depth = 0): any {
+  if (depth > 6 || value == null) return value;
+  if (Array.isArray(value)) return value.map(v => redactObject(v, depth + 1));
+  if (typeof value === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (SENSITIVE_BODY_KEYS.has(k.toLowerCase())) {
+        out[k] = "***REDACTED***";
+      } else {
+        out[k] = redactObject(v, depth + 1);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
+function redactRawBody(raw: string): string {
+  if (!raw) return raw;
+  // mask query-style and json-style sensitive values
+  return raw
+    .replace(/("?)(access_token|token|api_key|apikey|secret|webhook_secret|password|authorization)("?\s*[:=]\s*"?)([^"&,}\s]+)/gi,
+      '$1$2$3***REDACTED***');
+}
+
+function truncate(value: string, limit = 2000): string {
   if (value.length <= limit) return value;
   return `${value.slice(0, limit)}...[truncated ${value.length - limit} chars]`;
+}
+
+function jsonError(error: string, message: string, status: number, requestId: string) {
+  return new Response(JSON.stringify({ success: false, error, message, request_id: requestId }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 // ============================================================
