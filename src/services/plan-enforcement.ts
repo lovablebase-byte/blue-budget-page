@@ -142,12 +142,20 @@ export async function getAllowedProviders(companyId: string): Promise<string[]> 
   const plan = await getEffectivePlan(companyId);
   if (!plan) return [];
 
-  const { data } = await supabase
-    .from('plan_allowed_providers')
-    .select('provider')
-    .eq('plan_id', plan.plan_id);
+  // A partir de agora, a coluna allowed_providers na tabela plans é a única fonte de verdade.
+  // getEffectivePlan já traz o plano do banco, mas ele não mapeia allowed_providers por padrão no objeto EffectivePlan.
+  // Vamos buscar diretamente para garantir precisão.
+  const { data: planData } = await supabase
+    .from('plans')
+    .select('allowed_providers')
+    .eq('id', plan.plan_id)
+    .single();
+
+  const providers = planData?.allowed_providers as string[] | null;
 
   // Fallback (plano sem providers explícitos): libera todos os conhecidos
-  if (!data || data.length === 0) return ['evolution', 'wuzapi', 'evolution_go', 'wppconnect', 'quepasa'];
-  return data.map((p: any) => p.provider);
+  if (!providers || providers.length === 0) {
+    return ['evolution', 'wuzapi', 'evolution_go', 'wppconnect', 'quepasa'];
+  }
+  return providers;
 }
