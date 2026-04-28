@@ -2045,6 +2045,10 @@ export type Database = {
         Args: { _new_plan_id: string }
         Returns: Json
       }
+      check_and_update_rate_limit: {
+        Args: { p_increment?: number; p_instance_id: string }
+        Returns: Json
+      }
       confirm_pending_plan_change: {
         Args: { _subscription_id: string }
         Returns: Json
