@@ -332,7 +332,8 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
               </p>
             </div>
 
-
+            <p className="text-[11px] text-muted-foreground">
+              Campos aceitos para destinatário: <code className="bg-muted px-1 rounded">to</code>, <code className="bg-muted px-1 rounded">phone</code>, <code className="bg-muted px-1 rounded">phone_number</code>, <code className="bg-muted px-1 rounded">number</code>, <code className="bg-muted px-1 rounded">destination</code>, <code className="bg-muted px-1 rounded">recipient</code>.
               Para a mensagem: <code className="bg-muted px-1 rounded">text</code>, <code className="bg-muted px-1 rounded">message</code>, <code className="bg-muted px-1 rounded">body</code>.
             </p>
             <p className="text-[11px] text-destructive/80">
