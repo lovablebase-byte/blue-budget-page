@@ -1,0 +1,405 @@
+/**
+ * public-api — API pública comercial v1, multiuso (chatbots, CRMs, ERPs,
+ * sistemas próprios, notificações, cobranças, agendamentos, delivery, etc).
+ *
+ * Roteamento interno via path:
+ *   GET  /v1/health
+ *   GET|POST /v1/instances/status
+ *   POST /v1/messages/text
+ *
+ * Autenticação padrão: `Authorization: Bearer <TOKEN_DA_INSTANCIA>`
+ * (exceto /v1/health que é público).
+ *
+ * Compatibilidade: NÃO substitui o legado api-send-text — apenas o
+ * complementa com superfície versionada e estável para clientes externos.
+ */
+// @ts-nocheck
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+};
+
+// ---------- Log redaction ----------
+const SENSITIVE_KEYS = new Set([
+  "access_token", "accesstoken", "token", "session_token",
+  "api_key", "apikey", "x-api-key", "secret", "webhook_secret",
+  "password", "authorization", "service_role", "service_role_key", "bearer",
+]);
+
+function redactObject(value: any, depth = 0): any {
+  if (depth > 6 || value == null) return value;
+  if (Array.isArray(value)) return value.map(v => redactObject(v, depth + 1));
+  if (typeof value === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? "***REDACTED***" : redactObject(v, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
+
+function maskToken(t: string): string {
+  if (!t) return "";
+  if (t.length <= 8) return "***";
+  return `${t.slice(0, 4)}...${t.slice(-4)}`;
+}
+
+function jsonOk(data: any, status = 200) {
+  return new Response(JSON.stringify({ success: true, ...data }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function jsonError(error: string, message: string, status: number, requestId?: string) {
+  const body: any = { success: false, error, message };
+  if (requestId) body.request_id = requestId;
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// ---------- Body parsing (json | form-data | x-www-form-urlencoded) ----------
+async function parseBody(req: Request): Promise<Record<string, any>> {
+  const ct = (req.headers.get("content-type") || "").toLowerCase();
+  if (!req.body) return {};
+  try {
+    if (ct.includes("application/json")) {
+      return await req.json();
+    }
+    if (ct.includes("application/x-www-form-urlencoded")) {
+      const text = await req.text();
+      const out: Record<string, any> = {};
+      new URLSearchParams(text).forEach((v, k) => { out[k] = v; });
+      return out;
+    }
+    if (ct.includes("multipart/form-data")) {
+      const fd = await req.formData();
+      const out: Record<string, any> = {};
+      fd.forEach((v, k) => { out[k] = typeof v === "string" ? v : ""; });
+      return out;
+    }
+    // Fallback: try JSON
+    const text = await req.text();
+    if (!text) return {};
+    try { return JSON.parse(text); } catch { return {}; }
+  } catch {
+    return {};
+  }
+}
+
+function pickFirst(obj: Record<string, any>, keys: string[]): string {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+  }
+  return "";
+}
+
+// ---------- Auth ----------
+async function authenticate(req: Request, supabase: any) {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  const m = authHeader.match(/^Bearer\s+(.+)$/i);
+  const token = m?.[1]?.trim();
+  if (!token) return { error: jsonError("missing_token", "Token de autenticação obrigatório.", 401) };
+
+  const { data: instance, error } = await supabase
+    .from("instances")
+    .select("id, name, company_id, provider, provider_instance_id, evolution_instance_id, status, phone_number, access_token")
+    .eq("access_token", token)
+    .maybeSingle();
+
+  if (error || !instance) {
+    return { error: jsonError("invalid_token", "Token inválido.", 401) };
+  }
+  return { instance, token };
+}
+
+// ---------- Plan & limits ----------
+async function checkPlanAndLimits(supabase: any, instance: any) {
+  // Admin bypass: company has any admin user → no limits
+  const { data: adminCheck } = await supabase
+    .from("user_roles")
+    .select("id")
+    .eq("company_id", instance.company_id)
+    .in("role", ["admin", "super_admin"])
+    .limit(1);
+  const isAdminCompany = (adminCheck?.length ?? 0) > 0;
+  if (isAdminCompany) return { ok: true };
+
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("plan_id, status, plans:plan_id(api_access, max_messages_month)")
+    .eq("company_id", instance.company_id)
+    .in("status", ["active", "trialing"])
+    .maybeSingle();
+
+  const plan = (sub as any)?.plans;
+  if (!sub || !plan || !plan.api_access) {
+    return { ok: false, resp: jsonError("api_access_not_allowed", "Seu plano não permite uso da API externa.", 403) };
+  }
+
+  const maxMonth = Number(plan.max_messages_month || 0);
+  if (maxMonth > 0) {
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+    const { count } = await supabase
+      .from("messages_log")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", instance.company_id)
+      .gte("created_at", monthStart.toISOString());
+    if ((count ?? 0) >= maxMonth) {
+      return { ok: false, resp: jsonError("monthly_limit_reached", "Limite mensal de mensagens atingido.", 429) };
+    }
+  }
+  return { ok: true };
+}
+
+async function checkRateLimit(supabase: any, instanceId: string) {
+  const { data: lim } = await supabase
+    .from("instance_limits")
+    .select("*")
+    .eq("instance_id", instanceId)
+    .maybeSingle();
+  if (!lim) return { ok: true };
+
+  const now = new Date();
+  const minuteAgo = new Date(now.getTime() - 60_000);
+  const hourAgo = new Date(now.getTime() - 3_600_000);
+  const dayAgo = new Date(now.getTime() - 86_400_000);
+
+  const curMin = new Date(lim.last_reset_minute) < minuteAgo ? 0 : (lim.messages_sent_minute || 0);
+  const curHour = new Date(lim.last_reset_hour) < hourAgo ? 0 : (lim.messages_sent_hour || 0);
+  const curDay = new Date(lim.last_reset_day) < dayAgo ? 0 : (lim.messages_sent_day || 0);
+
+  if (
+    curMin >= (lim.max_per_minute || 10) ||
+    curHour >= (lim.max_per_hour || 200) ||
+    curDay >= (lim.max_per_day || 2000)
+  ) {
+    return { ok: false, resp: jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429) };
+  }
+  return { ok: true };
+}
+
+// ---------- Provider sender (reusa lógica validada do api-send-text) ----------
+async function resolveProviderConfig(supabase: any, companyId: string, provider: string) {
+  const { data: cfg } = await supabase
+    .from("whatsapp_api_configs")
+    .select("base_url, api_key, is_active")
+    .eq("company_id", companyId)
+    .eq("provider", provider)
+    .maybeSingle();
+  if (cfg?.is_active && cfg.base_url) {
+    return { baseUrl: cfg.base_url.replace(/\/+$/, ""), apiKey: cfg.api_key || "" };
+  }
+  if (provider === "evolution") {
+    const { data: legacy } = await supabase
+      .from("evolution_api_config")
+      .select("base_url, api_key, is_active")
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (legacy?.is_active && legacy.base_url) {
+      return { baseUrl: legacy.base_url.replace(/\/+$/, ""), apiKey: legacy.api_key || "" };
+    }
+  }
+  return null;
+}
+
+async function wppGenerateToken(baseUrl: string, secretKey: string, session: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${baseUrl}/api/${encodeURIComponent(session)}/${encodeURIComponent(secretKey)}/generate-token`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+    });
+    const data = await r.json().catch(() => ({}));
+    return data?.token || data?.full || null;
+  } catch { return null; }
+}
+
+async function sendText(supabase: any, instance: any, phone: string, text: string) {
+  const provider = instance.provider || "evolution";
+  const cfg = await resolveProviderConfig(supabase, instance.company_id, provider);
+  if (!cfg) {
+    return { ok: false, status: 400, response: { error: `Provider '${provider}' não configurado` }, provider, providerMessageId: null };
+  }
+  const { baseUrl, apiKey } = cfg;
+  const phoneDigits = phone.replace(/\D/g, "");
+
+  try {
+    let res: Response, url: string, data: any;
+    if (provider === "evolution") {
+      const evoName = instance.evolution_instance_id || instance.name;
+      url = `${baseUrl}/message/sendText/${evoName}`;
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", apikey: apiKey }, body: JSON.stringify({ number: phoneDigits, text }) });
+    } else if (provider === "evolution_go") {
+      const t = instance.provider_instance_id || "";
+      if (!t) return { ok: false, status: 400, response: { error: "Token Evolution Go ausente" }, provider, providerMessageId: null };
+      url = `${baseUrl}/send/text`;
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", apikey: t }, body: JSON.stringify({ number: phoneDigits, text }) });
+    } else if (provider === "wuzapi") {
+      const t = instance.provider_instance_id || "";
+      if (!t) return { ok: false, status: 400, response: { error: "Token Wuzapi ausente" }, provider, providerMessageId: null };
+      url = `${baseUrl}/chat/send/text`;
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Token: t }, body: JSON.stringify({ Phone: phoneDigits, Body: text }) });
+    } else if (provider === "wppconnect") {
+      const session = instance.name;
+      const sessionToken = await wppGenerateToken(baseUrl, apiKey, session);
+      if (!sessionToken) return { ok: false, status: 401, response: { error: "WPPConnect: falha ao gerar token de sessão" }, provider, providerMessageId: null };
+      url = `${baseUrl}/api/${encodeURIComponent(session)}/send-message`;
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` }, body: JSON.stringify({ phone: phoneDigits, isGroup: false, isNewsletter: false, isLid: false, message: text }) });
+    } else if (provider === "quepasa") {
+      const sessionToken = instance.provider_instance_id || apiKey;
+      url = `${baseUrl}/send`;
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Accept: "application/json", "Content-Type": "application/json",
+          "X-QUEPASA-TOKEN": sessionToken,
+          "X-QUEPASA-CHATID": phoneDigits.includes("@") ? phoneDigits : `${phoneDigits}@s.whatsapp.net`,
+          "X-QUEPASA-TRACKID": instance.name,
+        },
+        body: JSON.stringify({ text }),
+      });
+    } else {
+      return { ok: false, status: 400, response: { error: `provider_not_supported` }, provider, providerMessageId: null };
+    }
+    data = await res.json().catch(() => ({ status: res.status }));
+    const providerMessageId =
+      data?.key?.id || data?.id || data?.messageId || data?.MessageId ||
+      data?.message_id || data?.data?.id || data?.data?.key?.id || null;
+    return { ok: res.ok, status: res.status, response: data, provider, providerMessageId };
+  } catch (err: any) {
+    return { ok: false, status: 500, response: { error: err?.message || "network_error" }, provider, providerMessageId: null };
+  }
+}
+
+// ---------- Handlers ----------
+async function handleHealth() {
+  return jsonOk({ service: "public-api", version: "v1" });
+}
+
+async function handleStatus(req: Request, supabase: any) {
+  const auth = await authenticate(req, supabase);
+  if ("error" in auth) return auth.error;
+  const inst = auth.instance;
+  const connected = inst.status === "online" || inst.status === "connected";
+
+  console.log(`[public-api] status instance=${inst.id} provider=${inst.provider} status=${inst.status} token=${maskToken(auth.token!)}`);
+
+  return jsonOk({
+    instance_id: inst.id,
+    provider: inst.provider,
+    status: inst.status,
+    connected,
+    phone_number: inst.phone_number || null,
+  });
+}
+
+async function handleSendText(req: Request, supabase: any, requestId: string) {
+  const auth = await authenticate(req, supabase);
+  if ("error" in auth) return auth.error;
+  const inst = auth.instance;
+
+  const body = await parseBody(req);
+  const safeBody = redactObject(body);
+
+  const to = pickFirst(body, ["to", "phone", "phone_number", "number", "destination", "recipient"]);
+  const text = pickFirst(body, ["text", "message", "body"]);
+  const externalId = pickFirst(body, ["external_id", "externalId", "client_message_id"]) || null;
+
+  console.log(`[public-api] send instance=${inst.id} provider=${inst.provider} to=${to ? to.replace(/\d(?=\d{4})/g, "*") : ""} ext=${externalId} body=${JSON.stringify(safeBody)}`);
+
+  if (!to) return jsonError("missing_recipient", "Informe o número de destino.", 400, requestId);
+  if (!text) return jsonError("missing_message", "Informe o texto da mensagem.", 400, requestId);
+
+  // Plan / limits / rate-limit
+  const planCheck = await checkPlanAndLimits(supabase, inst);
+  if (!planCheck.ok) return planCheck.resp!;
+
+  const rl = await checkRateLimit(supabase, inst.id);
+  if (!rl.ok) return rl.resp!;
+
+  if (inst.status !== "online" && inst.status !== "connected") {
+    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
+  }
+
+  const result = await sendText(supabase, inst, to, text);
+
+  // Log message + bump counters (best-effort)
+  try {
+    await supabase.from("messages_log").insert({
+      company_id: inst.company_id,
+      instance_id: inst.id,
+      contact_number: to.replace(/\D/g, ""),
+      message: text,
+      direction: "outgoing",
+      status: result.ok ? "sent" : "failed",
+      sent_at: result.ok ? new Date().toISOString() : null,
+    });
+  } catch (e) { console.log(`[public-api] log_insert_error ${(e as any)?.message}`); }
+
+  if (result.ok) {
+    try {
+      await supabase.rpc("increment_instance_counters" as any, { _instance_id: inst.id }).catch(() => {});
+    } catch { /* ignore */ }
+  }
+
+  if (!result.ok) {
+    if (result.response?.error === "provider_not_supported") {
+      return jsonError("provider_not_supported", "Este provider ainda não suporta esta ação pela API pública.", 400, requestId);
+    }
+    return jsonError("send_failed", typeof result.response?.error === "string" ? result.response.error : "Falha ao enviar mensagem.", result.status >= 400 && result.status < 600 ? result.status : 502, requestId);
+  }
+
+  return jsonOk({
+    status: "sent",
+    provider: result.provider,
+    instance_id: inst.id,
+    message_id: result.providerMessageId,
+    external_id: externalId,
+  });
+}
+
+// ---------- Router ----------
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const requestId = crypto.randomUUID();
+  const url = new URL(req.url);
+  // Path arrives as /public-api/... when called via /functions/v1/public-api/...
+  // Normalize to "/v1/..."
+  let path = url.pathname.replace(/^\/+/, "/");
+  // Strip leading "/public-api"
+  path = path.replace(/^\/public-api/, "");
+  if (!path.startsWith("/")) path = "/" + path;
+
+  try {
+    if (req.method === "GET" && (path === "/v1/health" || path === "/v1/health/")) {
+      return handleHealth();
+    }
+    if ((req.method === "GET" || req.method === "POST") && (path === "/v1/instances/status" || path === "/v1/instances/status/")) {
+      return handleStatus(req, getSupabase());
+    }
+    if (req.method === "POST" && (path === "/v1/messages/text" || path === "/v1/messages/text/")) {
+      return handleSendText(req, getSupabase(), requestId);
+    }
+    return jsonError("not_found", "Rota não encontrada.", 404, requestId);
+  } catch (err: any) {
+    console.error(`[public-api] internal_error req=${requestId} msg=${err?.message}`);
+    return jsonError("internal_error", "Erro interno ao processar a solicitação.", 500, requestId);
+  }
+});
+
+function getSupabase() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+}
