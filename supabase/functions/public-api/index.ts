@@ -199,30 +199,54 @@ async function checkPlanAndLimits(supabase: any, instance: any, resourceType: st
 }
 
 async function checkRateLimit(supabase: any, instanceId: string) {
-  const { data: lim } = await supabase
-    .from("instance_limits")
-    .select("*")
-    .eq("instance_id", instanceId)
-    .maybeSingle();
-  if (!lim) return { ok: true };
+  // Chamada atômica ao banco para validar e atualizar o rate limit
+  const { data, error } = await supabase.rpc("check_and_update_rate_limit", {
+    p_instance_id: instanceId,
+    p_increment: 1
+  });
 
-  const now = new Date();
-  const minuteAgo = new Date(now.getTime() - 60_000);
-  const hourAgo = new Date(now.getTime() - 3_600_000);
-  const dayAgo = new Date(now.getTime() - 86_400_000);
-
-  const curMin = new Date(lim.last_reset_minute) < minuteAgo ? 0 : (lim.messages_sent_minute || 0);
-  const curHour = new Date(lim.last_reset_hour) < hourAgo ? 0 : (lim.messages_sent_hour || 0);
-  const curDay = new Date(lim.last_reset_day) < dayAgo ? 0 : (lim.messages_sent_day || 0);
-
-  if (
-    curMin >= (lim.max_per_minute || 10) ||
-    curHour >= (lim.max_per_hour || 200) ||
-    curDay >= (lim.max_per_day || 2000)
-  ) {
-    return { ok: false, resp: jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429) };
+  if (error) {
+    console.error(`[public-api] rate_limit_error instance=${instanceId} err=`, error);
+    return { ok: true }; // Fallback permissivo em caso de erro na RPC
   }
-  return { ok: true };
+
+  if (data && data.ok === false) {
+    const headers: Record<string, string> = {
+      "X-RateLimit-Limit": String(data.limit || ""),
+      "X-RateLimit-Reset": data.reset_at ? new Date(data.reset_at).toUTCString() : "",
+    };
+    
+    // Calcula Retry-After se tiver data de reset
+    if (data.reset_at) {
+      const waitMs = new Date(data.reset_at).getTime() - Date.now();
+      if (waitMs > 0) headers["Retry-After"] = String(Math.ceil(waitMs / 1000));
+    }
+
+    return { 
+      ok: false, 
+      resp: new Response(JSON.stringify({
+        success: false,
+        error: data.error || "rate_limit_exceeded",
+        message: "Limite de envio excedido. Tente novamente em instantes.",
+        details: {
+          type: data.limit_type,
+          reset_at: data.reset_at
+        }
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, ...headers, "Content-Type": "application/json" }
+      })
+    };
+  }
+
+  return { 
+    ok: true,
+    headers: {
+      "X-RateLimit-Limit": String(data?.limit_minute || ""),
+      "X-RateLimit-Remaining": String(data?.remaining_minute || ""),
+      "X-RateLimit-Reset": data?.reset_minute ? new Date(data.reset_minute).toUTCString() : "",
+    }
+  };
 }
 
 // ---------- Provider sender (reusa lógica validada do api-send-text) ----------
@@ -653,14 +677,8 @@ async function handleSendMedia(
   // Plan / limits / rate-limit
   const planCheck = await checkPlanAndLimits(supabase, inst, mediaType);
   if (!planCheck.ok) return planCheck.resp!;
-  const rl = await checkRateLimit(supabase, inst.id);
-  if (!rl.ok) return rl.resp!;
 
-  if (inst.status !== "online" && inst.status !== "connected") {
-    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
-  }
-
-  // Idempotency
+  // Idempotency BEFORE rate-limit
   const idemKey = idemHeader || null;
   const idemExternal = idemHeader ? null : externalId;
   const hasIdem = !!(idemKey || idemExternal);
@@ -669,6 +687,7 @@ async function handleSendMedia(
   const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, mediaType, mediaUrl, caption, filename, endpoint: endpointTag }));
   const messagePreview = (caption || `[${mediaType}] ${mediaUrl}`).slice(0, 255);
 
+  let existingIdem = null;
   if (hasIdem) {
     let query = supabase
       .from("public_api_idempotency_keys")
@@ -676,23 +695,33 @@ async function handleSendMedia(
       .eq("instance_id", inst.id);
     if (idemKey) query = query.eq("idempotency_key", idemKey);
     else query = query.eq("external_id", idemExternal).is("idempotency_key", null);
-    const { data: existing } = await query.maybeSingle();
+    const { data } = await query.maybeSingle();
+    existingIdem = data;
 
-    if (existing) {
-      if (existing.request_hash !== requestHash) {
+    if (existingIdem) {
+      if (existingIdem.request_hash !== requestHash) {
         return jsonError("idempotency_conflict", "A mesma chave de idempotência já foi usada com outro conteúdo.", 409, requestId);
       }
       return jsonOk({
         status: "duplicate_ignored",
         message: "Esta solicitação já foi processada anteriormente.",
-        provider: existing.provider || inst.provider,
+        provider: existingIdem.provider || inst.provider,
         instance_id: inst.id,
-        message_id: existing.provider_message_id,
+        message_id: existingIdem.provider_message_id,
         media_type: mediaType,
         external_id: externalId,
       });
     }
+  }
 
+  const rl = await checkRateLimit(supabase, inst.id);
+  if (!rl.ok) return rl.resp!;
+
+  if (inst.status !== "online" && inst.status !== "connected") {
+    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
+  }
+
+  if (hasIdem) {
     const { error: reserveErr } = await supabase
       .from("public_api_idempotency_keys")
       .insert({
