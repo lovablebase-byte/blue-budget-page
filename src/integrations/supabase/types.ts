@@ -1502,6 +1502,7 @@ export type Database = {
           advanced_logs_enabled: boolean
           advanced_webhooks_enabled: boolean
           ai_agents_enabled: boolean
+          allowed_providers: string[] | null
           api_access: boolean
           billing_cycle: string
           branding_enabled: boolean
@@ -1541,6 +1542,7 @@ export type Database = {
           advanced_logs_enabled?: boolean
           advanced_webhooks_enabled?: boolean
           ai_agents_enabled?: boolean
+          allowed_providers?: string[] | null
           api_access?: boolean
           billing_cycle?: string
           branding_enabled?: boolean
@@ -1580,6 +1582,7 @@ export type Database = {
           advanced_logs_enabled?: boolean
           advanced_webhooks_enabled?: boolean
           ai_agents_enabled?: boolean
+          allowed_providers?: string[] | null
           api_access?: boolean
           billing_cycle?: string
           branding_enabled?: boolean
