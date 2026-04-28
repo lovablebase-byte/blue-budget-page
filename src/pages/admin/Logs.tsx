@@ -20,7 +20,7 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 
 export default function AdminLogs() {
-  const [filters, setFilters] = useState({ contact: '', status: 'all', instance_id: 'all', campaign_id: 'all', date: '' });
+  const [filters, setFilters] = useState({ contact: '', status: 'all', instance_id: 'all', campaign_id: 'all', date: '', provider: 'all', type: 'all' });
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
@@ -43,15 +43,24 @@ export default function AdminLogs() {
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['messages-log', filters, page],
     queryFn: async () => {
-      let q = supabase.from('messages_log').select('*, instances(name), campaigns(name)').order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1);
+      let q = supabase.from('messages_log').select('*, instances(name, provider), campaigns(name)').order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1);
       if (filters.contact) q = q.ilike('contact_number', `%${filters.contact}%`);
       if (filters.status !== 'all') q = q.eq('status', filters.status);
       if (filters.instance_id !== 'all') q = q.eq('instance_id', filters.instance_id);
       if (filters.campaign_id !== 'all') q = q.eq('campaign_id', filters.campaign_id);
       if (filters.date) q = q.gte('created_at', `${filters.date}T00:00:00`).lte('created_at', `${filters.date}T23:59:59`);
+      
       const { data, error } = await q;
       if (error) throw error;
-      return data || [];
+      
+      let filteredData = data || [];
+      if (filters.provider !== 'all') {
+        filteredData = filteredData.filter((l: any) => l.instances?.provider === filters.provider);
+      }
+      if (filters.type !== 'all') {
+        filteredData = filteredData.filter((l: any) => filters.type === 'media' ? !!l.media_url : !l.media_url);
+      }
+      return filteredData;
     },
   });
 
@@ -129,14 +138,14 @@ export default function AdminLogs() {
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3 items-end">
-            <div className="flex-1 min-w-[180px]">
+            <div className="flex-1 min-w-[150px]">
               <label className="text-xs text-muted-foreground">Número</label>
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-8" placeholder="Buscar número..." value={filters.contact} onChange={e => set('contact', e.target.value)} />
+                <Input className="pl-8" placeholder="Buscar..." value={filters.contact} onChange={e => set('contact', e.target.value)} />
               </div>
             </div>
-            <div className="w-[150px]">
+            <div className="w-[120px]">
               <label className="text-xs text-muted-foreground">Status</label>
               <Select value={filters.status} onValueChange={v => set('status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -150,7 +159,7 @@ export default function AdminLogs() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[180px]">
+            <div className="w-[130px]">
               <label className="text-xs text-muted-foreground">Instância</label>
               <Select value={filters.instance_id} onValueChange={v => set('instance_id', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -160,17 +169,32 @@ export default function AdminLogs() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[180px]">
-              <label className="text-xs text-muted-foreground">Campanha</label>
-              <Select value={filters.campaign_id} onValueChange={v => set('campaign_id', v)}>
+            <div className="w-[130px]">
+              <label className="text-xs text-muted-foreground">Provider</label>
+              <Select value={filters.provider} onValueChange={v => set('provider', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {campaigns.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="evolution">Evolution</SelectItem>
+                  <SelectItem value="evolution_go">Evo Go</SelectItem>
+                  <SelectItem value="wuzapi">WuzAPI</SelectItem>
+                  <SelectItem value="wppconnect">WPPConnect</SelectItem>
+                  <SelectItem value="quepasa">QuePasa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[160px]">
+            <div className="w-[110px]">
+              <label className="text-xs text-muted-foreground">Tipo</label>
+              <Select value={filters.type} onValueChange={v => set('type', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="text">Texto</SelectItem>
+                  <SelectItem value="media">Mídia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-[140px]">
               <label className="text-xs text-muted-foreground">Data</label>
               <Input type="date" value={filters.date} onChange={e => set('date', e.target.value)} />
             </div>
@@ -185,13 +209,12 @@ export default function AdminLogs() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Mensagem</TableHead>
+                  <TableHead>Destinatário</TableHead>
+                  <TableHead>Conteúdo</TableHead>
                   <TableHead>Instância</TableHead>
+                  <TableHead>Provider</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Enviado</TableHead>
-                  <TableHead>Entregue</TableHead>
-                  <TableHead>Lido</TableHead>
+                  <TableHead>Data/Hora</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,13 +227,15 @@ export default function AdminLogs() {
                     const s = STATUS_MAP[log.status] || { label: log.status, variant: 'outline' as const };
                     return (
                       <TableRow key={log.id}>
-                        <TableCell className="font-mono text-xs">{log.contact_number}</TableCell>
-                        <TableCell className="max-w-[200px] truncate text-xs">{log.message || '—'}</TableCell>
-                        <TableCell className="text-xs">{(log as any).instances?.name || '—'}</TableCell>
-                        <TableCell><Badge variant={s.variant} className="text-[10px]">{s.label}</Badge></TableCell>
-                        <TableCell className="text-xs">{fmtDate(log.sent_at)}</TableCell>
-                        <TableCell className="text-xs">{fmtDate(log.delivered_at)}</TableCell>
-                        <TableCell className="text-xs">{fmtDate(log.read_at)}</TableCell>
+                        <TableCell className="font-mono text-[11px]">{log.contact_number}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-[11px]">
+                          {log.media_url ? <Badge variant="outline" className="text-[9px] mr-1">MÍDIA</Badge> : null}
+                          {log.message || '—'}
+                        </TableCell>
+                        <TableCell className="text-[11px]">{(log as any).instances?.name || '—'}</TableCell>
+                        <TableCell className="text-[10px] uppercase font-bold opacity-60">{(log as any).instances?.provider || '—'}</TableCell>
+                        <TableCell><Badge variant={s.variant} className="text-[9px] font-bold">{s.label}</Badge></TableCell>
+                        <TableCell className="text-[11px] tabular-nums whitespace-nowrap">{fmtDate(log.created_at)}</TableCell>
                       </TableRow>
                     );
                   })
