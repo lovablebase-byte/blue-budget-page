@@ -141,16 +141,32 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL do endpoint</Label>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL do endpoint (recomendado)</Label>
               <div className="flex gap-2">
-                <Input value={deliveryEndpoint} readOnly className="font-mono text-xs bg-muted/20" />
-                <Button variant="outline" size="icon" onClick={() => copyToClipboard(deliveryEndpoint)} title="Copiar endpoint">
+                <Input
+                  value={`https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/api-send-text`}
+                  readOnly
+                  className="font-mono text-xs bg-muted/20"
+                />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(`https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/api-send-text`)} title="Copiar endpoint">
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
+                Envie o token via header: <code className="bg-muted px-1 rounded">Authorization: Bearer SEU_TOKEN</code>.
                 Aceita <code className="bg-muted px-1 rounded">multipart/form-data</code>, <code className="bg-muted px-1 rounded">JSON</code> e <code className="bg-muted px-1 rounded">form-urlencoded</code>. Campos: <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code>.
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground/70">URL legado (compatibilidade)</Label>
+              <div className="flex gap-2">
+                <Input value={deliveryEndpoint} readOnly className="font-mono text-[11px] bg-muted/10 opacity-80" />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(deliveryEndpoint)} title="Copiar endpoint legado">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground/70">Mantido apenas para integrações antigas que enviam <code className="bg-muted px-1 rounded">?uuid=&access_token=</code> na URL.</p>
             </div>
 
             <Separator className="bg-border/30" />
@@ -171,7 +187,7 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground/70">⚠ Mantenha este token em segurança. Não compartilhe publicamente.</p>
+              <p className="text-[11px] text-destructive/80">⚠ Não compartilhe este token. Ele permite enviar mensagens pela sua instância.</p>
             </div>
           </CardContent>
         </Card>
