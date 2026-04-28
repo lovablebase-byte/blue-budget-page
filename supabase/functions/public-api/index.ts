@@ -199,30 +199,54 @@ async function checkPlanAndLimits(supabase: any, instance: any, resourceType: st
 }
 
 async function checkRateLimit(supabase: any, instanceId: string) {
-  const { data: lim } = await supabase
-    .from("instance_limits")
-    .select("*")
-    .eq("instance_id", instanceId)
-    .maybeSingle();
-  if (!lim) return { ok: true };
+  // Chamada atômica ao banco para validar e atualizar o rate limit
+  const { data, error } = await supabase.rpc("check_and_update_rate_limit", {
+    p_instance_id: instanceId,
+    p_increment: 1
+  });
 
-  const now = new Date();
-  const minuteAgo = new Date(now.getTime() - 60_000);
-  const hourAgo = new Date(now.getTime() - 3_600_000);
-  const dayAgo = new Date(now.getTime() - 86_400_000);
-
-  const curMin = new Date(lim.last_reset_minute) < minuteAgo ? 0 : (lim.messages_sent_minute || 0);
-  const curHour = new Date(lim.last_reset_hour) < hourAgo ? 0 : (lim.messages_sent_hour || 0);
-  const curDay = new Date(lim.last_reset_day) < dayAgo ? 0 : (lim.messages_sent_day || 0);
-
-  if (
-    curMin >= (lim.max_per_minute || 10) ||
-    curHour >= (lim.max_per_hour || 200) ||
-    curDay >= (lim.max_per_day || 2000)
-  ) {
-    return { ok: false, resp: jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429) };
+  if (error) {
+    console.error(`[public-api] rate_limit_error instance=${instanceId} err=`, error);
+    return { ok: true }; // Fallback permissivo em caso de erro na RPC
   }
-  return { ok: true };
+
+  if (data && data.ok === false) {
+    const headers: Record<string, string> = {
+      "X-RateLimit-Limit": String(data.limit || ""),
+      "X-RateLimit-Reset": data.reset_at ? new Date(data.reset_at).toUTCString() : "",
+    };
+    
+    // Calcula Retry-After se tiver data de reset
+    if (data.reset_at) {
+      const waitMs = new Date(data.reset_at).getTime() - Date.now();
+      if (waitMs > 0) headers["Retry-After"] = String(Math.ceil(waitMs / 1000));
+    }
+
+    return { 
+      ok: false, 
+      resp: new Response(JSON.stringify({
+        success: false,
+        error: data.error || "rate_limit_exceeded",
+        message: "Limite de envio excedido. Tente novamente em instantes.",
+        details: {
+          type: data.limit_type,
+          reset_at: data.reset_at
+        }
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, ...headers, "Content-Type": "application/json" }
+      })
+    };
+  }
+
+  return { 
+    ok: true,
+    headers: {
+      "X-RateLimit-Limit": String(data?.limit_minute || ""),
+      "X-RateLimit-Remaining": String(data?.remaining_minute || ""),
+      "X-RateLimit-Reset": data?.reset_minute ? new Date(data.reset_minute).toUTCString() : "",
+    }
+  };
 }
 
 // ---------- Provider sender (reusa lógica validada do api-send-text) ----------
