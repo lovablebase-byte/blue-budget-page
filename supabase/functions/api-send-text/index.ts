@@ -815,8 +815,8 @@ serve(async (req) => {
           api_response: {
             request_id: requestId,
             parser_used: parserUsed,
-            raw_body: truncate(rawBody),
-            parsed_body: body,
+            raw_body: truncate(redactRawBody(rawBody)),
+            parsed_body: redactObject(body),
             provider: sent.provider,
             provider_response: sent.response,
             endpoint: sent.endpoint,
@@ -835,8 +835,8 @@ serve(async (req) => {
           elapsed_ms: Date.now() - startTime,
         });
       } catch (err: any) {
-        console.error(`[api-send-text] Send error:`, err.message, err.stack);
-        return jsonResponse({ success: false, error: err.message, request_id: requestId }, 500);
+        console.error(`[api-send-text] Send error:`, err?.message);
+        return jsonError("internal_error", "Erro interno ao processar a solicitação.", 500, requestId);
       }
     }
 
@@ -1051,7 +1051,7 @@ serve(async (req) => {
       } catch (err: any) {
         sendStatus = "failed";
         sendError = `Network error: ${err.message}`;
-        console.error(`[api-send-text] SEND EXCEPTION:`, err.message, err.stack);
+        console.error(`[api-send-text] SEND EXCEPTION:`, err?.message);
       }
 
       await supabase.from("delivery_send_logs").insert({
@@ -1065,8 +1065,8 @@ serve(async (req) => {
         api_response: {
           request_id: requestId,
           parser_used: parserUsed,
-          raw_body: truncate(rawBody),
-          parsed_body: body,
+          raw_body: truncate(redactRawBody(rawBody)),
+          parsed_body: redactObject(body),
           provider: providerUsed,
           provider_response: apiResponse,
           endpoint_used: endpointUsed,
@@ -1097,17 +1097,21 @@ serve(async (req) => {
     }
 
     return jsonResponse({
-      error: "Could not determine action from payload",
-      hint: "Send phone+message for text, or status+customer_phone for order updates",
+      success: false,
+      error: "unknown_action",
+      message: "Não foi possível identificar a ação. Envie phone + message para texto, ou status + customer_phone para atualizações de pedido.",
       request_id: requestId,
       parser_used: parserUsed,
-      raw_body: truncate(rawBody),
       received_fields: Object.keys(body),
     }, 400);
 
   } catch (err: any) {
-    console.error(`[api-send-text] Fatal error:`, err.message, err.stack);
-    return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
+    console.error(`[api-send-text] Fatal error:`, err?.message);
+    return new Response(JSON.stringify({
+      success: false,
+      error: "internal_error",
+      message: "Erro interno ao processar a solicitação.",
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
