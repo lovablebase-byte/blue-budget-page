@@ -289,8 +289,50 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
               </p>
             </div>
 
-            <p className="text-[11px] text-muted-foreground">
-              Campos aceitos para destinatário: <code className="bg-muted px-1 rounded">to</code>, <code className="bg-muted px-1 rounded">phone</code>, <code className="bg-muted px-1 rounded">phone_number</code>, <code className="bg-muted px-1 rounded">number</code>, <code className="bg-muted px-1 rounded">destination</code>, <code className="bg-muted px-1 rounded">recipient</code>.
+            <Separator className="bg-border/30" />
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Envio de mídia — Imagem</Label>
+              <div className="flex gap-2">
+                <Input value={sendImageUrl} readOnly className="font-mono text-xs bg-muted/20" />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(sendImageUrl)}><Copy className="h-4 w-4" /></Button>
+              </div>
+              <pre className="text-[11px] bg-muted/30 p-3 rounded font-mono overflow-x-auto whitespace-pre-wrap">{`curl -X POST ${sendImageUrl} \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  -H "Idempotency-Key: imagem_123" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"5511999999999","media_url":"https://dominio.com/imagem.jpg","caption":"Segue a imagem.","external_id":"imagem_123"}'`}</pre>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Envio de mídia — Documento</Label>
+              <div className="flex gap-2">
+                <Input value={sendDocumentUrl} readOnly className="font-mono text-xs bg-muted/20" />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(sendDocumentUrl)}><Copy className="h-4 w-4" /></Button>
+              </div>
+              <pre className="text-[11px] bg-muted/30 p-3 rounded font-mono overflow-x-auto whitespace-pre-wrap">{`curl -X POST ${sendDocumentUrl} \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  -H "Idempotency-Key: doc_123" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"5511999999999","media_url":"https://dominio.com/arquivo.pdf","filename":"arquivo.pdf","caption":"Segue o documento.","external_id":"doc_123"}'`}</pre>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Envio de mídia — Áudio</Label>
+              <div className="flex gap-2">
+                <Input value={sendAudioUrl} readOnly className="font-mono text-xs bg-muted/20" />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(sendAudioUrl)}><Copy className="h-4 w-4" /></Button>
+              </div>
+              <pre className="text-[11px] bg-muted/30 p-3 rounded font-mono overflow-x-auto whitespace-pre-wrap">{`curl -X POST ${sendAudioUrl} \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"5511999999999","media_url":"https://dominio.com/audio.mp3","external_id":"audio_123"}'`}</pre>
+              <p className="text-[11px] text-muted-foreground">
+                Endpoint genérico: <code className="bg-muted px-1 rounded">{apiBase}/messages/media</code> com campo <code className="bg-muted px-1 rounded">media_type</code> = <code className="bg-muted px-1 rounded">image | audio | document | video</code>. Aliases aceitos: <code className="bg-muted px-1 rounded">media_url</code> / <code className="bg-muted px-1 rounded">url</code> / <code className="bg-muted px-1 rounded">file_url</code> / <code className="bg-muted px-1 rounded">attachment_url</code>.
+              </p>
+            </div>
+
+
               Para a mensagem: <code className="bg-muted px-1 rounded">text</code>, <code className="bg-muted px-1 rounded">message</code>, <code className="bg-muted px-1 rounded">body</code>.
             </p>
             <p className="text-[11px] text-destructive/80">
