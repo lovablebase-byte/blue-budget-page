@@ -14,18 +14,20 @@ function redactSensitiveData(obj: any): any {
   const copy = Array.isArray(obj) ? [...obj] : { ...obj };
   const sensitiveKeys = new Set([
     "token", "secret", "authorization", "apikey", "api_key", "secret_key", 
-    "webhook_secret", "service_role", "password", "auth", "key"
+    "webhook_secret", "service_role", "password", "auth", "key", "pass", "cred"
   ]);
 
   for (const key in copy) {
+    const lowerKey = key.toLowerCase();
+    const isSensitive = [...sensitiveKeys].some(s => lowerKey.includes(s));
+
     if (typeof copy[key] === "object" && copy[key] !== null) {
       copy[key] = redactSensitiveData(copy[key]);
-    } else if (typeof key === "string" && sensitiveKeys.has(key.toLowerCase())) {
-      copy[key] = "[REDACTED]";
-    } else if (typeof copy[key] === "string") {
-      // Mascarar strings longas que parecem tokens/hashes se a chave for suspeita
-      if (copy[key].length > 32 && (key.toLowerCase().includes("token") || key.toLowerCase().includes("signature"))) {
-        copy[key] = `${copy[key].substring(0, 8)}...[REDACTED]`;
+    } else if (isSensitive) {
+      if (typeof copy[key] === "string" && copy[key].length > 10) {
+        copy[key] = `${copy[key].substring(0, 4)}...[REDACTED]`;
+      } else {
+        copy[key] = "[REDACTED]";
       }
     }
   }
