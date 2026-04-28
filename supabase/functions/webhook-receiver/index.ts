@@ -75,7 +75,7 @@ interface NormalizedEvent {
   provider: string;
   eventType: string; // standard internal type
   rawEventType: string;
-  direction: "inbound" | "outbound" | "system";
+  direction: "inbound" | "outbound" | null;
   remoteJid: string | null;
   messageId: string | null;
   connectionState: "open" | "close" | "connecting" | "unknown" | null;
@@ -92,7 +92,7 @@ function normalizeProviderWebhookEvent(body: any, provider: string): NormalizedE
   const data = body?.data || body?.message || body?.payload || body;
 
   let eventType = "provider.unknown";
-  let direction: "inbound" | "outbound" | "system" = "system";
+  let direction: "inbound" | "outbound" | null = null;
   let connectionState: NormalizedEvent["connectionState"] = null;
   let remoteJid: string | null = null;
   let messageId: string | null = null;
@@ -370,7 +370,7 @@ serve(async (req) => {
       event_type: normalized.eventType,
       raw_event_type: normalized.rawEventType,
       provider: provider,
-      direction: normalized.direction,
+      direction: normalized.direction || null,
       message_id: normalized.messageId,
       from_number: normalized.from,
       to_number: normalized.to,
