@@ -122,7 +122,7 @@ async function authenticate(req: Request, supabase: any) {
 }
 
 // ---------- Plan & limits ----------
-async function checkPlanAndLimits(supabase: any, instance: any) {
+async function checkPlanAndLimits(supabase: any, instance: any, resourceType: string = "text") {
   // Admin bypass: company has any admin user → no limits
   const { data: adminCheck } = await supabase
     .from("user_roles")
@@ -135,16 +135,51 @@ async function checkPlanAndLimits(supabase: any, instance: any) {
 
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("plan_id, status, plans:plan_id(api_access, max_messages_month)")
+    .select("plan_id, status, expires_at, plans:plan_id(*)")
     .eq("company_id", instance.company_id)
-    .in("status", ["active", "trialing"])
     .maybeSingle();
 
+  if (!sub) {
+    return { ok: false, resp: jsonError("plan_not_found", "Nenhum plano ativo foi encontrado.", 403) };
+  }
+
   const plan = (sub as any)?.plans;
-  if (!sub || !plan || !plan.api_access) {
+  if (!plan) {
+    return { ok: false, resp: jsonError("plan_not_found", "Nenhum plano ativo foi encontrado.", 403) };
+  }
+
+  // Check subscription status
+  const validStatuses = ["active", "trialing"];
+  if (!validStatuses.includes(sub.status)) {
+    return { ok: false, resp: jsonError("subscription_inactive", "A assinatura está inativa.", 403) };
+  }
+
+  // Check expiration if applicable
+  if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
+    return { ok: false, resp: jsonError("subscription_expired", "Sua assinatura expirou.", 403) };
+  }
+
+  // Check API Access
+  if (!plan.api_access) {
     return { ok: false, resp: jsonError("api_access_not_allowed", "Seu plano não permite uso da API externa.", 403) };
   }
 
+  // Check Provider Access
+  const allowedProviders = plan.allowed_providers;
+  if (allowedProviders && Array.isArray(allowedProviders) && allowedProviders.length > 0) {
+    const instProvider = instance.provider || "evolution";
+    if (!allowedProviders.includes(instProvider)) {
+      return { ok: false, resp: jsonError("provider_not_allowed", "Este provider não está disponível no seu plano.", 403) };
+    }
+  }
+
+  // Check Resource specific permissions
+  if (resourceType === "image" && plan.image_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de imagem não permitido no seu plano.", 403) };
+  if (resourceType === "audio" && plan.audio_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de áudio não permitido no seu plano.", 403) };
+  if (resourceType === "document" && plan.document_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de documento não permitido no seu plano.", 403) };
+  if (resourceType === "video" && plan.video_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de vídeo não permitido no seu plano.", 403) };
+
+  // Monthly Limit
   const maxMonth = Number(plan.max_messages_month || 0);
   if (maxMonth > 0) {
     const monthStart = new Date();
@@ -156,7 +191,7 @@ async function checkPlanAndLimits(supabase: any, instance: any) {
       .eq("company_id", instance.company_id)
       .gte("created_at", monthStart.toISOString());
     if ((count ?? 0) >= maxMonth) {
-      return { ok: false, resp: jsonError("monthly_limit_reached", "Limite mensal de mensagens atingido.", 429) };
+      return { ok: false, resp: jsonError("monthly_message_limit_reached", "Limite mensal de mensagens atingido.", 429) };
     }
   }
   return { ok: true };
@@ -328,7 +363,7 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
   if (!text) return jsonError("missing_message", "Informe o texto da mensagem.", 400, requestId);
 
   // Plan / limits / rate-limit
-  const planCheck = await checkPlanAndLimits(supabase, inst);
+  const planCheck = await checkPlanAndLimits(supabase, inst, "text");
   if (!planCheck.ok) return planCheck.resp!;
 
   const rl = await checkRateLimit(supabase, inst.id);
@@ -615,7 +650,7 @@ async function handleSendMedia(
   }
 
   // Plan / limits / rate-limit
-  const planCheck = await checkPlanAndLimits(supabase, inst);
+  const planCheck = await checkPlanAndLimits(supabase, inst, mediaType);
   if (!planCheck.ok) return planCheck.resp!;
   const rl = await checkRateLimit(supabase, inst.id);
   if (!rl.ok) return rl.resp!;
