@@ -199,7 +199,92 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
         </Card>
       )}
 
-      {/* Webhook section */}
+      {/* Public API v1 — multiuso (chatbots, CRMs, ERPs, delivery, etc) */}
+      {hasApiAccess && (
+        <Card className="border-border/40 bg-card/80">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Globe className="h-4 w-4" /> API Pública v1 <Badge variant="outline" className="text-[10px]">novo</Badge>
+            </CardTitle>
+            <CardDescription>
+              Use a API pública v1 para integrar sua instância WhatsApp a chatbots, CRMs, ERPs, sistemas próprios,
+              notificações, cobranças, agendamentos, delivery ou qualquer automação externa.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Health-check (público)</Label>
+              <div className="flex gap-2">
+                <Input value={healthUrl} readOnly className="font-mono text-xs bg-muted/20" />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(healthUrl)}><Copy className="h-4 w-4" /></Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Status da instância</Label>
+              <div className="flex gap-2">
+                <Input value={statusUrl} readOnly className="font-mono text-xs bg-muted/20" />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(statusUrl)}><Copy className="h-4 w-4" /></Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                <code className="bg-muted px-1 rounded">GET</code> com{' '}
+                <code className="bg-muted px-1 rounded">Authorization: Bearer SEU_TOKEN</code>.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Envio de texto</Label>
+              <div className="flex gap-2">
+                <Input value={sendTextUrl} readOnly className="font-mono text-xs bg-muted/20" />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(sendTextUrl)}><Copy className="h-4 w-4" /></Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                <code className="bg-muted px-1 rounded">POST</code> aceitando <code className="bg-muted px-1 rounded">JSON</code>,{' '}
+                <code className="bg-muted px-1 rounded">multipart/form-data</code> e{' '}
+                <code className="bg-muted px-1 rounded">x-www-form-urlencoded</code>.
+              </p>
+            </div>
+
+            <Separator className="bg-border/30" />
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Exemplo — JSON</Label>
+              <pre className="text-[11px] bg-muted/30 p-3 rounded font-mono overflow-x-auto whitespace-pre-wrap">{`curl -X POST ${sendTextUrl} \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"5511999999999","text":"Olá!","external_id":"pedido_123"}'`}</pre>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Exemplo — multipart/form-data</Label>
+              <pre className="text-[11px] bg-muted/30 p-3 rounded font-mono overflow-x-auto whitespace-pre-wrap">{`curl -X POST ${sendTextUrl} \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  -F "to=5511999999999" \\
+  -F "text=Olá!" \\
+  -F "external_id=pedido_123"`}</pre>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Exemplo — x-www-form-urlencoded</Label>
+              <pre className="text-[11px] bg-muted/30 p-3 rounded font-mono overflow-x-auto whitespace-pre-wrap">{`curl -X POST ${sendTextUrl} \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  -H "Content-Type: application/x-www-form-urlencoded" \\
+  --data-urlencode "to=5511999999999" \\
+  --data-urlencode "text=Olá!" \\
+  --data-urlencode "external_id=pedido_123"`}</pre>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Campos aceitos para destinatário: <code className="bg-muted px-1 rounded">to</code>, <code className="bg-muted px-1 rounded">phone</code>, <code className="bg-muted px-1 rounded">phone_number</code>, <code className="bg-muted px-1 rounded">number</code>, <code className="bg-muted px-1 rounded">destination</code>, <code className="bg-muted px-1 rounded">recipient</code>.
+              Para a mensagem: <code className="bg-muted px-1 rounded">text</code>, <code className="bg-muted px-1 rounded">message</code>, <code className="bg-muted px-1 rounded">body</code>.
+            </p>
+            <p className="text-[11px] text-destructive/80">
+              ⚠ O token concede acesso total de envio nesta instância. Nunca compartilhe nem inclua em código público.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {!hasWebhooks ? (
         <FeatureLockedCard
           title="Webhooks avançados bloqueados"
