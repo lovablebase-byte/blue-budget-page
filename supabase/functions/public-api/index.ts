@@ -178,6 +178,7 @@ async function checkPlanAndLimits(supabase: any, instance: any, resourceType: st
   if (resourceType === "audio" && plan.audio_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de áudio não permitido no seu plano.", 403) };
   if (resourceType === "document" && plan.document_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de documento não permitido no seu plano.", 403) };
   if (resourceType === "video" && plan.video_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de vídeo não permitido no seu plano.", 403) };
+  if (resourceType === "text" && plan.text_sending_enabled === false) return { ok: false, resp: jsonError("feature_not_allowed", "Envio de texto não permitido no seu plano.", 403) };
 
   // Monthly Limit
   const maxMonth = Number(plan.max_messages_month || 0);
