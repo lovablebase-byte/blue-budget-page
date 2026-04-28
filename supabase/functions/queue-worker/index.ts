@@ -562,6 +562,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    console.error('[queue-worker] error:', err?.message);
+    return new Response(JSON.stringify({ success: false, error: 'internal_error', message: 'Erro interno ao processar a solicitação.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
