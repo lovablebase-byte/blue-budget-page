@@ -1655,6 +1655,75 @@ export type Database = {
         }
         Relationships: []
       }
+      public_api_idempotency_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          endpoint: string
+          external_id: string | null
+          id: string
+          idempotency_key: string | null
+          instance_id: string
+          message_preview: string | null
+          provider: string | null
+          provider_message_id: string | null
+          recipient: string | null
+          request_hash: string
+          response_body: Json | null
+          response_status: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          endpoint: string
+          external_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          instance_id: string
+          message_preview?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient?: string | null
+          request_hash: string
+          response_body?: Json | null
+          response_status?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          endpoint?: string
+          external_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          instance_id?: string
+          message_preview?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient?: string | null
+          request_hash?: string
+          response_body?: Json | null
+          response_status?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_api_idempotency_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_api_idempotency_keys_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       status_templates: {
         Row: {
           auto_send: boolean
