@@ -1872,33 +1872,57 @@ export type Database = {
       webhook_events: {
         Row: {
           company_id: string
+          connection_state: string | null
           created_at: string
           direction: string
           event_type: string
+          from_number: string | null
           id: string
           instance_id: string
+          message_id: string | null
           payload: Json | null
+          processed: boolean | null
+          provider: string | null
+          raw_event_type: string | null
           status: string | null
+          text_preview: string | null
+          to_number: string | null
         }
         Insert: {
           company_id: string
+          connection_state?: string | null
           created_at?: string
           direction?: string
           event_type: string
+          from_number?: string | null
           id?: string
           instance_id: string
+          message_id?: string | null
           payload?: Json | null
+          processed?: boolean | null
+          provider?: string | null
+          raw_event_type?: string | null
           status?: string | null
+          text_preview?: string | null
+          to_number?: string | null
         }
         Update: {
           company_id?: string
+          connection_state?: string | null
           created_at?: string
           direction?: string
           event_type?: string
+          from_number?: string | null
           id?: string
           instance_id?: string
+          message_id?: string | null
           payload?: Json | null
+          processed?: boolean | null
+          provider?: string | null
+          raw_event_type?: string | null
           status?: string | null
+          text_preview?: string | null
+          to_number?: string | null
         }
         Relationships: [
           {
