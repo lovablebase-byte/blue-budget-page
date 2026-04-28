@@ -76,6 +76,9 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
   const healthUrl = `${apiBase}/health`;
   const statusUrl = `${apiBase}/instances/status`;
   const sendTextUrl = `${apiBase}/messages/text`;
+  const sendImageUrl = `${apiBase}/messages/image`;
+  const sendDocumentUrl = `${apiBase}/messages/document`;
+  const sendAudioUrl = `${apiBase}/messages/audio`;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
