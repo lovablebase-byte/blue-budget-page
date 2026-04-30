@@ -570,28 +570,55 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Endpoint Legado (api-send-text)</Label>
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Endpoint Legado (api-send-text) <Badge variant="outline" className="ml-1 text-[9px]">compatibilidade</Badge>
+                      </Label>
                       <div className="flex gap-2">
                         <Input
-                          value={`https://${projectId}.supabase.co/functions/v1/api-send-text`}
+                          value={legacySendTextBase}
                           readOnly
                           className="font-mono text-xs bg-muted/20"
                         />
-                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(`https://${projectId}.supabase.co/functions/v1/api-send-text`)}>
+                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(legacySendTextBase)}>
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         Aceita <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code> via POST.
+                        Para novos projetos, prefira a <span className="font-semibold">API Pública v1</span>.
                       </p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL de Callback (Delivery)</Label>
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        URL de Callback (Delivery) — contém token
+                      </Label>
                       <div className="flex gap-2">
-                        <Input value={deliveryEndpoint} readOnly className="font-mono text-xs bg-muted/20 opacity-80" />
-                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(deliveryEndpoint)}>
-                          <Copy className="h-4 w-4" />
+                        <Input
+                          value={
+                            showToken
+                              ? deliveryEndpoint
+                              : deliveryEndpoint.replace(instance.access_token, TOKEN_PLACEHOLDER)
+                          }
+                          readOnly
+                          className="font-mono text-xs bg-muted/20 opacity-80"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setShowToken(!showToken)}
+                          title={showToken ? 'Ocultar token' : 'Revelar token'}
+                        >
+                          {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="border-warning/40 text-warning"
+                          onClick={() => copySensitive(deliveryEndpoint, 'URL de callback (com token)')}
+                          title="Copiar URL com token real (sensível)"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
                         </Button>
                       </div>
                       <p className="text-[11px] text-muted-foreground">Parâmetros via URL: <code className="bg-muted px-1 rounded">?uuid=&access_token=</code>.</p>
