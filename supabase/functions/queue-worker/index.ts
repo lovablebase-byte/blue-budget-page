@@ -412,6 +412,23 @@ serve(async (req) => {
           continue;
         }
         if (rlData && (rlData as any).ok === false) {
+          // Registra evento real de rate limit (métricas admin reais, sem proxy)
+          try {
+            await supabase.from('audit_logs').insert({
+              action: 'rate_limit_exceeded',
+              entity_type: 'instance',
+              entity_id: msg.instance_id,
+              company_id: msg.company_id,
+              payload: {
+                endpoint: 'queue-worker',
+                provider: (msg as any).provider ?? null,
+                limit_type: (rlData as any).limit_type ?? null,
+                request_id: msg.id,
+              },
+            });
+          } catch (e) {
+            console.error('[queue-worker] failed to log rate_limit_exceeded:', (e as Error)?.message);
+          }
           // Rate window saturated. Leave message pending for retry.
           continue;
         }
