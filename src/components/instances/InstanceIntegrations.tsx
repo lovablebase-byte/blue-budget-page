@@ -324,10 +324,22 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                           readOnly
                           className="font-mono text-xs bg-muted/30 border-border/40 h-10"
                         />
-                        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setShowToken(!showToken)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => setShowToken(!showToken)}
+                          title={showToken ? 'Ocultar token' : 'Revelar token'}
+                        >
                           {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
-                        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => copyToClipboard(instance.access_token)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => copySensitive(instance.access_token, 'Token da instância')}
+                          title="Copiar token (sensível)"
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>
@@ -341,14 +353,48 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <Label className="text-xs font-semibold text-muted-foreground uppercase">Exemplo de Header</Label>
                       <div className="flex gap-2">
                         <Input
-                          value={`Authorization: Bearer ${instance.access_token}`}
+                          value={
+                            showToken
+                              ? `Authorization: Bearer ${instance.access_token}`
+                              : `Authorization: Bearer ${TOKEN_PLACEHOLDER}`
+                          }
                           readOnly
                           className="font-mono text-xs bg-muted/30 border-border/40 h-10"
                         />
-                        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => copyToClipboard(`Authorization: Bearer ${instance.access_token}`)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() =>
+                            copyToClipboard(
+                              `Authorization: Bearer ${TOKEN_PLACEHOLDER}`,
+                              'Header copiado (com placeholder).'
+                            )
+                          }
+                          title="Copiar header com placeholder"
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0 border-warning/40 text-warning"
+                          onClick={() =>
+                            copySensitive(
+                              `Authorization: Bearer ${instance.access_token}`,
+                              'Header Authorization (com token real)'
+                            )
+                          }
+                          title="Copiar header com token real (sensível)"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                        </Button>
                       </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Por padrão os exemplos usam <code className="bg-muted px-1 rounded">{TOKEN_PLACEHOLDER}</code>.
+                        Use o botão <ShieldCheck className="inline h-3 w-3 text-warning" /> para copiar com o token real
+                        (ação explícita).
+                      </p>
                     </div>
                   </div>
                 </TabsContent>
