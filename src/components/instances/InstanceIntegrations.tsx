@@ -627,11 +627,14 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                     </div>
                   </div>
                 </TabsContent>
-              </div>
-            </ScrollArea>
-          </Tabs>
-        </Card>
-      )}
+
+                <TabsContent value="outbound" className="mt-0 space-y-4">
+                  {company?.id ? (
+                    <CustomerWebhooksPanel instance={instance} companyId={company.id} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Empresa não identificada.</p>
+                  )}
+                </TabsContent>
 
       {/* Webhook section */}
       {!hasWebhooks ? (
