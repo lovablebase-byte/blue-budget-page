@@ -715,7 +715,9 @@ serve(async (req) => {
       });
 
       if (rlError) {
-        console.error(`[api-send-text] Rate limit RPC error:`, rlError);
+        // Falha técnica da RPC NÃO libera envio: bloqueia com 503 (modo seguro).
+        console.error(`[api-send-text] rate_limit_unavailable instance=${instance.id} err=`, rlError);
+        return jsonError("rate_limit_unavailable", "Não foi possível validar o limite de envio no momento.", 503, requestId);
       } else if (rlData && rlData.ok === false) {
         return jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429, requestId);
       }

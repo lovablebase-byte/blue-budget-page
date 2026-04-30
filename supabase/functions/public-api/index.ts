@@ -199,15 +199,26 @@ async function checkPlanAndLimits(supabase: any, instance: any, resourceType: st
 }
 
 async function checkRateLimit(supabase: any, instanceId: string) {
-  // Chamada atômica ao banco para validar e atualizar o rate limit
+  // Chamada atômica ao banco para validar e atualizar o rate limit.
+  // Falha técnica da RPC NÃO libera envio: retorna rate_limit_unavailable (503).
   const { data, error } = await supabase.rpc("check_and_update_rate_limit", {
     p_instance_id: instanceId,
     p_increment: 1
   });
 
   if (error) {
-    console.error(`[public-api] rate_limit_error instance=${instanceId} err=`, error);
-    return { ok: true }; // Fallback permissivo em caso de erro na RPC
+    console.error(`[public-api] rate_limit_unavailable instance=${instanceId} err=`, error);
+    return {
+      ok: false,
+      resp: new Response(JSON.stringify({
+        success: false,
+        error: "rate_limit_unavailable",
+        message: "Não foi possível validar o limite de envio no momento.",
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    };
   }
 
   if (data && data.ok === false) {
@@ -215,23 +226,17 @@ async function checkRateLimit(supabase: any, instanceId: string) {
       "X-RateLimit-Limit": String(data.limit || ""),
       "X-RateLimit-Reset": data.reset_at ? new Date(data.reset_at).toUTCString() : "",
     };
-    
-    // Calcula Retry-After se tiver data de reset
     if (data.reset_at) {
       const waitMs = new Date(data.reset_at).getTime() - Date.now();
       if (waitMs > 0) headers["Retry-After"] = String(Math.ceil(waitMs / 1000));
     }
-
-    return { 
-      ok: false, 
+    return {
+      ok: false,
       resp: new Response(JSON.stringify({
         success: false,
         error: data.error || "rate_limit_exceeded",
         message: "Limite de envio excedido. Tente novamente em instantes.",
-        details: {
-          type: data.limit_type,
-          reset_at: data.reset_at
-        }
+        details: { type: data.limit_type, reset_at: data.reset_at }
       }), {
         status: 429,
         headers: { ...corsHeaders, ...headers, "Content-Type": "application/json" }
@@ -239,7 +244,7 @@ async function checkRateLimit(supabase: any, instanceId: string) {
     };
   }
 
-  return { 
+  return {
     ok: true,
     headers: {
       "X-RateLimit-Limit": String(data?.limit_minute || ""),
@@ -387,29 +392,29 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
   if (!to) return jsonError("missing_recipient", "Informe o número de destino.", 400, requestId);
   if (!text) return jsonError("missing_message", "Informe o texto da mensagem.", 400, requestId);
 
-  // Plan / limits / rate-limit
-  const planCheck = await checkPlanAndLimits(supabase, inst, "text");
-  if (!planCheck.ok) return planCheck.resp!;
+  // ============================================================
+  // ORDEM DE VALIDAÇÃO (Etapa Corretiva 2):
+  //   1. token + instância (já feito em authenticate)
+  //   2. payload + normalização (acima)
+  //   3. IDEMPOTÊNCIA — antes de qualquer consumo de plano/rate-limit
+  //   4. Plano / api_access / provider / max_messages_month
+  //   5. Rate limit
+  //   6. Status online
+  //   7. Envio
+  //   8. Update idempotência + log
+  // Duplicate / conflict: NÃO consomem plano nem rate limit.
+  // ============================================================
 
-  const rl = await checkRateLimit(supabase, inst.id);
-  if (!rl.ok) return rl.resp!;
-
-  if (inst.status !== "online" && inst.status !== "connected") {
-    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
-  }
-
-  // ---------- Idempotency ----------
-  // Priority: Idempotency-Key header > external_id field
   const idemKey = idemHeader || null;
-  const idemExternal = idemHeader ? null : externalId; // only use external_id for unique constraint when no header
+  const idemExternal = idemHeader ? null : externalId;
   const hasIdem = !!(idemKey || idemExternal);
 
   const recipientDigits = to.replace(/\D/g, "");
   const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, text, endpoint: "/v1/messages/text" }));
   const messagePreview = text.length > 255 ? text.slice(0, 255) : text;
 
+  // --- 3) IDEMPOTENCY LOOKUP (antes de plano/rate-limit) ---
   if (hasIdem) {
-    // Lookup existing record
     let query = supabase
       .from("public_api_idempotency_keys")
       .select("id, request_hash, provider, provider_message_id, response_status, response_body")
@@ -433,8 +438,23 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
         external_id: externalId,
       });
     }
+  }
 
-    // Reserve key (insert with unique index → race condition fallback)
+  // --- 4) Plano / limites comerciais ---
+  const planCheck = await checkPlanAndLimits(supabase, inst, "text");
+  if (!planCheck.ok) return planCheck.resp!;
+
+  // --- 5) Rate limit (consome janela) ---
+  const rl = await checkRateLimit(supabase, inst.id);
+  if (!rl.ok) return rl.resp!;
+
+  // --- 6) Status online ---
+  if (inst.status !== "online" && inst.status !== "connected") {
+    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
+  }
+
+  // --- 7) Reserva chave de idempotência (DEPOIS de tudo aprovado) ---
+  if (hasIdem) {
     const { error: reserveErr } = await supabase
       .from("public_api_idempotency_keys")
       .insert({
@@ -451,7 +471,7 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
       });
 
     if (reserveErr) {
-      // Race condition: another request already reserved the key — return duplicate
+      // Race condition: outra requisição já reservou — trata como duplicate
       console.log(`[public-api] race_condition_dup instance=${inst.id} err=${reserveErr.code}`);
       return jsonOk({
         status: "duplicate_ignored",
@@ -674,11 +694,17 @@ async function handleSendMedia(
     return jsonError("feature_not_supported", "Este recurso não é suportado pelo provider desta instância.", 400, requestId);
   }
 
-  // Plan / limits / rate-limit
-  const planCheck = await checkPlanAndLimits(supabase, inst, mediaType);
-  if (!planCheck.ok) return planCheck.resp!;
+  // ============================================================
+  // ORDEM DE VALIDAÇÃO (Etapa Corretiva 2):
+  //   1-2. token + payload (acima)
+  //   3.   IDEMPOTÊNCIA — antes de qualquer consumo de plano/rate-limit
+  //   4.   Plano / api_access / provider / max_messages_month
+  //   5.   Rate limit
+  //   6.   Status online
+  //   7.   Reserva chave + envio
+  // Duplicate / conflict: NÃO consomem plano nem rate limit.
+  // ============================================================
 
-  // Idempotency BEFORE rate-limit
   const idemKey = idemHeader || null;
   const idemExternal = idemHeader ? null : externalId;
   const hasIdem = !!(idemKey || idemExternal);
@@ -687,7 +713,7 @@ async function handleSendMedia(
   const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, mediaType, mediaUrl, caption, filename, endpoint: endpointTag }));
   const messagePreview = (caption || `[${mediaType}] ${mediaUrl}`).slice(0, 255);
 
-  let existingIdem = null;
+  // --- 3) IDEMPOTENCY LOOKUP (antes de plano/rate-limit) ---
   if (hasIdem) {
     let query = supabase
       .from("public_api_idempotency_keys")
@@ -695,8 +721,7 @@ async function handleSendMedia(
       .eq("instance_id", inst.id);
     if (idemKey) query = query.eq("idempotency_key", idemKey);
     else query = query.eq("external_id", idemExternal).is("idempotency_key", null);
-    const { data } = await query.maybeSingle();
-    existingIdem = data;
+    const { data: existingIdem } = await query.maybeSingle();
 
     if (existingIdem) {
       if (existingIdem.request_hash !== requestHash) {
@@ -714,9 +739,15 @@ async function handleSendMedia(
     }
   }
 
+  // --- 4) Plano / limites comerciais ---
+  const planCheck = await checkPlanAndLimits(supabase, inst, mediaType);
+  if (!planCheck.ok) return planCheck.resp!;
+
+  // --- 5) Rate limit (consome janela) ---
   const rl = await checkRateLimit(supabase, inst.id);
   if (!rl.ok) return rl.resp!;
 
+  // --- 6) Status online ---
   if (inst.status !== "online" && inst.status !== "connected") {
     return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
   }
