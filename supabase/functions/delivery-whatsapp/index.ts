@@ -746,7 +746,8 @@ serve(async (req) => {
         const sent = await sendViaProvider(supabase, instance as any, normalizedPhone, text);
         return jsonResponse({ success: sent.ok, provider: sent.provider, response: sent.response });
       } catch (err: any) {
-        return jsonResponse({ success: false, error: err.message }, 500);
+        console.error('[delivery-whatsapp] test send exception:', err?.message);
+        return jsonResponse({ success: false, error: 'send_failed', message: 'Falha ao enviar mensagem de teste.' }, 500);
       }
     }
 
