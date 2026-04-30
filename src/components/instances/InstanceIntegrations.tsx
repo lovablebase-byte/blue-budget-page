@@ -412,13 +412,31 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                 </TabsContent>
 
                 <TabsContent value="examples" className="mt-0 space-y-6">
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border/40 bg-muted/20">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                      Exemplos exibem <code className="bg-muted px-1 rounded">{TOKEN_PLACEHOLDER}</code> por padrão.
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px]"
+                      onClick={() => setShowToken(!showToken)}
+                    >
+                      {showToken ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                      {showToken ? 'Ocultar token real' : 'Habilitar copiar com token real'}
+                    </Button>
+                  </div>
+
                   <div className="space-y-6">
                     <section className="space-y-3">
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Status da Instância</h4>
                       <CodeBlock
                         title="cURL - GET Status"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X GET "${statusUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}"`}
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}"`}
                       />
                       <CodeBlock
                         title="Resposta Esperada"
@@ -439,8 +457,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Envio de Mensagem de Texto</h4>
                       <CodeBlock
                         title="cURL - JSON Payload"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendTextUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: msg_123" \\
   -d '{
@@ -451,8 +471,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       />
                       <CodeBlock
                         title="cURL - Form Data"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendTextUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -F "to=558796810157" \\
   -F "text=Mensagem via form-data" \\
   -F "external_id=form_123"`}
@@ -465,8 +487,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Envio de Mídia (Imagem)</h4>
                       <CodeBlock
                         title="cURL - POST Image"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendImageUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "558796810157",
@@ -481,8 +505,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Envio de Mídia (Documento)</h4>
                       <CodeBlock
                         title="cURL - POST Document"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendDocumentUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "558796810157",
