@@ -251,6 +251,7 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                 <TabsTrigger value="examples" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Exemplos</TabsTrigger>
                 <TabsTrigger value="errors" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Erros</TabsTrigger>
                 <TabsTrigger value="legacy" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Legado</TabsTrigger>
+                <TabsTrigger value="outbound" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Webhooks de saída</TabsTrigger>
               </TabsList>
             </div>
 
