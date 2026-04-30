@@ -144,9 +144,34 @@ function normalizeProviderWebhookEvent(body: any, provider: string): NormalizedE
     messageId = data?.Info?.Id || data?.Id || null;
     text = data?.Text || data?.text || null;
 
-    const state = String(data?.state || data?.State || event).toLowerCase();
-    if (["connected", "open"].includes(state)) connectionState = "open";
-    else if (["disconnected", "logout", "closed", "close"].includes(state)) connectionState = "close";
+    // Structured strong-signal extraction for WuzAPI (no broad stringify)
+    const stateRaw = String(data?.state ?? data?.State ?? data?.status ?? data?.Status ?? "").toLowerCase();
+    const loggedIn =
+      data?.LoggedIn === true || data?.loggedIn === true ||
+      data?.IsLogged === true || data?.isLogged === true ||
+      data?.Authenticated === true || data?.authenticated === true ||
+      data?.Ready === true || data?.ready === true;
+    const strongOpenState = ["open", "loggedin", "logged_in", "logged-in", "authenticated", "ready"].includes(stateRaw);
+    const closedState =
+      ["disconnected", "logout", "logged_out", "closed", "close", "offline"].includes(stateRaw) ||
+      data?.LoggedIn === false || data?.loggedIn === false;
+    const hasJid = !!(data?.JID || data?.Jid || data?.jid || data?.wid || data?.WID);
+
+    if (eventType === "connection.qrcode") {
+      connectionState = "connecting";
+    } else if (closedState) {
+      connectionState = "close";
+    } else if (loggedIn || strongOpenState) {
+      connectionState = "open";
+    } else if (
+      stateRaw === "connected" ||
+      data?.Connected === true || data?.connected === true
+    ) {
+      // Weak signal: Connected=true alone (without LoggedIn/JID) -> NOT online
+      connectionState = hasJid ? "open" : "connecting";
+    } else if (["qr", "qrcode", "scan", "pairing", "connecting"].includes(stateRaw)) {
+      connectionState = "connecting";
+    }
   } else if (provider === "wppconnect") {
     if (event === "onmessage" || event === "message-received") eventType = "message.received";
     else if (event === "onack" || event === "ack") eventType = "message.delivered";
@@ -279,7 +304,7 @@ serve(async (req) => {
       });
     }
 
-    // --- Security ---
+    // --- Security (HMAC + secret query fallback, never log secrets) ---
     if (instance.webhook_secret) {
       let authorized = false;
       if (hmacHeader) {
@@ -292,15 +317,24 @@ serve(async (req) => {
           const sigBuf = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
           const sigHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
           const provided = hmacHeader.replace(/^sha256=/i, "").trim().toLowerCase();
-          if (provided === sigHex) authorized = true;
-        } catch (e) {
-          console.warn("[webhook-receiver] HMAC validation error", e.message);
+          // constant-time-ish compare
+          if (provided.length === sigHex.length) {
+            let diff = 0;
+            for (let i = 0; i < sigHex.length; i++) diff |= provided.charCodeAt(i) ^ sigHex.charCodeAt(i);
+            if (diff === 0) authorized = true;
+          }
+        } catch (_e) {
+          console.warn("[webhook-receiver] HMAC validation error");
         }
       }
-      if (!authorized && secret === instance.webhook_secret) authorized = true;
+      if (!authorized && secret && secret === instance.webhook_secret) authorized = true;
 
       if (!authorized) {
-        console.warn("[webhook-receiver] Unauthorized access attempt for instance", instance.id);
+        console.warn("[webhook-receiver] Unauthorized webhook attempt", {
+          instance_id: instance.id,
+          had_hmac: !!hmacHeader,
+          had_query_secret: !!secret,
+        });
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -312,13 +346,42 @@ serve(async (req) => {
     const provider = providerHint || instance.provider || "evolution";
     const normalized = normalizeProviderWebhookEvent(body, provider);
 
-    // --- Handle Test Events ---
-    if (body?._test === true || body?.test === true) {
-      console.log("[webhook-receiver] Test event received", { instanceId: instance.id });
-      return new Response(JSON.stringify({ success: true, received: true, test: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // --- Handle Test Events (detect in nested locations) ---
+    const isTestEvent =
+      body?._test === true || body?.test === true ||
+      body?.data?._test === true || body?.data?.test === true ||
+      body?.payload?._test === true || body?.payload?.test === true ||
+      body?.event?._test === true || body?.event?.test === true ||
+      String(body?.event || "").toLowerCase() === "webhook.test" ||
+      String(body?.type || "").toLowerCase() === "webhook.test";
+
+    if (isTestEvent) {
+      console.log("[webhook-receiver] Test event received", { instanceId: instance.id, provider });
+      // Register the test event without touching instance state
+      const sanitizedTest = redactSensitiveData(body);
+      const { error: testInsertErr } = await supabase.from("webhook_events").insert({
+        instance_id: instance.id,
+        company_id: instance.company_id,
+        event_type: "webhook.test",
+        raw_event_type: String(body?.event || body?.type || "test"),
+        provider: provider,
+        direction: null,
+        message_id: null,
+        from_number: null,
+        to_number: null,
+        text_preview: null,
+        connection_state: null,
+        payload: { provider, test: true, raw: sanitizedTest },
+        status: "processed",
+        processed: true,
       });
+      if (testInsertErr) {
+        console.error("[webhook-receiver] Failed to register test event", testInsertErr.message);
+      }
+      return new Response(
+        JSON.stringify({ success: true, received: true, test: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // --- Update Instance Status ---
@@ -327,20 +390,29 @@ serve(async (req) => {
     else if (normalized.connectionState === "close") newStatus = "offline";
     else if (normalized.connectionState === "connecting") newStatus = "pairing";
 
-    // QR Logic: No downgrade from online
-    if (newStatus === "pairing" && instance.status === "online") {
+    // QR / connecting must NEVER downgrade an online instance
+    if (instance.status === "online" &&
+        (newStatus === "pairing" || normalized.eventType === "connection.qrcode")) {
+      console.log("[webhook-receiver] QR/connecting ignored to prevent online downgrade", instance.id);
       newStatus = null;
-      console.log("[webhook-receiver] QR/Connecting ignored to prevent online downgrade", instance.id);
     }
 
-    // WuzAPI Logic: Connected != Online
-    if (provider === "wuzapi" && newStatus === "online" && !extractPhoneFromPayload(body)) {
-      const strongSignals = ["LoggedIn", "isLogged", "authenticated", "ready", "open"];
-      const rawBodyString = JSON.stringify(body);
-      const hasStrongSignal = strongSignals.some(s => rawBodyString.includes(s));
-      
-      if (!hasStrongSignal) {
-        console.log("[webhook-receiver] WuzAPI weak connection signal — treating as pairing");
+    // WuzAPI hardening: structured normalizer above already gates "open".
+    // Extra guard: if normalizer returned "open" but no LoggedIn/JID/phone are present,
+    // demote to "connecting" (or null when already online) to prevent false positives.
+    if (provider === "wuzapi" && newStatus === "online") {
+      const data = body?.data || body?.payload || body;
+      const hasLogin =
+        data?.LoggedIn === true || data?.loggedIn === true ||
+        data?.IsLogged === true || data?.isLogged === true ||
+        data?.Authenticated === true || data?.authenticated === true ||
+        data?.Ready === true || data?.ready === true;
+      const stateRaw = String(data?.state ?? data?.State ?? data?.status ?? data?.Status ?? "").toLowerCase();
+      const strongOpenState = ["open", "loggedin", "logged_in", "authenticated", "ready"].includes(stateRaw);
+      const hasJid = !!(data?.JID || data?.Jid || data?.jid || data?.wid || data?.WID);
+      const phone = extractPhoneFromPayload(body);
+      if (!hasLogin && !strongOpenState && !hasJid && !phone) {
+        console.log("[webhook-receiver] WuzAPI weak signal — not marking online", { id: instance.id });
         newStatus = instance.status === "online" ? null : "pairing";
       }
     }
