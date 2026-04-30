@@ -664,7 +664,13 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                   <Label className="text-xs font-semibold uppercase text-muted-foreground">Assinatura (Secret)</Label>
                   <div className="flex gap-2">
                     <Input value={`${instance.webhook_secret.slice(0, 6)}••••••••`} readOnly className="font-mono text-xs bg-muted/30 h-9" />
-                    <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => copyToClipboard(instance.webhook_secret!)}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 border-warning/40 text-warning"
+                      onClick={() => copySensitive(instance.webhook_secret!, 'Webhook secret')}
+                      title="Copiar secret (sensível)"
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
