@@ -199,15 +199,26 @@ async function checkPlanAndLimits(supabase: any, instance: any, resourceType: st
 }
 
 async function checkRateLimit(supabase: any, instanceId: string) {
-  // Chamada atômica ao banco para validar e atualizar o rate limit
+  // Chamada atômica ao banco para validar e atualizar o rate limit.
+  // Falha técnica da RPC NÃO libera envio: retorna rate_limit_unavailable (503).
   const { data, error } = await supabase.rpc("check_and_update_rate_limit", {
     p_instance_id: instanceId,
     p_increment: 1
   });
 
   if (error) {
-    console.error(`[public-api] rate_limit_error instance=${instanceId} err=`, error);
-    return { ok: true }; // Fallback permissivo em caso de erro na RPC
+    console.error(`[public-api] rate_limit_unavailable instance=${instanceId} err=`, error);
+    return {
+      ok: false,
+      resp: new Response(JSON.stringify({
+        success: false,
+        error: "rate_limit_unavailable",
+        message: "Não foi possível validar o limite de envio no momento.",
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    };
   }
 
   if (data && data.ok === false) {
@@ -215,23 +226,17 @@ async function checkRateLimit(supabase: any, instanceId: string) {
       "X-RateLimit-Limit": String(data.limit || ""),
       "X-RateLimit-Reset": data.reset_at ? new Date(data.reset_at).toUTCString() : "",
     };
-    
-    // Calcula Retry-After se tiver data de reset
     if (data.reset_at) {
       const waitMs = new Date(data.reset_at).getTime() - Date.now();
       if (waitMs > 0) headers["Retry-After"] = String(Math.ceil(waitMs / 1000));
     }
-
-    return { 
-      ok: false, 
+    return {
+      ok: false,
       resp: new Response(JSON.stringify({
         success: false,
         error: data.error || "rate_limit_exceeded",
         message: "Limite de envio excedido. Tente novamente em instantes.",
-        details: {
-          type: data.limit_type,
-          reset_at: data.reset_at
-        }
+        details: { type: data.limit_type, reset_at: data.reset_at }
       }), {
         status: 429,
         headers: { ...corsHeaders, ...headers, "Content-Type": "application/json" }
@@ -239,7 +244,7 @@ async function checkRateLimit(supabase: any, instanceId: string) {
     };
   }
 
-  return { 
+  return {
     ok: true,
     headers: {
       "X-RateLimit-Limit": String(data?.limit_minute || ""),
