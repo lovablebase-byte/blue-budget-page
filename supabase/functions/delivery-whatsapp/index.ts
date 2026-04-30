@@ -679,8 +679,8 @@ serve(async (req) => {
         }
       } catch (err: any) {
         sendStatus = 'failed';
-        sendError = `Network error: ${err.message}`;
-        console.error(`[delivery-whatsapp] SEND EXCEPTION:`, err.message);
+        sendError = 'network_error';
+        console.error(`[delivery-whatsapp] SEND EXCEPTION:`, err?.message);
       }
 
       // Log
