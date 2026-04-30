@@ -129,7 +129,7 @@ function CodeBlock({
 
 export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents }: Props) {
   const { hasFeature } = useCompany();
-  const { isAdmin } = useAuth();
+  const { isAdmin, company } = useAuth();
   const [showToken, setShowToken] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
 
