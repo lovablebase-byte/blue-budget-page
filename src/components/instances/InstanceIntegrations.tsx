@@ -19,7 +19,7 @@ import {
   Loader2, Lock, CheckCircle2, XCircle, Code,
   Info, AlertTriangle, Terminal, ShieldCheck
 } from 'lucide-react';
-import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
+import { getDeliveryEndpoint, getLegacyApiSendTextBase, getPublicApiV1Base } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
 import { getProviderEvents } from '@/components/instances/constants';
 
