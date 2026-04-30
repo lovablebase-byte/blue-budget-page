@@ -481,7 +481,12 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
   if (!planCheck.ok) return planCheck.resp!;
 
   // --- 5) Rate limit (consome janela) ---
-  const rl = await checkRateLimit(supabase, inst.id);
+  const rl = await checkRateLimit(supabase, inst.id, {
+    companyId: inst.company_id,
+    endpoint: "public-api/text",
+    provider: inst.provider,
+    requestId,
+  });
   if (!rl.ok) return rl.resp!;
 
   // --- 6) Status online ---
