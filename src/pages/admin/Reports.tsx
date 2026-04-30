@@ -58,7 +58,9 @@ export default function AdminReports() {
         supabase.from('messages_log').select('id', { count: 'exact', head: true }).gte('created_at', monthStart.toISOString()),
         supabase.from('messages_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', monthStart.toISOString()),
         supabase.from('webhook_events').select('id', { count: 'exact', head: true }).eq('processed', false),
-        supabase.from('chatbot_key_logs').select('id', { count: 'exact', head: true }).gte('created_at', monthStart.toISOString()),
+        // Rate limit REAL: alinhado com Etapa Corretiva 6 (audit_logs com action='rate_limit_exceeded').
+        // Substitui o proxy enganoso de chatbot_key_logs.
+        supabase.from('audit_logs').select('id', { count: 'exact', head: true }).eq('action', 'rate_limit_exceeded').gte('created_at', monthStart.toISOString()),
       ]);
 
       const instances = instancesRes.data || [];
