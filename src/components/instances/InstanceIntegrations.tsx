@@ -22,6 +22,7 @@ import {
 import { getDeliveryEndpoint, getLegacyApiSendTextBase, getPublicApiV1Base } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
 import { getProviderEvents } from '@/components/instances/constants';
+import { CustomerWebhooksPanel } from '@/components/instances/CustomerWebhooksPanel';
 
 interface Props {
   instance: {
@@ -128,7 +129,7 @@ function CodeBlock({
 
 export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents }: Props) {
   const { hasFeature } = useCompany();
-  const { isAdmin } = useAuth();
+  const { isAdmin, company } = useAuth();
   const [showToken, setShowToken] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
 
@@ -250,6 +251,7 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                 <TabsTrigger value="examples" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Exemplos</TabsTrigger>
                 <TabsTrigger value="errors" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Erros</TabsTrigger>
                 <TabsTrigger value="legacy" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Legado</TabsTrigger>
+                <TabsTrigger value="outbound" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 pb-2">Webhooks de saída</TabsTrigger>
               </TabsList>
             </div>
 
@@ -624,6 +626,14 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <p className="text-[11px] text-muted-foreground">Parâmetros via URL: <code className="bg-muted px-1 rounded">?uuid=&access_token=</code>.</p>
                     </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="outbound" className="mt-0 space-y-4">
+                  {company?.id ? (
+                    <CustomerWebhooksPanel instance={instance} companyId={company.id} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Empresa não identificada.</p>
+                  )}
                 </TabsContent>
               </div>
             </ScrollArea>
