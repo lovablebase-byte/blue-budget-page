@@ -337,13 +337,42 @@ serve(async (req) => {
     const provider = providerHint || instance.provider || "evolution";
     const normalized = normalizeProviderWebhookEvent(body, provider);
 
-    // --- Handle Test Events ---
-    if (body?._test === true || body?.test === true) {
-      console.log("[webhook-receiver] Test event received", { instanceId: instance.id });
-      return new Response(JSON.stringify({ success: true, received: true, test: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // --- Handle Test Events (detect in nested locations) ---
+    const isTestEvent =
+      body?._test === true || body?.test === true ||
+      body?.data?._test === true || body?.data?.test === true ||
+      body?.payload?._test === true || body?.payload?.test === true ||
+      body?.event?._test === true || body?.event?.test === true ||
+      String(body?.event || "").toLowerCase() === "webhook.test" ||
+      String(body?.type || "").toLowerCase() === "webhook.test";
+
+    if (isTestEvent) {
+      console.log("[webhook-receiver] Test event received", { instanceId: instance.id, provider });
+      // Register the test event without touching instance state
+      const sanitizedTest = redactSensitiveData(body);
+      const { error: testInsertErr } = await supabase.from("webhook_events").insert({
+        instance_id: instance.id,
+        company_id: instance.company_id,
+        event_type: "webhook.test",
+        raw_event_type: String(body?.event || body?.type || "test"),
+        provider: provider,
+        direction: null,
+        message_id: null,
+        from_number: null,
+        to_number: null,
+        text_preview: null,
+        connection_state: null,
+        payload: { provider, test: true, raw: sanitizedTest },
+        status: "processed",
+        processed: true,
       });
+      if (testInsertErr) {
+        console.error("[webhook-receiver] Failed to register test event", testInsertErr.message);
+      }
+      return new Response(
+        JSON.stringify({ success: true, received: true, test: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // --- Update Instance Status ---
@@ -352,10 +381,14 @@ serve(async (req) => {
     else if (normalized.connectionState === "close") newStatus = "offline";
     else if (normalized.connectionState === "connecting") newStatus = "pairing";
 
-    // QR Logic: No downgrade from online
-    if (newStatus === "pairing" && instance.status === "online") {
+    // QR / connecting must NEVER downgrade an online instance
+    if ((newStatus === "pairing" || newStatus === "offline" && normalized.eventType === "connection.qrcode")
+        && instance.status === "online") {
       newStatus = null;
-      console.log("[webhook-receiver] QR/Connecting ignored to prevent online downgrade", instance.id);
+      console.log("[webhook-receiver] QR/connecting ignored to prevent online downgrade", instance.id);
+    }
+    if (normalized.eventType === "connection.qrcode" && instance.status === "online") {
+      newStatus = null;
     }
 
     // WuzAPI Logic: Connected != Online
