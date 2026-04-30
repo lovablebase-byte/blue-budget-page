@@ -382,23 +382,28 @@ serve(async (req) => {
     else if (normalized.connectionState === "connecting") newStatus = "pairing";
 
     // QR / connecting must NEVER downgrade an online instance
-    if ((newStatus === "pairing" || newStatus === "offline" && normalized.eventType === "connection.qrcode")
-        && instance.status === "online") {
-      newStatus = null;
+    if (instance.status === "online" &&
+        (newStatus === "pairing" || normalized.eventType === "connection.qrcode")) {
       console.log("[webhook-receiver] QR/connecting ignored to prevent online downgrade", instance.id);
-    }
-    if (normalized.eventType === "connection.qrcode" && instance.status === "online") {
       newStatus = null;
     }
 
-    // WuzAPI Logic: Connected != Online
-    if (provider === "wuzapi" && newStatus === "online" && !extractPhoneFromPayload(body)) {
-      const strongSignals = ["LoggedIn", "isLogged", "authenticated", "ready", "open"];
-      const rawBodyString = JSON.stringify(body);
-      const hasStrongSignal = strongSignals.some(s => rawBodyString.includes(s));
-      
-      if (!hasStrongSignal) {
-        console.log("[webhook-receiver] WuzAPI weak connection signal — treating as pairing");
+    // WuzAPI hardening: structured normalizer above already gates "open".
+    // Extra guard: if normalizer returned "open" but no LoggedIn/JID/phone are present,
+    // demote to "connecting" (or null when already online) to prevent false positives.
+    if (provider === "wuzapi" && newStatus === "online") {
+      const data = body?.data || body?.payload || body;
+      const hasLogin =
+        data?.LoggedIn === true || data?.loggedIn === true ||
+        data?.IsLogged === true || data?.isLogged === true ||
+        data?.Authenticated === true || data?.authenticated === true ||
+        data?.Ready === true || data?.ready === true;
+      const stateRaw = String(data?.state ?? data?.State ?? data?.status ?? data?.Status ?? "").toLowerCase();
+      const strongOpenState = ["open", "loggedin", "logged_in", "authenticated", "ready"].includes(stateRaw);
+      const hasJid = !!(data?.JID || data?.Jid || data?.jid || data?.wid || data?.WID);
+      const phone = extractPhoneFromPayload(body);
+      if (!hasLogin && !strongOpenState && !hasJid && !phone) {
+        console.log("[webhook-receiver] WuzAPI weak signal — not marking online", { id: instance.id });
         newStatus = instance.status === "online" ? null : "pairing";
       }
     }
