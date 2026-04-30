@@ -472,6 +472,104 @@ serve(async (req) => {
     // Override resolvedInstanceId from authed source for downstream lookups
     const effectiveInstanceId = authedInstance.id;
 
+    // ============================================================
+    // COMMERCIAL ENFORCEMENT (legacy compatibility endpoint)
+    // Validates: active subscription, api_access, allowed provider,
+    // monthly message cap, and per-instance rate limit via RPC.
+    // Internally mirrors API Pública v1 rules (single source of truth).
+    // ============================================================
+    try {
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('status, expires_at, plan_id')
+        .eq('company_id', authedInstance.company_id)
+        .maybeSingle();
+
+      if (!sub || !['active', 'trialing'].includes(sub.status)) {
+        return jsonResponse(
+          { success: false, error: 'subscription_inactive', message: 'Assinatura inativa.' },
+          403
+        );
+      }
+      if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
+        return jsonResponse(
+          { success: false, error: 'subscription_expired', message: 'Assinatura expirada.' },
+          403
+        );
+      }
+
+      const { data: plan } = await supabase
+        .from('plans')
+        .select('api_access, allowed_providers, max_messages_month')
+        .eq('id', sub.plan_id)
+        .maybeSingle();
+
+      if (!plan || !plan.api_access) {
+        return jsonResponse(
+          { success: false, error: 'api_access_not_allowed', message: 'Seu plano não permite uso da API externa.' },
+          403
+        );
+      }
+
+      const allowedProviders: string[] | null = plan.allowed_providers as any;
+      const instProvider = authedInstance.provider || 'evolution';
+      if (
+        !allowedProviders ||
+        !Array.isArray(allowedProviders) ||
+        allowedProviders.length === 0 ||
+        !allowedProviders.includes(instProvider)
+      ) {
+        return jsonResponse(
+          { success: false, error: 'provider_not_allowed', message: 'Este provider não está disponível no seu plano.' },
+          403
+        );
+      }
+
+      const maxMonth = Number(plan.max_messages_month || 0);
+      if (maxMonth > 0) {
+        const monthStart = new Date();
+        monthStart.setUTCDate(1);
+        monthStart.setUTCHours(0, 0, 0, 0);
+        const { count } = await supabase
+          .from('messages_log')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', authedInstance.company_id)
+          .gte('created_at', monthStart.toISOString());
+        if ((count || 0) >= maxMonth) {
+          return jsonResponse(
+            { success: false, error: 'monthly_message_limit_reached', message: 'Limite mensal de mensagens atingido.' },
+            429
+          );
+        }
+      }
+    } catch (e: any) {
+      console.error('[delivery-whatsapp] commercial check error:', e?.message);
+      return jsonResponse(
+        { success: false, error: 'internal_error', message: 'Erro interno ao processar a solicitação.' },
+        500
+      );
+    }
+
+    // Per-instance rate limit (fail-secure: RPC error blocks send)
+    {
+      const { data: rlData, error: rlError } = await supabase.rpc('check_and_update_rate_limit', {
+        p_instance_id: effectiveInstanceId,
+        p_increment: 1,
+      });
+      if (rlError) {
+        console.error('[delivery-whatsapp] rate_limit_unavailable:', rlError.message);
+        return jsonResponse(
+          { success: false, error: 'rate_limit_unavailable', message: 'Não foi possível validar o limite de envio.' },
+          503
+        );
+      }
+      if (rlData && (rlData as any).ok === false) {
+        return jsonResponse(
+          { success: false, error: 'rate_limit_exceeded', message: 'Limite de envio excedido. Tente novamente em instantes.' },
+          429
+        );
+      }
+    }
 
     // ============================================================
     // ACTION: order_status_updated / send_status_change
