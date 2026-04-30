@@ -503,14 +503,8 @@ serve(async (req) => {
           status: 'sent', sent_at: sentAt, attempts: msg.attempts + 1,
         }).eq('id', msg.id);
 
-        // Update instance limits
-        if (limits) {
-          await supabase.from('instance_limits').update({
-            messages_sent_minute: limits.messages_sent_minute + 1,
-            messages_sent_hour: limits.messages_sent_hour + 1,
-            messages_sent_day: limits.messages_sent_day + 1,
-          }).eq('id', limits.id);
-        }
+        // Rate limit counters were already incremented atomically by
+        // check_and_update_rate_limit before send. No manual update here.
 
         // Log
         await supabase.from('messages_log').insert({
