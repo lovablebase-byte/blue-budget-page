@@ -694,11 +694,17 @@ async function handleSendMedia(
     return jsonError("feature_not_supported", "Este recurso não é suportado pelo provider desta instância.", 400, requestId);
   }
 
-  // Plan / limits / rate-limit
-  const planCheck = await checkPlanAndLimits(supabase, inst, mediaType);
-  if (!planCheck.ok) return planCheck.resp!;
+  // ============================================================
+  // ORDEM DE VALIDAÇÃO (Etapa Corretiva 2):
+  //   1-2. token + payload (acima)
+  //   3.   IDEMPOTÊNCIA — antes de qualquer consumo de plano/rate-limit
+  //   4.   Plano / api_access / provider / max_messages_month
+  //   5.   Rate limit
+  //   6.   Status online
+  //   7.   Reserva chave + envio
+  // Duplicate / conflict: NÃO consomem plano nem rate limit.
+  // ============================================================
 
-  // Idempotency BEFORE rate-limit
   const idemKey = idemHeader || null;
   const idemExternal = idemHeader ? null : externalId;
   const hasIdem = !!(idemKey || idemExternal);
@@ -707,7 +713,7 @@ async function handleSendMedia(
   const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, mediaType, mediaUrl, caption, filename, endpoint: endpointTag }));
   const messagePreview = (caption || `[${mediaType}] ${mediaUrl}`).slice(0, 255);
 
-  let existingIdem = null;
+  // --- 3) IDEMPOTENCY LOOKUP (antes de plano/rate-limit) ---
   if (hasIdem) {
     let query = supabase
       .from("public_api_idempotency_keys")
@@ -715,8 +721,7 @@ async function handleSendMedia(
       .eq("instance_id", inst.id);
     if (idemKey) query = query.eq("idempotency_key", idemKey);
     else query = query.eq("external_id", idemExternal).is("idempotency_key", null);
-    const { data } = await query.maybeSingle();
-    existingIdem = data;
+    const { data: existingIdem } = await query.maybeSingle();
 
     if (existingIdem) {
       if (existingIdem.request_hash !== requestHash) {
@@ -734,9 +739,15 @@ async function handleSendMedia(
     }
   }
 
+  // --- 4) Plano / limites comerciais ---
+  const planCheck = await checkPlanAndLimits(supabase, inst, mediaType);
+  if (!planCheck.ok) return planCheck.resp!;
+
+  // --- 5) Rate limit (consome janela) ---
   const rl = await checkRateLimit(supabase, inst.id);
   if (!rl.ok) return rl.resp!;
 
+  // --- 6) Status online ---
   if (inst.status !== "online" && inst.status !== "connected") {
     return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
   }
