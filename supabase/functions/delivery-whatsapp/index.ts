@@ -761,10 +761,14 @@ serve(async (req) => {
     }, 400);
 
   } catch (err: any) {
-    console.error(`[delivery-whatsapp] Fatal error:`, err.message, err.stack);
-    return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error(`[delivery-whatsapp] Fatal error:`, err?.message);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'internal_error',
+        message: 'Erro interno ao processar a solicitação.',
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
