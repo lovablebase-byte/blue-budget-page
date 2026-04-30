@@ -143,7 +143,9 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
   const maskedToken = instance.access_token.slice(0, 4) + '••••••••';
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const apiBase = `https://${projectId}.supabase.co/functions/v1/public-api/v1`;
+  const apiBase = getPublicApiV1Base();
+  const legacySendTextBase = getLegacyApiSendTextBase();
+  const usingCustomDomain = !!import.meta.env.VITE_PUBLIC_API_BASE_URL;
   const healthUrl = `${apiBase}/health`;
   const statusUrl = `${apiBase}/instances/status`;
   const sendTextUrl = `${apiBase}/messages/text`;
