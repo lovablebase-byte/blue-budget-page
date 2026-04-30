@@ -635,6 +635,11 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                     <p className="text-sm text-muted-foreground">Empresa não identificada.</p>
                   )}
                 </TabsContent>
+              </div>
+            </ScrollArea>
+          </Tabs>
+        </Card>
+      )}
 
       {/* Webhook section */}
       {!hasWebhooks ? (
