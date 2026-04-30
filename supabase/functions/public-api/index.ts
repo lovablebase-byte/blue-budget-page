@@ -198,7 +198,33 @@ async function checkPlanAndLimits(supabase: any, instance: any, resourceType: st
   return { ok: true };
 }
 
-async function checkRateLimit(supabase: any, instanceId: string) {
+async function logRateLimitEvent(
+  supabase: any,
+  ctx: { companyId?: string | null; instanceId: string; endpoint: string; provider?: string | null; limitType?: string | null; requestId?: string | null }
+) {
+  try {
+    await supabase.from("audit_logs").insert({
+      action: "rate_limit_exceeded",
+      entity_type: "instance",
+      entity_id: ctx.instanceId,
+      company_id: ctx.companyId ?? null,
+      payload: {
+        endpoint: ctx.endpoint,
+        provider: ctx.provider ?? null,
+        limit_type: ctx.limitType ?? null,
+        request_id: ctx.requestId ?? null,
+      },
+    });
+  } catch (e) {
+    console.error("[public-api] failed to log rate_limit_exceeded:", (e as Error)?.message);
+  }
+}
+
+async function checkRateLimit(
+  supabase: any,
+  instanceId: string,
+  ctx?: { companyId?: string | null; endpoint?: string; provider?: string | null; requestId?: string | null }
+) {
   // Chamada atômica ao banco para validar e atualizar o rate limit.
   // Falha técnica da RPC NÃO libera envio: retorna rate_limit_unavailable (503).
   const { data, error } = await supabase.rpc("check_and_update_rate_limit", {
@@ -222,6 +248,16 @@ async function checkRateLimit(supabase: any, instanceId: string) {
   }
 
   if (data && data.ok === false) {
+    // Registra evento real de rate limit acionado (não-proxy, base de métricas admin)
+    await logRateLimitEvent(supabase, {
+      companyId: ctx?.companyId ?? null,
+      instanceId,
+      endpoint: ctx?.endpoint ?? "public-api",
+      provider: ctx?.provider ?? null,
+      limitType: data.limit_type ?? null,
+      requestId: ctx?.requestId ?? null,
+    });
+
     const headers: Record<string, string> = {
       "X-RateLimit-Limit": String(data.limit || ""),
       "X-RateLimit-Reset": data.reset_at ? new Date(data.reset_at).toUTCString() : "",
