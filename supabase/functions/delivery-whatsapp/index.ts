@@ -564,6 +564,23 @@ serve(async (req) => {
         );
       }
       if (rlData && (rlData as any).ok === false) {
+        // Registra evento real de rate limit acionado para métricas admin
+        try {
+          await supabase.from('audit_logs').insert({
+            action: 'rate_limit_exceeded',
+            entity_type: 'instance',
+            entity_id: effectiveInstanceId,
+            company_id: (authedInstance as any)?.company_id ?? null,
+            payload: {
+              endpoint: 'delivery-whatsapp',
+              provider: (authedInstance as any)?.provider ?? null,
+              limit_type: (rlData as any).limit_type ?? null,
+              request_id: null,
+            },
+          });
+        } catch (e) {
+          console.error('[delivery-whatsapp] failed to log rate_limit_exceeded:', (e as Error)?.message);
+        }
         return jsonResponse(
           { success: false, error: 'rate_limit_exceeded', message: 'Limite de envio excedido. Tente novamente em instantes.' },
           429
