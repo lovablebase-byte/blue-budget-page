@@ -57,10 +57,32 @@ function FeatureLockedCard({ title, description }: { title: string; description:
   );
 }
 
-function CodeBlock({ code, title, language = "bash" }: { code: string; title?: string, language?: string }) {
-  const copy = () => {
+const TOKEN_PLACEHOLDER = 'TOKEN_DA_INSTANCIA';
+
+function CodeBlock({
+  code,
+  title,
+  realToken,
+  showReal,
+}: {
+  code: string;
+  title?: string;
+  /** When provided + showReal=true, copy will substitute the placeholder by the real token. */
+  realToken?: string;
+  showReal?: boolean;
+}) {
+  const containsPlaceholder = code.includes(TOKEN_PLACEHOLDER);
+
+  const copySafe = () => {
     navigator.clipboard.writeText(code);
-    toast.success('Código copiado!');
+    toast.success('Exemplo copiado (com placeholder).');
+  };
+
+  const copyWithRealToken = () => {
+    if (!realToken) return copySafe();
+    const replaced = code.split(TOKEN_PLACEHOLDER).join(realToken);
+    navigator.clipboard.writeText(replaced);
+    toast.warning('Exemplo copiado COM TOKEN REAL — não compartilhe.');
   };
 
   return (
@@ -68,13 +90,32 @@ function CodeBlock({ code, title, language = "bash" }: { code: string; title?: s
       {title && (
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 bg-muted/50">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">{title}</span>
-          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={copy}>
-            <Copy className="h-3 w-3" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={copySafe}
+              title="Copiar com placeholder"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+            {containsPlaceholder && realToken && showReal && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 text-warning"
+                onClick={copyWithRealToken}
+                title="Copiar com token real"
+              >
+                <ShieldCheck className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
       {!title && (
-        <Button variant="ghost" size="icon" className="absolute right-2 top-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={copy}>
+        <Button variant="ghost" size="icon" className="absolute right-2 top-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={copySafe}>
           <Copy className="h-3 w-3" />
         </Button>
       )}
