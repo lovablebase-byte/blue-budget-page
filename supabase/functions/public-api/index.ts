@@ -392,29 +392,29 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
   if (!to) return jsonError("missing_recipient", "Informe o número de destino.", 400, requestId);
   if (!text) return jsonError("missing_message", "Informe o texto da mensagem.", 400, requestId);
 
-  // Plan / limits / rate-limit
-  const planCheck = await checkPlanAndLimits(supabase, inst, "text");
-  if (!planCheck.ok) return planCheck.resp!;
+  // ============================================================
+  // ORDEM DE VALIDAÇÃO (Etapa Corretiva 2):
+  //   1. token + instância (já feito em authenticate)
+  //   2. payload + normalização (acima)
+  //   3. IDEMPOTÊNCIA — antes de qualquer consumo de plano/rate-limit
+  //   4. Plano / api_access / provider / max_messages_month
+  //   5. Rate limit
+  //   6. Status online
+  //   7. Envio
+  //   8. Update idempotência + log
+  // Duplicate / conflict: NÃO consomem plano nem rate limit.
+  // ============================================================
 
-  const rl = await checkRateLimit(supabase, inst.id);
-  if (!rl.ok) return rl.resp!;
-
-  if (inst.status !== "online" && inst.status !== "connected") {
-    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
-  }
-
-  // ---------- Idempotency ----------
-  // Priority: Idempotency-Key header > external_id field
   const idemKey = idemHeader || null;
-  const idemExternal = idemHeader ? null : externalId; // only use external_id for unique constraint when no header
+  const idemExternal = idemHeader ? null : externalId;
   const hasIdem = !!(idemKey || idemExternal);
 
   const recipientDigits = to.replace(/\D/g, "");
   const requestHash = await sha256Hex(JSON.stringify({ to: recipientDigits, text, endpoint: "/v1/messages/text" }));
   const messagePreview = text.length > 255 ? text.slice(0, 255) : text;
 
+  // --- 3) IDEMPOTENCY LOOKUP (antes de plano/rate-limit) ---
   if (hasIdem) {
-    // Lookup existing record
     let query = supabase
       .from("public_api_idempotency_keys")
       .select("id, request_hash, provider, provider_message_id, response_status, response_body")
@@ -438,8 +438,23 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
         external_id: externalId,
       });
     }
+  }
 
-    // Reserve key (insert with unique index → race condition fallback)
+  // --- 4) Plano / limites comerciais ---
+  const planCheck = await checkPlanAndLimits(supabase, inst, "text");
+  if (!planCheck.ok) return planCheck.resp!;
+
+  // --- 5) Rate limit (consome janela) ---
+  const rl = await checkRateLimit(supabase, inst.id);
+  if (!rl.ok) return rl.resp!;
+
+  // --- 6) Status online ---
+  if (inst.status !== "online" && inst.status !== "connected") {
+    return jsonError("instance_offline", "A instância está desconectada.", 409, requestId);
+  }
+
+  // --- 7) Reserva chave de idempotência (DEPOIS de tudo aprovado) ---
+  if (hasIdem) {
     const { error: reserveErr } = await supabase
       .from("public_api_idempotency_keys")
       .insert({
@@ -456,7 +471,7 @@ async function handleSendText(req: Request, supabase: any, requestId: string) {
       });
 
     if (reserveErr) {
-      // Race condition: another request already reserved the key — return duplicate
+      // Race condition: outra requisição já reservou — trata como duplicate
       console.log(`[public-api] race_condition_dup instance=${inst.id} err=${reserveErr.code}`);
       return jsonOk({
         status: "duplicate_ignored",
