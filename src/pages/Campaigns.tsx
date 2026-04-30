@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsPlatformAdmin } from '@/hooks/use-plan-enforcement';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
@@ -53,6 +54,7 @@ function calcRiskLevel(ratePerMin: number, totalContacts: number, instanceCount:
 
 export default function Campaigns() {
   const { company, isAdmin } = useAuth();
+  const { data: isPlatformAdmin = false } = useIsPlatformAdmin();
   const { isSuspended } = useCompany();
   const campaignFeature = useFeatureEnabled('campaigns_enabled');
   const campaignLimit = useResourceLimit('max_campaigns', 'campaigns');
@@ -305,8 +307,9 @@ export default function Campaigns() {
     },
   ];
 
-  const featureBlocked = !isAdmin && campaignFeature.data === false;
-  const limitBlocked = !isAdmin && campaignLimit.data && !campaignLimit.data.allowed;
+  // Bypass comercial SOMENTE para admin global da plataforma.
+  const featureBlocked = !isPlatformAdmin && campaignFeature.data === false;
+  const limitBlocked = !isPlatformAdmin && campaignLimit.data && !campaignLimit.data.allowed;
 
   return (
     <div className="space-y-6">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsPlatformAdmin } from '@/hooks/use-plan-enforcement';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useResourceLimit, useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { LimitReachedBanner, FeatureLockedBanner, GuardedButton } from '@/components/PlanEnforcementGuard';
@@ -89,6 +90,7 @@ const defaultForm = (): AgentForm => ({
 
 export default function AIAgents() {
   const { company, isAdmin } = useAuth();
+  const { data: isPlatformAdmin = false } = useIsPlatformAdmin();
   const { isSuspended } = useCompany();
   const aiFeature = useFeatureEnabled('ai_agents_enabled');
   const agentLimit = useResourceLimit('max_ai_agents', 'ai_agents');
@@ -193,8 +195,9 @@ export default function AIAgents() {
 
   const activeCount = agents.filter((a: any) => a.is_active).length;
 
-  const featureBlocked = !isAdmin && aiFeature.data === false;
-  const limitBlocked = !isAdmin && agentLimit.data && !agentLimit.data.allowed;
+  // Bypass comercial SOMENTE para admin global da plataforma.
+  const featureBlocked = !isPlatformAdmin && aiFeature.data === false;
+  const limitBlocked = !isPlatformAdmin && agentLimit.data && !agentLimit.data.allowed;
 
   const columns: Column<any>[] = [
     { key: 'name', label: 'Nome', sortable: true },

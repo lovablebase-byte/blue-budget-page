@@ -672,13 +672,19 @@ serve(async (req) => {
       if (!isPlatformAdmin) {
         const { data: sub } = await supabase
           .from("subscriptions")
-          .select("plan_id, status, plans:plan_id(api_access, max_messages_month)")
+          .select("plan_id, status, plans:plan_id(api_access, max_messages_month, allowed_providers)")
           .eq("company_id", instance.company_id)
           .in("status", ["active", "trialing"])
           .maybeSingle();
         const plan: any = sub?.plans;
         if (!sub || !plan || !plan.api_access) {
           return jsonError("api_access_not_allowed", "Seu plano não permite uso da API externa.", 403, requestId);
+        }
+        // Provider check: NULL ou [] bloqueiam TODOS. Só libera o que estiver listado.
+        const allowedProviders: string[] | null = plan.allowed_providers;
+        const instProvider = instance.provider || "evolution";
+        if (!allowedProviders || !Array.isArray(allowedProviders) || allowedProviders.length === 0 || !allowedProviders.includes(instProvider)) {
+          return jsonError("provider_not_allowed", "Este provider não está disponível no seu plano.", 403, requestId);
         }
         const maxMonth = Number(plan.max_messages_month || 0);
         if (maxMonth > 0) {
