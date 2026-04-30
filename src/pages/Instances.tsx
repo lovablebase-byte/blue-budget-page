@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsPlatformAdmin } from '@/hooks/use-plan-enforcement';
 import { useCompany } from '@/contexts/CompanyContext';
 import {
   syncSingleInstanceStatus,
@@ -99,6 +100,7 @@ const getProviderInstanceName = (instance: Instance): string => {
 
 export default function Instances() {
   const { company, hasPermission, isReadOnly, isAdmin } = useAuth();
+  const { data: isPlatformAdmin = false } = useIsPlatformAdmin();
   const { allowedProviders: planProviders, isSuspended } = useCompany();
   const instanceFeature = useFeatureEnabled('instances_enabled');
   const instanceLimit = useResourceLimit('max_instances', 'instances');
@@ -944,17 +946,19 @@ export default function Instances() {
     providerBreakdown[label] = (providerBreakdown[label] || 0) + 1;
   });
 
-  const featureBlocked = !isAdmin && instanceFeature.data === false;
+  // Bypass comercial SOMENTE para admin global da plataforma.
+  // Admin de cliente respeita plano comercial.
+  const featureBlocked = !isPlatformAdmin && instanceFeature.data === false;
   const limitData = instanceLimit.data;
   const canCreateByPlan = !featureBlocked && (!limitData || limitData.allowed);
 
   // Fonte de verdade do modal "Nova instância":
   // - o provider precisa estar configurado e ativo para a conta
-  // - admin não sofre filtro de plano
-  // - usuário comum também precisa ter o provider liberado no plano
+  // - apenas admin global da plataforma ignora o filtro de plano
+  // - admin de cliente e usuário comum precisam ter o provider liberado no plano
   const effectiveProviders = useMemo(() => {
-    return activeProviders.filter((provider) => isAdmin || planProviders.includes(provider.provider));
-  }, [isAdmin, planProviders, activeProviders]);
+    return activeProviders.filter((provider) => isPlatformAdmin || planProviders.includes(provider.provider));
+  }, [isPlatformAdmin, planProviders, activeProviders]);
 
   return (
     <div className="space-y-5">

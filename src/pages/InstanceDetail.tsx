@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsPlatformAdmin } from '@/hooks/use-plan-enforcement';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useFeatureEnabled } from '@/hooks/use-plan-enforcement';
 import { PlanStatusBanner } from '@/components/PlanStatusBanner';
@@ -83,6 +84,7 @@ export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company, hasPermission, isReadOnly, isAdmin } = useAuth();
+  const { data: isPlatformAdmin = false } = useIsPlatformAdmin();
   const { isSuspended } = useCompany();
   const instanceFeature = useFeatureEnabled('instances_enabled');
   const [instance, setInstance] = useState<InstanceDetail | null>(null);
@@ -107,7 +109,8 @@ export default function InstanceDetailPage() {
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
-  const featureBlocked = !isAdmin && instanceFeature.data === false;
+  // Bypass comercial SOMENTE para admin global da plataforma.
+  const featureBlocked = !isPlatformAdmin && instanceFeature.data === false;
   const actionsBlocked = isSuspended || isReadOnly || featureBlocked;
 
   useEffect(() => {
