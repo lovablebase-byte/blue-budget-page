@@ -318,6 +318,52 @@ serve(async (req) => {
       const instanceIndexMap = new Map<string, number>();
       let idxCounter = 0;
 
+      // Per-company commercial cache (subscription + plan)
+      const commercialCache = new Map<string, { ok: boolean; reason?: string; plan?: any }>();
+      async function checkCommercial(companyId: string, providerName: string): Promise<{ ok: boolean; reason?: string }> {
+        let cached = commercialCache.get(companyId);
+        if (!cached) {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('status, expires_at, plan_id')
+            .eq('company_id', companyId)
+            .maybeSingle();
+          if (!sub || !['active', 'trialing'].includes(sub.status)) {
+            cached = { ok: false, reason: 'subscription_inactive' };
+          } else if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
+            cached = { ok: false, reason: 'subscription_expired' };
+          } else {
+            const { data: plan } = await supabase
+              .from('plans')
+              .select('allowed_providers, max_messages_month')
+              .eq('id', sub.plan_id)
+              .maybeSingle();
+            if (!plan) cached = { ok: false, reason: 'plan_not_found' };
+            else cached = { ok: true, plan };
+          }
+          commercialCache.set(companyId, cached);
+        }
+        if (!cached.ok) return cached;
+        const plan = cached.plan;
+        const allowed: string[] | null = plan.allowed_providers;
+        if (!allowed || !Array.isArray(allowed) || allowed.length === 0 || !allowed.includes(providerName)) {
+          return { ok: false, reason: 'provider_not_allowed' };
+        }
+        const maxMonth = Number(plan.max_messages_month || 0);
+        if (maxMonth > 0) {
+          const monthStart = new Date();
+          monthStart.setUTCDate(1);
+          monthStart.setUTCHours(0, 0, 0, 0);
+          const { count } = await supabase
+            .from('messages_log')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', companyId)
+            .gte('created_at', monthStart.toISOString());
+          if ((count || 0) >= maxMonth) return { ok: false, reason: 'monthly_message_limit_reached' };
+        }
+        return { ok: true };
+      }
+
       for (const msg of pending) {
         const instance = (msg as any).instances;
 
@@ -341,39 +387,33 @@ serve(async (req) => {
           }
         }
 
-        // Check instance limits
-        const { data: limits } = await supabase
-          .from('instance_limits')
-          .select('*')
-          .eq('instance_id', msg.instance_id)
-          .single();
+        // Commercial enforcement: subscription, provider, monthly cap
+        const instanceRecordEarly = (msg as any).instances || instance;
+        const providerName = instanceRecordEarly?.provider || 'evolution';
+        const commercial = await checkCommercial(msg.company_id, providerName);
+        if (!commercial.ok) {
+          await supabase.from('message_queue').update({
+            status: 'failed',
+            error: `commercial_block:${commercial.reason}`,
+            attempts: msg.attempts + 1,
+          }).eq('id', msg.id);
+          failed++;
+          continue;
+        }
 
-        if (limits) {
-          const now = new Date();
-          const resetMinute = new Date(limits.last_reset_minute).getTime() + 60000 < now.getTime();
-          const resetHour = new Date(limits.last_reset_hour).getTime() + 3600000 < now.getTime();
-          const resetDay = new Date(limits.last_reset_day).getTime() + 86400000 < now.getTime();
-
-          const updates: any = {};
-          if (resetMinute) { updates.messages_sent_minute = 0; updates.last_reset_minute = now.toISOString(); }
-          if (resetHour) { updates.messages_sent_hour = 0; updates.last_reset_hour = now.toISOString(); }
-          if (resetDay) { updates.messages_sent_day = 0; updates.last_reset_day = now.toISOString(); }
-          if (Object.keys(updates).length > 0) {
-            await supabase.from('instance_limits').update(updates).eq('id', limits.id);
-          }
-
-          const currentMinute = resetMinute ? 0 : limits.messages_sent_minute;
-          const currentHour = resetHour ? 0 : limits.messages_sent_hour;
-          const currentDay = resetDay ? 0 : limits.messages_sent_day;
-
-          if (limits.cooldown_until && new Date(limits.cooldown_until) > now) continue;
-
-          if (currentMinute >= limits.max_per_minute || currentHour >= limits.max_per_hour || currentDay >= limits.max_per_day) {
-            await supabase.from('instance_limits').update({
-              cooldown_until: new Date(now.getTime() + 15 * 60000).toISOString(),
-            }).eq('id', limits.id);
-            continue;
-          }
+        // Rate limit via RPC (atomic, fail-secure)
+        const { data: rlData, error: rlError } = await supabase.rpc('check_and_update_rate_limit', {
+          p_instance_id: msg.instance_id,
+          p_increment: 1,
+        });
+        if (rlError) {
+          console.error('[queue-worker] rate_limit_unavailable instance=', msg.instance_id, rlError?.message);
+          // Fail-secure: do not send. Leave message pending for next tick.
+          continue;
+        }
+        if (rlData && (rlData as any).ok === false) {
+          // Rate window saturated. Leave message pending for retry.
+          continue;
         }
 
         // Mark as processing
@@ -463,14 +503,8 @@ serve(async (req) => {
           status: 'sent', sent_at: sentAt, attempts: msg.attempts + 1,
         }).eq('id', msg.id);
 
-        // Update instance limits
-        if (limits) {
-          await supabase.from('instance_limits').update({
-            messages_sent_minute: limits.messages_sent_minute + 1,
-            messages_sent_hour: limits.messages_sent_hour + 1,
-            messages_sent_day: limits.messages_sent_day + 1,
-          }).eq('id', limits.id);
-        }
+        // Rate limit counters were already incremented atomically by
+        // check_and_update_rate_limit before send. No manual update here.
 
         // Log
         await supabase.from('messages_log').insert({
