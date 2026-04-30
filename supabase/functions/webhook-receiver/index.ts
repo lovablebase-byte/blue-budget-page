@@ -144,9 +144,34 @@ function normalizeProviderWebhookEvent(body: any, provider: string): NormalizedE
     messageId = data?.Info?.Id || data?.Id || null;
     text = data?.Text || data?.text || null;
 
-    const state = String(data?.state || data?.State || event).toLowerCase();
-    if (["connected", "open"].includes(state)) connectionState = "open";
-    else if (["disconnected", "logout", "closed", "close"].includes(state)) connectionState = "close";
+    // Structured strong-signal extraction for WuzAPI (no broad stringify)
+    const stateRaw = String(data?.state ?? data?.State ?? data?.status ?? data?.Status ?? "").toLowerCase();
+    const loggedIn =
+      data?.LoggedIn === true || data?.loggedIn === true ||
+      data?.IsLogged === true || data?.isLogged === true ||
+      data?.Authenticated === true || data?.authenticated === true ||
+      data?.Ready === true || data?.ready === true;
+    const strongOpenState = ["open", "loggedin", "logged_in", "logged-in", "authenticated", "ready"].includes(stateRaw);
+    const closedState =
+      ["disconnected", "logout", "logged_out", "closed", "close", "offline"].includes(stateRaw) ||
+      data?.LoggedIn === false || data?.loggedIn === false;
+    const hasJid = !!(data?.JID || data?.Jid || data?.jid || data?.wid || data?.WID);
+
+    if (eventType === "connection.qrcode") {
+      connectionState = "connecting";
+    } else if (closedState) {
+      connectionState = "close";
+    } else if (loggedIn || strongOpenState) {
+      connectionState = "open";
+    } else if (
+      stateRaw === "connected" ||
+      data?.Connected === true || data?.connected === true
+    ) {
+      // Weak signal: Connected=true alone (without LoggedIn/JID) -> NOT online
+      connectionState = hasJid ? "open" : "connecting";
+    } else if (["qr", "qrcode", "scan", "pairing", "connecting"].includes(stateRaw)) {
+      connectionState = "connecting";
+    }
   } else if (provider === "wppconnect") {
     if (event === "onmessage" || event === "message-received") eventType = "message.received";
     else if (event === "onack" || event === "ack") eventType = "message.delivered";
