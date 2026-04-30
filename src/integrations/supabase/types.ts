@@ -537,6 +537,110 @@ export type Database = {
           },
         ]
       }
+      customer_webhook_deliveries: {
+        Row: {
+          attempts: number
+          company_id: string
+          created_at: string
+          customer_webhook_id: string
+          delivered_at: string | null
+          event_type: string
+          http_status: number | null
+          id: string
+          instance_id: string | null
+          last_error: string | null
+          next_retry_at: string | null
+          payload: Json
+          status: string
+          updated_at: string
+          webhook_event_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          company_id: string
+          created_at?: string
+          customer_webhook_id: string
+          delivered_at?: string | null
+          event_type: string
+          http_status?: number | null
+          id?: string
+          instance_id?: string | null
+          last_error?: string | null
+          next_retry_at?: string | null
+          payload: Json
+          status?: string
+          updated_at?: string
+          webhook_event_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          company_id?: string
+          created_at?: string
+          customer_webhook_id?: string
+          delivered_at?: string | null
+          event_type?: string
+          http_status?: number | null
+          id?: string
+          instance_id?: string | null
+          last_error?: string | null
+          next_retry_at?: string | null
+          payload?: Json
+          status?: string
+          updated_at?: string
+          webhook_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_webhook_deliveries_customer_webhook_id_fkey"
+            columns: ["customer_webhook_id"]
+            isOneToOne: false
+            referencedRelation: "customer_webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_webhooks: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          enabled: boolean
+          events: string[]
+          id: string
+          instance_id: string | null
+          secret: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          events?: string[]
+          id?: string
+          instance_id?: string | null
+          secret: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          events?: string[]
+          id?: string
+          instance_id?: string | null
+          secret?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       delivery_message_templates: {
         Row: {
           company_id: string
