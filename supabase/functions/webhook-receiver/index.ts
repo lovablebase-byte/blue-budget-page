@@ -436,37 +436,104 @@ serve(async (req) => {
 
     // --- Register Event ---
     const sanitizedBody = redactSensitiveData(body);
-    const { error: insertErr } = await supabase.from("webhook_events").insert({
-      instance_id: instance.id,
-      company_id: instance.company_id,
-      event_type: normalized.eventType,
-      raw_event_type: normalized.rawEventType,
-      provider: provider,
-      direction: normalized.direction || null,
-      message_id: normalized.messageId,
-      from_number: normalized.from,
-      to_number: normalized.to,
-      text_preview: normalized.text ? normalized.text.substring(0, 200) : null,
-      connection_state: normalized.connectionState,
-      payload: {
-        provider,
-        normalized: {
-          remoteJid: normalized.remoteJid,
-          messageId: normalized.messageId,
-          connectionState: normalized.connectionState,
-          text: normalized.text,
-          from: normalized.from,
-          to: normalized.to,
-          qrCode: normalized.qrCode ? "[PRESENT]" : null
+    const { data: insertedEvent, error: insertErr } = await supabase
+      .from("webhook_events")
+      .insert({
+        instance_id: instance.id,
+        company_id: instance.company_id,
+        event_type: normalized.eventType,
+        raw_event_type: normalized.rawEventType,
+        provider: provider,
+        direction: normalized.direction || null,
+        message_id: normalized.messageId,
+        from_number: normalized.from,
+        to_number: normalized.to,
+        text_preview: normalized.text ? normalized.text.substring(0, 200) : null,
+        connection_state: normalized.connectionState,
+        payload: {
+          provider,
+          normalized: {
+            remoteJid: normalized.remoteJid,
+            messageId: normalized.messageId,
+            connectionState: normalized.connectionState,
+            text: normalized.text,
+            from: normalized.from,
+            to: normalized.to,
+            qrCode: normalized.qrCode ? "[PRESENT]" : null
+          },
+          raw: sanitizedBody
         },
-        raw: sanitizedBody
-      },
-      status: "processed",
-      processed: true
-    });
+        status: "processed",
+        processed: true
+      })
+      .select("id")
+      .single();
 
     if (insertErr) {
       console.error("[webhook-receiver] Database insert error", insertErr.message);
+    }
+
+    // --- Enqueue customer outbound webhook deliveries (non-blocking) ---
+    // Map normalized eventType to outbound event names. connection.update is
+    // refined to connection.open/close based on connectionState.
+    let outboundEvent: string | null = null;
+    if (normalized.eventType === "message.received") outboundEvent = "message.received";
+    else if (normalized.eventType === "message.sent") outboundEvent = "message.sent";
+    else if (normalized.eventType === "message.delivered") outboundEvent = "message.delivered";
+    else if (normalized.eventType === "message.read") outboundEvent = "message.read";
+    else if (normalized.eventType === "message.failed") outboundEvent = "message.failed";
+    else if (normalized.eventType === "connection.update") {
+      if (normalized.connectionState === "open") outboundEvent = "connection.open";
+      else if (normalized.connectionState === "close") outboundEvent = "connection.close";
+      else outboundEvent = "connection.update";
+    } else if (normalized.eventType === "provider.error") outboundEvent = "provider.error";
+
+    if (outboundEvent) {
+      // Fire-and-forget: never block the provider webhook on customer delivery enqueue.
+      (async () => {
+        try {
+          const { data: hooks } = await supabase
+            .from("customer_webhooks")
+            .select("id, events, instance_id")
+            .eq("company_id", instance.company_id)
+            .eq("enabled", true);
+
+          const matched = (hooks || []).filter((h: any) => {
+            if (h.instance_id && h.instance_id !== instance.id) return false;
+            const evs: string[] = Array.isArray(h.events) ? h.events : [];
+            return evs.length > 0 && evs.includes(outboundEvent!);
+          });
+
+          if (matched.length === 0) return;
+
+          const outboundPayload = {
+            event: outboundEvent,
+            instance_id: instance.id,
+            provider,
+            direction: normalized.direction,
+            from: normalized.from,
+            to: normalized.to,
+            message_id: normalized.messageId,
+            text: normalized.text,
+            connection_state: normalized.connectionState,
+            timestamp: new Date().toISOString(),
+          };
+
+          const rows = matched.map((h: any) => ({
+            customer_webhook_id: h.id,
+            company_id: instance.company_id,
+            instance_id: instance.id,
+            event_type: outboundEvent!,
+            webhook_event_id: insertedEvent?.id || null,
+            payload: outboundPayload,
+            status: "pending",
+          }));
+
+          await supabase.from("customer_webhook_deliveries").insert(rows);
+        } catch (e: any) {
+          console.error("[webhook-receiver] enqueue customer deliveries failed:", e?.message);
+        }
+      })();
     }
 
     return new Response(JSON.stringify({ success: true, received: true, event: normalized.eventType }), {
