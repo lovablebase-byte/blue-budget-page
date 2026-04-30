@@ -304,7 +304,7 @@ serve(async (req) => {
       });
     }
 
-    // --- Security ---
+    // --- Security (HMAC + secret query fallback, never log secrets) ---
     if (instance.webhook_secret) {
       let authorized = false;
       if (hmacHeader) {
@@ -317,15 +317,24 @@ serve(async (req) => {
           const sigBuf = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
           const sigHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
           const provided = hmacHeader.replace(/^sha256=/i, "").trim().toLowerCase();
-          if (provided === sigHex) authorized = true;
-        } catch (e) {
-          console.warn("[webhook-receiver] HMAC validation error", e.message);
+          // constant-time-ish compare
+          if (provided.length === sigHex.length) {
+            let diff = 0;
+            for (let i = 0; i < sigHex.length; i++) diff |= provided.charCodeAt(i) ^ sigHex.charCodeAt(i);
+            if (diff === 0) authorized = true;
+          }
+        } catch (_e) {
+          console.warn("[webhook-receiver] HMAC validation error");
         }
       }
-      if (!authorized && secret === instance.webhook_secret) authorized = true;
+      if (!authorized && secret && secret === instance.webhook_secret) authorized = true;
 
       if (!authorized) {
-        console.warn("[webhook-receiver] Unauthorized access attempt for instance", instance.id);
+        console.warn("[webhook-receiver] Unauthorized webhook attempt", {
+          instance_id: instance.id,
+          had_hmac: !!hmacHeader,
+          had_query_secret: !!secret,
+        });
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
