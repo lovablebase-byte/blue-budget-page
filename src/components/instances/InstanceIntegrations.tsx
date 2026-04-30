@@ -22,6 +22,7 @@ import {
 import { getDeliveryEndpoint, getLegacyApiSendTextBase, getPublicApiV1Base } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
 import { getProviderEvents } from '@/components/instances/constants';
+import { CustomerWebhooksPanel } from '@/components/instances/CustomerWebhooksPanel';
 
 interface Props {
   instance: {
