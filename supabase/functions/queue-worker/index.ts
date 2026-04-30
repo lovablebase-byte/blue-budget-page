@@ -318,6 +318,52 @@ serve(async (req) => {
       const instanceIndexMap = new Map<string, number>();
       let idxCounter = 0;
 
+      // Per-company commercial cache (subscription + plan)
+      const commercialCache = new Map<string, { ok: boolean; reason?: string; plan?: any }>();
+      async function checkCommercial(companyId: string, providerName: string): Promise<{ ok: boolean; reason?: string }> {
+        let cached = commercialCache.get(companyId);
+        if (!cached) {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('status, expires_at, plan_id')
+            .eq('company_id', companyId)
+            .maybeSingle();
+          if (!sub || !['active', 'trialing'].includes(sub.status)) {
+            cached = { ok: false, reason: 'subscription_inactive' };
+          } else if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
+            cached = { ok: false, reason: 'subscription_expired' };
+          } else {
+            const { data: plan } = await supabase
+              .from('plans')
+              .select('allowed_providers, max_messages_month')
+              .eq('id', sub.plan_id)
+              .maybeSingle();
+            if (!plan) cached = { ok: false, reason: 'plan_not_found' };
+            else cached = { ok: true, plan };
+          }
+          commercialCache.set(companyId, cached);
+        }
+        if (!cached.ok) return cached;
+        const plan = cached.plan;
+        const allowed: string[] | null = plan.allowed_providers;
+        if (!allowed || !Array.isArray(allowed) || allowed.length === 0 || !allowed.includes(providerName)) {
+          return { ok: false, reason: 'provider_not_allowed' };
+        }
+        const maxMonth = Number(plan.max_messages_month || 0);
+        if (maxMonth > 0) {
+          const monthStart = new Date();
+          monthStart.setUTCDate(1);
+          monthStart.setUTCHours(0, 0, 0, 0);
+          const { count } = await supabase
+            .from('messages_log')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', companyId)
+            .gte('created_at', monthStart.toISOString());
+          if ((count || 0) >= maxMonth) return { ok: false, reason: 'monthly_message_limit_reached' };
+        }
+        return { ok: true };
+      }
+
       for (const msg of pending) {
         const instance = (msg as any).instances;
 
