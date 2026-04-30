@@ -719,6 +719,23 @@ serve(async (req) => {
         console.error(`[api-send-text] rate_limit_unavailable instance=${instance.id} err=`, rlError);
         return jsonError("rate_limit_unavailable", "Não foi possível validar o limite de envio no momento.", 503, requestId);
       } else if (rlData && rlData.ok === false) {
+        // Registra evento real de rate limit acionado para métricas admin
+        try {
+          await supabase.from("audit_logs").insert({
+            action: "rate_limit_exceeded",
+            entity_type: "instance",
+            entity_id: instance.id,
+            company_id: instance.company_id,
+            payload: {
+              endpoint: "api-send-text",
+              provider: instance.provider,
+              limit_type: rlData.limit_type ?? null,
+              request_id: requestId,
+            },
+          });
+        } catch (e) {
+          console.error("[api-send-text] failed to log rate_limit_exceeded:", (e as Error)?.message);
+        }
         return jsonError("rate_limit_exceeded", "Limite de envio excedido. Tente novamente em instantes.", 429, requestId);
       }
     }
