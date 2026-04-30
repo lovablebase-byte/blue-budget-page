@@ -159,6 +159,16 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
     toast.success(msg);
   };
 
+  /**
+   * Copy a sensitive value (token, secret, Authorization header).
+   * Always shows an explicit warning toast so the user is aware the clipboard
+   * now holds a credential.
+   */
+  const copySensitive = (text: string, label = 'credencial') => {
+    navigator.clipboard.writeText(text);
+    toast.warning(`${label} copiada para a área de transferência — não compartilhe.`);
+  };
+
   const handleTestWebhook = async () => {
     if (!webhookUrl) { toast.error('Webhook não configurado'); return; }
     setTestingWebhook(true);
