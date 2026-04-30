@@ -19,7 +19,7 @@ import {
   Loader2, Lock, CheckCircle2, XCircle, Code,
   Info, AlertTriangle, Terminal, ShieldCheck
 } from 'lucide-react';
-import { getDeliveryEndpoint } from '@/lib/instance-endpoint';
+import { getDeliveryEndpoint, getLegacyApiSendTextBase, getPublicApiV1Base } from '@/lib/instance-endpoint';
 import { getWebhookEndpoint } from '@/lib/webhook-endpoint';
 import { getProviderEvents } from '@/components/instances/constants';
 
@@ -57,10 +57,32 @@ function FeatureLockedCard({ title, description }: { title: string; description:
   );
 }
 
-function CodeBlock({ code, title, language = "bash" }: { code: string; title?: string, language?: string }) {
-  const copy = () => {
+const TOKEN_PLACEHOLDER = 'TOKEN_DA_INSTANCIA';
+
+function CodeBlock({
+  code,
+  title,
+  realToken,
+  showReal,
+}: {
+  code: string;
+  title?: string;
+  /** When provided + showReal=true, copy will substitute the placeholder by the real token. */
+  realToken?: string;
+  showReal?: boolean;
+}) {
+  const containsPlaceholder = code.includes(TOKEN_PLACEHOLDER);
+
+  const copySafe = () => {
     navigator.clipboard.writeText(code);
-    toast.success('Código copiado!');
+    toast.success('Exemplo copiado (com placeholder).');
+  };
+
+  const copyWithRealToken = () => {
+    if (!realToken) return copySafe();
+    const replaced = code.split(TOKEN_PLACEHOLDER).join(realToken);
+    navigator.clipboard.writeText(replaced);
+    toast.warning('Exemplo copiado COM TOKEN REAL — não compartilhe.');
   };
 
   return (
@@ -68,13 +90,32 @@ function CodeBlock({ code, title, language = "bash" }: { code: string; title?: s
       {title && (
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 bg-muted/50">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">{title}</span>
-          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={copy}>
-            <Copy className="h-3 w-3" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={copySafe}
+              title="Copiar com placeholder"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+            {containsPlaceholder && realToken && showReal && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 text-warning"
+                onClick={copyWithRealToken}
+                title="Copiar com token real"
+              >
+                <ShieldCheck className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
       {!title && (
-        <Button variant="ghost" size="icon" className="absolute right-2 top-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={copy}>
+        <Button variant="ghost" size="icon" className="absolute right-2 top-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={copySafe}>
           <Copy className="h-3 w-3" />
         </Button>
       )}
@@ -102,7 +143,9 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
   const maskedToken = instance.access_token.slice(0, 4) + '••••••••';
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const apiBase = `https://${projectId}.supabase.co/functions/v1/public-api/v1`;
+  const apiBase = getPublicApiV1Base();
+  const legacySendTextBase = getLegacyApiSendTextBase();
+  const usingCustomDomain = !!import.meta.env.VITE_PUBLIC_API_BASE_URL;
   const healthUrl = `${apiBase}/health`;
   const statusUrl = `${apiBase}/instances/status`;
   const sendTextUrl = `${apiBase}/messages/text`;
@@ -114,6 +157,16 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
   const copyToClipboard = (text: string, msg = 'Copiado!') => {
     navigator.clipboard.writeText(text);
     toast.success(msg);
+  };
+
+  /**
+   * Copy a sensitive value (token, secret, Authorization header).
+   * Always shows an explicit warning toast so the user is aware the clipboard
+   * now holds a credential.
+   */
+  const copySensitive = (text: string, label = 'credencial') => {
+    navigator.clipboard.writeText(text);
+    toast.warning(`${label} copiada para a área de transferência — não compartilhe.`);
   };
 
   const handleTestWebhook = async () => {
@@ -271,10 +324,22 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                           readOnly
                           className="font-mono text-xs bg-muted/30 border-border/40 h-10"
                         />
-                        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setShowToken(!showToken)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => setShowToken(!showToken)}
+                          title={showToken ? 'Ocultar token' : 'Revelar token'}
+                        >
                           {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
-                        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => copyToClipboard(instance.access_token)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => copySensitive(instance.access_token, 'Token da instância')}
+                          title="Copiar token (sensível)"
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>
@@ -288,14 +353,48 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <Label className="text-xs font-semibold text-muted-foreground uppercase">Exemplo de Header</Label>
                       <div className="flex gap-2">
                         <Input
-                          value={`Authorization: Bearer ${instance.access_token}`}
+                          value={
+                            showToken
+                              ? `Authorization: Bearer ${instance.access_token}`
+                              : `Authorization: Bearer ${TOKEN_PLACEHOLDER}`
+                          }
                           readOnly
                           className="font-mono text-xs bg-muted/30 border-border/40 h-10"
                         />
-                        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => copyToClipboard(`Authorization: Bearer ${instance.access_token}`)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() =>
+                            copyToClipboard(
+                              `Authorization: Bearer ${TOKEN_PLACEHOLDER}`,
+                              'Header copiado (com placeholder).'
+                            )
+                          }
+                          title="Copiar header com placeholder"
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0 border-warning/40 text-warning"
+                          onClick={() =>
+                            copySensitive(
+                              `Authorization: Bearer ${instance.access_token}`,
+                              'Header Authorization (com token real)'
+                            )
+                          }
+                          title="Copiar header com token real (sensível)"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                        </Button>
                       </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Por padrão os exemplos usam <code className="bg-muted px-1 rounded">{TOKEN_PLACEHOLDER}</code>.
+                        Use o botão <ShieldCheck className="inline h-3 w-3 text-warning" /> para copiar com o token real
+                        (ação explícita).
+                      </p>
                     </div>
                   </div>
                 </TabsContent>
@@ -313,13 +412,31 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                 </TabsContent>
 
                 <TabsContent value="examples" className="mt-0 space-y-6">
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border/40 bg-muted/20">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                      Exemplos exibem <code className="bg-muted px-1 rounded">{TOKEN_PLACEHOLDER}</code> por padrão.
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px]"
+                      onClick={() => setShowToken(!showToken)}
+                    >
+                      {showToken ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                      {showToken ? 'Ocultar token real' : 'Habilitar copiar com token real'}
+                    </Button>
+                  </div>
+
                   <div className="space-y-6">
                     <section className="space-y-3">
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Status da Instância</h4>
                       <CodeBlock
                         title="cURL - GET Status"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X GET "${statusUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}"`}
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}"`}
                       />
                       <CodeBlock
                         title="Resposta Esperada"
@@ -340,8 +457,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Envio de Mensagem de Texto</h4>
                       <CodeBlock
                         title="cURL - JSON Payload"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendTextUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: msg_123" \\
   -d '{
@@ -352,8 +471,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       />
                       <CodeBlock
                         title="cURL - Form Data"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendTextUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -F "to=558796810157" \\
   -F "text=Mensagem via form-data" \\
   -F "external_id=form_123"`}
@@ -366,8 +487,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Envio de Mídia (Imagem)</h4>
                       <CodeBlock
                         title="cURL - POST Image"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendImageUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "558796810157",
@@ -382,8 +505,10 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Envio de Mídia (Documento)</h4>
                       <CodeBlock
                         title="cURL - POST Document"
+                        realToken={instance.access_token}
+                        showReal={showToken}
                         code={`curl -X POST "${sendDocumentUrl}" \\
-  -H "Authorization: Bearer ${instance.access_token}" \\
+  -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "558796810157",
@@ -445,28 +570,55 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Endpoint Legado (api-send-text)</Label>
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Endpoint Legado (api-send-text) <Badge variant="outline" className="ml-1 text-[9px]">compatibilidade</Badge>
+                      </Label>
                       <div className="flex gap-2">
                         <Input
-                          value={`https://${projectId}.supabase.co/functions/v1/api-send-text`}
+                          value={legacySendTextBase}
                           readOnly
                           className="font-mono text-xs bg-muted/20"
                         />
-                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(`https://${projectId}.supabase.co/functions/v1/api-send-text`)}>
+                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(legacySendTextBase)}>
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         Aceita <code className="bg-muted px-1 rounded">phone_number</code> e <code className="bg-muted px-1 rounded">body</code> via POST.
+                        Para novos projetos, prefira a <span className="font-semibold">API Pública v1</span>.
                       </p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL de Callback (Delivery)</Label>
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        URL de Callback (Delivery) — contém token
+                      </Label>
                       <div className="flex gap-2">
-                        <Input value={deliveryEndpoint} readOnly className="font-mono text-xs bg-muted/20 opacity-80" />
-                        <Button variant="outline" size="icon" onClick={() => copyToClipboard(deliveryEndpoint)}>
-                          <Copy className="h-4 w-4" />
+                        <Input
+                          value={
+                            showToken
+                              ? deliveryEndpoint
+                              : deliveryEndpoint.replace(instance.access_token, TOKEN_PLACEHOLDER)
+                          }
+                          readOnly
+                          className="font-mono text-xs bg-muted/20 opacity-80"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setShowToken(!showToken)}
+                          title={showToken ? 'Ocultar token' : 'Revelar token'}
+                        >
+                          {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="border-warning/40 text-warning"
+                          onClick={() => copySensitive(deliveryEndpoint, 'URL de callback (com token)')}
+                          title="Copiar URL com token real (sensível)"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
                         </Button>
                       </div>
                       <p className="text-[11px] text-muted-foreground">Parâmetros via URL: <code className="bg-muted px-1 rounded">?uuid=&access_token=</code>.</p>
@@ -512,7 +664,13 @@ export function InstanceIntegrations({ instance, actionsBlocked, onRefreshEvents
                   <Label className="text-xs font-semibold uppercase text-muted-foreground">Assinatura (Secret)</Label>
                   <div className="flex gap-2">
                     <Input value={`${instance.webhook_secret.slice(0, 6)}••••••••`} readOnly className="font-mono text-xs bg-muted/30 h-9" />
-                    <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => copyToClipboard(instance.webhook_secret!)}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 border-warning/40 text-warning"
+                      onClick={() => copySensitive(instance.webhook_secret!, 'Webhook secret')}
+                      title="Copiar secret (sensível)"
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
