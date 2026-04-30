@@ -2084,6 +2084,7 @@ export type Database = {
       }
       is_company_admin: { Args: { _company_id: string }; Returns: boolean }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
+      is_platform_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       log_audit: {
         Args: {
